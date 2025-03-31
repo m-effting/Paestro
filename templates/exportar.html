@@ -6,7 +6,6 @@
     <title>PAESTRO - Exportar Chamadas</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
     <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="stylesheet" href="/static/css/chamada.css">
     <link rel="stylesheet" href="/static/css/exportar.css">
 </head>
 <body>
@@ -20,36 +19,38 @@
     </header>
     
     <main>
-        <div class="chamada-container">
+        <div class="export-container">
             <h3>Exportar Chamadas</h3>
             
-            <!-- Loading Indicator (NOVO) -->
+            <!-- Loading Indicator -->
             <div id="loading-indicator" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                 <img src="https://i.gifer.com/ZZ5H.gif" width="30" style="vertical-align: middle;">
                 <span style="margin-left: 10px; color: #333;">Processando...</span>
             </div>
 
-            <div class="exportar-container">
-                <div class="exportar-drive-container">
-                    <h4>Salvar no Google Drive</h4>
-                    <div class="form-group">
-                        <!-- Lista de Pastas (ATUALIZADO) -->
-                        <select id="pasta-drive" class="presenca-select" style="width: 100%; margin-bottom: 15px;">
-                            <option value="">Carregando pastas...</option>
-                        </select>
-                    </div>
+            <div class="export-options">
+                <h4 class="section-title">Salvar chamada no Google Drive</h4>
+                <div class="form-group">
+                    <select id="pasta-drive" class="presenca-select">
+                        <option value="">Selecione uma pasta</option>
+                    </select>
+                </div>
+                
+                <div class="buttons-container">
                     <button id="salvar-drive-btn" class="btn-action">
-                        <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <svg class="btn-icon" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M10,9V5L3,12L10,19V14.9C15,14.9 18.5,16.5 21,20C20,15 17,10 10,9Z"/>
                         </svg>
                         Salvar no Drive
                     </button>
                 </div>
                 
-                <div class="exportar-local-container">
-                    <h4>Baixar chamada no dispositivo</h4>
+                <div class="export-divider">ou</div>
+                
+                <h4 class="section-title">Baixar chamada no dispositivo</h4>
+                <div class="buttons-container">
                     <button id="baixar-excel-btn" class="btn-action">
-                        <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <svg class="btn-icon" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
                         </svg>
                         Baixar Excel
