@@ -176,21 +176,59 @@ document.addEventListener('DOMContentLoaded', async function() {
                     option.value = turma;
                     option.textContent = turma;
                     
-                    // Mostra como turma disponível, mesmo que não tenha chamadas salvas
-                    if (data.saved_classes.includes(turma)) {
+                    // Verifica se a turma está salva localmente ou no servidor
+                    if (savedClasses.has(turma) || data.saved_classes.includes(turma)) {
                         option.classList.add('turma-salva');
+                        savedClasses.add(turma); // Garante sincronização
                     }
                     
                     turmaSelect.appendChild(option);
                 });
                 
-                alunosTable.innerHTML = ''; // Limpa a tabela
+                alunosTable.innerHTML = '';
             }
         } catch (error) {
             console.error('Erro ao carregar turmas:', error);
             showError('Falha ao carregar turmas');
         }
     }
+    
+    async function sincronizarEstadoCompleto() {
+        try {
+            const [schoolsRes, savedRes] = await Promise.all([
+                fetch('/api/get_schools'),
+                fetch('/api/get_saved_classes')
+            ]);
+            
+            const schoolsData = await schoolsRes.json();
+            const savedData = await savedRes.json();
+            
+            if (schoolsData.success && savedData.success) {
+                // Atualiza lista de escolas
+                escolaSelect.innerHTML = '<option value="">Selecione uma escola</option>';
+                schoolsData.schools.forEach(escola => {
+                    const option = document.createElement('option');
+                    option.value = escola;
+                    option.textContent = escola;
+                    escolaSelect.appendChild(option);
+                });
+                
+                // Atualiza turmas salvas
+                savedClasses = new Set(savedData.saved_classes);
+                atualizarTurmasSalvas();
+                
+                // Restaura seleção anterior se existir
+                const escolaSalva = sessionStorage.getItem('escola_selecionada');
+                if (escolaSalva && schoolsData.schools.includes(escolaSalva)) {
+                    escolaSelect.value = escolaSalva;
+                    await carregarTurmas(escolaSalva);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao sincronizar estado:', error);
+        }
+    }
+    
 
     async function sincronizarTurmasSalvas() {
         try {
@@ -478,7 +516,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         exportarChamadaBtn.addEventListener('click', () => {
             window.location.href = '/exportar';
         });
-        exportarExcelBtn.addEventListener('click', exportarParaExcel);
         limparTurmasBtn.addEventListener('click', limparTurmas);
         // Verifica turmas salvas quando a página ganha foco (quando o usuário volta)
     window.addEventListener('focus', async () => {

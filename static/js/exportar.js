@@ -1,4 +1,3 @@
-// exportar.js atualizado
 const DOM = {
     elements: {},
     init: function() {
@@ -122,9 +121,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupEventListeners() {
         salvarDriveBtn.addEventListener('click', salvarNoDrive);
+        
         baixarExcelBtn.addEventListener('click', () => {
-            const escola = sessionStorage.getItem('escola_selecionada') || '';
-            window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
+            const escola = sessionStorage.getItem('escola_selecionada');
+            if (!escola) {
+                showError('Nenhuma escola selecionada. Volte à página de chamada e selecione uma escola primeiro.');
+                return;
+            }
+            
+            if (confirm('Deseja limpar as turmas salvas após exportar?')) {
+                window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
+            } else {
+                window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;
+            }
         });
+
+        // Verificar periodicamente se há turmas salvas
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/get_saved_classes_status');
+                const data = await response.json();
+                if (data.success && data.saved_classes.length === 0) {
+                    baixarExcelBtn.disabled = true;
+                } else {
+                    baixarExcelBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Erro ao verificar turmas:', error);
+            }
+        }, 3000);
     }
 });

@@ -3,6 +3,7 @@ from openpyxl.styles import Font, Alignment
 import io
 from datetime import datetime
 import re
+import unicodedata
 
 def export_to_excel(classes, attendance_status, observations, html_content=None, current_user=None, periodo=None, escola_nome=None):
     wb = Workbook()
@@ -11,9 +12,9 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
 
     # Cabeçalho com informações gerais
     header_rows = [
-        ("UNIDADE:", (escola_nome or "NÃO INFORMADO").upper()),
-        ("RESPONSÁVEIS:", (current_user or "NÃO INFORMADO").upper()),
-        ("PERÍODO:", (periodo or "NÃO INFORMADO").upper()),
+        ("UNIDADE:", escola_nome.upper() if escola_nome else "NÃO INFORMADO"),
+        ("RESPONSÁVEIS:", current_user.upper() if current_user else "NÃO INFORMADO"),
+        ("PERÍODO:", periodo.upper() if periodo else "NÃO INFORMADO"),
         ("DATA E HORA:", datetime.now().strftime('%d/%m/%Y %H:%M'))
     ]
 
@@ -31,9 +32,10 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
         ws[f"A{current_row}"].font = Font(italic=True)
     else:
         for turma, alunos in classes.items():
-            # Cabeçalho da turma
+            # Cabeçalho da turma (agora sem o nome da unidade entre parênteses)
+            turma_display = turma.split('(')[0].strip() if '(' in turma else turma
             ws.merge_cells(f"A{current_row}:D{current_row}")
-            ws[f"A{current_row}"] = f"TURMA: {turma.upper()}"
+            ws[f"A{current_row}"] = f"TURMA: {turma_display.upper()}"
             ws[f"A{current_row}"].font = Font(bold=True, size=12)
             current_row += 1
 
@@ -58,36 +60,52 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
     ws.column_dimensions["B"].width = 15
     ws.column_dimensions["C"].width = 40
 
+    # Centralizar verticalmente e alinhar à esquerda todas as células
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(vertical='center', horizontal='left')
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
     return output
 
 def get_excel_filename(escola_nome=None, periodo=None, current_user=None):
-    data = datetime.now().strftime('%d-%m-%Y')
+    """
+    Gera o nome do arquivo no formato: NOME_DA_UNIDADE_DIA-MÊS-ANO_PERIODO_NOME_DA_DUPLA.xlsx
+
+    """
     
-    # Formata o nome da escola (remove caracteres especiais e converte para maiúsculas)
-    if escola_nome:
-        # Remove caracteres não alfanuméricos exceto espaços e underscores
-        nome_escola = re.sub(r'[^\w\s-]', '', escola_nome).strip()
-        # Substitui espaços por underscores e converte para maiúsculas
-        nome_escola = nome_escola.replace(' ', '_').upper()
-    else:
-        nome_escola = "ESCOLA_INDEFINIDA"
+    def sanitize(text, remove_hyphens=False):
+        if not text or not isinstance(text, str):
+            return ""
+        
+        # Remove símbolos específicos
+        symbols_to_remove = ['º', 'ª', '°', '¨', '´', '`', '^', '~']
+        for symbol in symbols_to_remove:
+            text = text.replace(symbol, '')
+        
+        # Normaliza caracteres unicode (remove acentos)
+        text = unicodedata.normalize('NFKD', text)
+        text = ''.join([c for c in text if not unicodedata.combining(c)])
+        
+        # Padrão de caracteres permitidos
+        pattern = r'[^\w\s]' if remove_hyphens else r'[^\w\s-]'
+        text = re.sub(pattern, '', text)
+        
+        # Substitui todos os separadores por _
+        text = re.sub(r'[\s\-\.]+', '_', text.strip())
+        text = re.sub(r'_+', '_', text)
+        text = text.strip('_')
+        
+        return text.upper()
+
+    components = [
+        sanitize(escola_nome, remove_hyphens=True) or "UNIDADE_NAO_INFORMADA",
+        datetime.now().strftime('%d-%m-%Y'),  # Mantém hífens na data
+        sanitize(periodo) or "PERIODO_NAO_INFORMADO",
+        sanitize(current_user) or "DUPLA_NAO_INFORMADA"
+    ]
     
-    # Formata o nome da dupla
-    if current_user:
-        # Remove caracteres não alfanuméricos exceto espaços e underscores
-        nome_dupla = re.sub(r'[^\w\s-]', '', current_user).strip()
-        # Substitui espaços por underscores e converte para maiúsculas
-        nome_dupla = nome_dupla.replace(' ', '_').upper()
-    else:
-        nome_dupla = "DUPLA_INDEFINIDA"
-    
-    # Formata o período
-    if periodo:
-        periodo_formatado = periodo.upper()
-    else:
-        periodo_formatado = "PERIODO_INDEFINIDO"
-    
-    return f"{nome_escola}_{data}_{nome_dupla}_{periodo_formatado}.XLSX"
+    filename = "_".join(filter(None, components)) + ".xlsx"
+    return filename[:100]

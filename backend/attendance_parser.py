@@ -1,49 +1,104 @@
 from lxml import html
 import re
+import os
 
-def parse_html_content(html_content):
+
+def parse_html_content(html_content, filename=None):
     """
-    Processa cada tabela com classe "jrPage" para extrair turmas e alunos.
+    Extrai turmas, alunos e nome da unidade de relatórios HTML escolares.
     
-    Para cada tabela:
-      1. Procura o primeiro <tr> que contenha "Turma:" (ignorando linhas com "Total de Matrículas")
-         e extrai o nome da turma considerando tudo que vem depois de "Turma:" até o primeiro ")".
-      2. Percorre as linhas seguintes da mesma tabela para localizar a linha de cabeçalho que contenha "Código" e "Nome".
-      3. Determina o índice da coluna "Nome" nessa linha de cabeçalho.
-      4. A partir da linha imediatamente após o cabeçalho, extrai os nomes dos alunos (usando a célula da coluna "Nome")
-         até encontrar uma linha que contenha "Total de Matrículas" ou "Turma:".
-      5. Se a turma continuar em outra tabela (sem um novo marcador "Turma:"), continua a extração de alunos.
-         
-    Retorna:
-      dict: Chave = nome da turma, Valor = lista de nomes de alunos.
+    Fluxo principal:
+    1. Pré-processa HTML e verifica validade
+    2. Extrai nome da unidade (3 tentativas em ordem):
+       - Tags comuns (título, cabeçalhos)
+       - Linha da turma (suporta parênteses não fechados)
+       - Nome do arquivo (fallback)
+    3. Processa tabelas para extrair:
+       - Nomes das turmas (formato "X ANO - Y")
+       - Listas de alunos por turma
+    4. Padroniza nome da unidade (remove caracteres inválidos, espaços extras)
+
+    Args:
+        html_content: String com conteúdo HTML
+        filename: Nome do arquivo de origem (opcional)
+
+    Returns:
+        (dict, str): 
+        - Dicionário {turma: [alunos]}
+        - Nome formatado da unidade escolar
     """
-    tree = html.fromstring(html_content)
+    
+    # Verificação inicial do input
+    if not html_content or not isinstance(html_content, (str, bytes)):
+        return {}, os.path.splitext(filename)[0] if filename else "Unidade não identificada"
+
+    try:
+        tree = html.fromstring(html_content)
+    except Exception as e:
+        return {}, os.path.splitext(filename)[0] if filename else "Unidade não identificada"
+
     classes = {}
     current_turma = None
+    unidade_name = None
     
+    # Expressão regular melhorada para capturar nomes com parênteses não fechados
+    TURMA_REGEX = re.compile(
+        r'Turma:\s*([^-]+-\s*\d+)\s*(?:\(([^)\n]+)|$)',  # Captura até parêntese fechado ou fim da linha
+        re.UNICODE
+    )
+    
+    # 1. Primeira tentativa: Extrai de tags comuns (título, cabeçalhos)
+    possible_name_locations = [
+        tree.xpath("//title/text()"),
+        tree.xpath("//h1/text()"),
+        tree.xpath("//h2/text()"),
+        tree.xpath("//div[contains(@class, 'header')]//text()"),
+        tree.xpath("//span[contains(@class, 'school-name')]//text()")
+    ]
+
+    for location in possible_name_locations:
+        if location and not unidade_name:
+            text = ' '.join([t.strip() for t in location if t.strip()])
+            if text and "Turma:" not in text and "Total" not in text:
+                # Remove hífens no final e limpa espaços
+                unidade_name = re.sub(r'-\s*$', '', text.split('-')[0] if '-' in text else text).strip()
+                break
+
     tables = tree.xpath("//table[contains(@class, 'jrPage')]")
     
     for table in tables:
         rows = table.xpath(".//tr")
         turma_row = None
         
+        # Procura pela linha que contém a turma
         for row in rows:
-            row_text = row.text_content().strip()
+            row_text = ' '.join(row.itertext()).strip()
             if "Turma:" in row_text and "Total de Matrículas" not in row_text:
                 turma_row = row
                 break
         
-        if turma_row:
-            turma_text = turma_row.text_content().strip()
-            match = re.search(r'Turma:\s*(.+?\))', turma_text)
+        if turma_row is not None:
+            turma_text = ' '.join(turma_row.itertext()).strip()
+            match = TURMA_REGEX.search(turma_text)
+            
             if match:
                 current_turma = match.group(1).strip()
+                
+                # 2. Segunda tentativa: Extrai nome da unidade dos parênteses (mesmo não fechados)
+                if match.group(2):
+                    unidade_candidate = match.group(2).strip()
+                    # Remove hífens no final e limpa espaços
+                    unidade_candidate = re.sub(r'-\s*$', '', unidade_candidate).strip()
+                    if unidade_candidate and not unidade_name:
+                        unidade_name = unidade_candidate
+                
                 if current_turma not in classes:
                     classes[current_turma] = []
         
         if not current_turma:
             continue
         
+        # Processamento dos alunos...
         header_row = None
         header_index = None
         for idx, row in enumerate(rows):
@@ -52,6 +107,7 @@ def parse_html_content(html_content):
                 header_row = row
                 header_index = idx
                 break
+        
         if header_row is None or header_index is None:
             continue
         
@@ -61,6 +117,7 @@ def parse_html_content(html_content):
             if "Nome" in cell.text_content():
                 nome_index = i
                 break
+        
         if nome_index is None:
             continue
         
@@ -77,4 +134,16 @@ def parse_html_content(html_content):
         
         classes[current_turma].extend(students)
     
-    return classes
+    # 3. Fallback: Usa nome do arquivo (sem extensão) se não encontrou no HTML
+    if not unidade_name and filename:
+        unidade_name = os.path.splitext(filename)[0]
+    
+    # Garante que temos um nome válido
+    if not unidade_name:
+        unidade_name = "Unidade não identificada"
+    else:
+        # Limpeza final do nome (remove apenas caracteres problemáticos para arquivos)
+        unidade_name = re.sub(r'[\\/*?:"<>|]', '', unidade_name).strip()
+        unidade_name = ' '.join(unidade_name.split())
+
+    return classes, unidade_name
