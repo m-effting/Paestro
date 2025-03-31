@@ -248,6 +248,41 @@ button:disabled {
     width: 100%;
 }
 
+/* Estilo para mensagens de confirmação */
+.confirm-dialog {
+    font-family: 'Inter', sans-serif;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    background-color: white;
+    box-shadow: var(--box-shadow);
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.confirm-dialog p {
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.confirm-dialog button {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 500;
+    margin-right: 0.5rem;
+    border: none;
+}
+
+.confirm-dialog .confirm-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.confirm-dialog .cancel-btn {
+    background-color: #f0f0f0;
+    color: var(--dark-color);
+}
+
 @media (max-width: 768px) {
     .chamada-container {
         padding: 1.5rem;

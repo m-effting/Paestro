@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            if (confirm('Deseja limpar as turmas salvas após exportar?')) {
+            if (confirm('As turmas salvas serão limpas após exportar.')) {
                 window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
             } else {
                 window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;

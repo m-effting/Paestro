@@ -66,6 +66,23 @@ document.addEventListener('DOMContentLoaded', async function() {
         setupEventListeners();
     }
 
+    // Funções de mensagem
+function showError(mensagem) {
+    alert('Erro: ' + mensagem);
+}
+
+function showSuccess(mensagem) {
+    alert('Sucesso: ' + mensagem);
+}
+
+// Função para mostrar confirmação (retorna Promise)
+function showConfirm(mensagem) {
+    return new Promise((resolve) => {
+        const confirmed = confirm(mensagem);
+        resolve(confirmed);
+    });
+}
+
     // Atualiza a data atual
     function updateCurrentDate() {
         const hoje = new Date();
@@ -461,7 +478,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             showError('Falha ao comunicar com o servidor');
         }
     }
-
+    
     // Coleta dados dos alunos da tabela
     function coletarDadosAlunos() {
         const alunosData = [];
@@ -485,39 +502,52 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 
     // Exporta para Excel
-    function exportarParaExcel() {
+    async function exportarParaExcel() {
         const escola = escolaSelect.value;
         if (!escola) {
             showError('Selecione uma escola antes de exportar');
             return;
         }
-        window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;
-    }
-
-    // Mostra mensagem de erro
-    function showError(mensagem) {
-        alert(mensagem);
-    }
-
-    // Mostra mensagem de sucesso
-    function showSuccess(mensagem) {
-        alert(mensagem);
+    
+        // Verifica se há turmas salvas
+        if (savedClasses.size === 0) {
+            showError('Nenhuma chamada foi salva ainda. Por favor, salve pelo menos uma chamada antes de exportar.');
+            return;
+        }
+    
+        // Verifica se todas as turmas da escola foram salvas
+        const turmasDaEscola = Array.from(turmaSelect.options)
+            .map(opt => opt.value)
+            .filter(val => val);
+    
+        const turmasNaoSalvas = turmasDaEscola.filter(t => !savedClasses.has(t));
+    
+        if (turmasNaoSalvas.length > 0) {
+            const confirmacao = await showConfirm(
+                `Atenção: Você tem ${turmasNaoSalvas.length} turma(s) não salva(s) nesta escola.\nDeseja continuar?` 
+            );
+            
+            if (!confirmacao) {
+                return; // Usuário escolheu não continuar
+            }
+        }
+    
+        // Redireciona para a página de exportação 
+        window.location.href = `/exportar?escola=${encodeURIComponent(escola)}`;
     }
 
     // Configura os event listeners
-    function setupEventListeners() {
-        escolaSelect.addEventListener('change', () => {
-            sessionStorage.setItem('escola_selecionada', escolaSelect.value);
-            carregarTurmas(escolaSelect.value);
-        });
-        turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
-        addAlunoBtn.addEventListener('click', adicionarAluno);
-        salvarChamadaBtn.addEventListener('click', salvarChamada);
-        exportarChamadaBtn.addEventListener('click', () => {
-            window.location.href = '/exportar';
-        });
-        limparTurmasBtn.addEventListener('click', limparTurmas);
-        // Verifica turmas salvas quando a página ganha foco (quando o usuário volta)
+function setupEventListeners() {
+    escolaSelect.addEventListener('change', () => {
+        sessionStorage.setItem('escola_selecionada', escolaSelect.value);
+        carregarTurmas(escolaSelect.value);
+    });
+    turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
+    addAlunoBtn.addEventListener('click', adicionarAluno);
+    salvarChamadaBtn.addEventListener('click', salvarChamada);
+    exportarChamadaBtn.addEventListener('click', exportarParaExcel);
+    
+    // Verifica turmas salvas quando a página ganha foco
     window.addEventListener('focus', async () => {
         await sincronizarTurmasSalvas();
     });

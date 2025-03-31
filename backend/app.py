@@ -407,7 +407,9 @@ def clear_saved_classes():
 
 @app.route('/exportar')
 def export_page():
+    escola = request.args.get('escola', '')  
     return render_template('exportar.html',
+                         escola=escola,  
                          current_user=app_data['current_user'],
                          current_date=datetime.now().strftime('%d/%m/%Y'))
 
