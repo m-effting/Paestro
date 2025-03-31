@@ -7,10 +7,8 @@ import pickle
 from attendance_parser import parse_html_content
 from excel_exporter import export_to_excel, get_excel_filename
 
-# Módulos para Google Drive
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+# Módulos para Google Drive utilizando Service Account
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
@@ -37,6 +35,17 @@ app_data = {
 # ============================================================
 # SEÇÃO ADICIONADA PARA GOOGLE DRIVE (INÍCIO)
 # ============================================================
+# Utilizando Service Account (credenciais não interativas)
+
+SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
+DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
+
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=DRIVE_SCOPES
+)
+
+drive_service = build("drive", "v3", credentials=credentials)
+
 FOLDER_MAP = {
     "ASSOCIAÇÃO JOÃO PAULO II": "1lceON-33pkAk-AN_K0a1-9-yXvk9uwqR",
     "CAIC - PROF FEBRONIO TANCREDO DE OLIVEIRA": "1CBew0EaMYRk1BD1yXwD2zeFgouj19Uv4",
@@ -117,28 +126,7 @@ FOLDER_MAP = {
     "GE TEREZINHA MARIA ESPÍNDOLA MARTINS": "1qOpWETmx8J0Q3R6QCfbKmTWGDpDfyCCB"
 }
 
-DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
-TOKEN_FILE = "token.pickle"
-
-def get_drive_service():
-    creds = None
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, "rb") as token:
-            creds = pickle.load(token)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            creds = InstalledAppFlow.from_client_secrets_file(
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json"),
-                DRIVE_SCOPES
-            ).run_local_server(host='localhost', port=5000)
-
-    return build("drive", "v3", credentials=creds)
-
 def upload_excel_to_drive(excel_data, file_name, folder_id=None):
-    service = get_drive_service()
     file_metadata = {'name': file_name}
     if folder_id:
         file_metadata['parents'] = [folder_id]
@@ -149,7 +137,7 @@ def upload_excel_to_drive(excel_data, file_name, folder_id=None):
         resumable=True
     )
 
-    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
     return file.get('id')
 # ============================================================
 # SEÇÃO ADICIONADA PARA GOOGLE DRIVE (FIM)
