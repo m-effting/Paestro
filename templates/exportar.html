@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paestro - Exportar Chamadas</title>
+    <title>PAESTRO - Exportar Chamadas</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/chamada.css">
@@ -11,7 +11,7 @@
 </head>
 <body>
     <header>
-        <h1>Paestro</h1>
+        <h1>PAESTRO</h1>
         <h2>Registro de Frequência</h2>
         <div class="header-info">
             <span id="data-atual"></span>
@@ -33,13 +33,12 @@
                 <div class="exportar-drive-container">
                     <h4>Salvar no Google Drive</h4>
                     <div class="form-group">
-                        <label for="pasta-drive">Selecione a pasta da unidade:</label>
                         <!-- Lista de Pastas (ATUALIZADO) -->
                         <select id="pasta-drive" class="presenca-select" style="width: 100%; margin-bottom: 15px;">
                             <option value="">Carregando pastas...</option>
                         </select>
                     </div>
-                    <button id="salvar-drive-btn" class="btn-action" style="width: 100%;">
+                    <button id="salvar-drive-btn" class="btn-action">
                         <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
                             <path fill="currentColor" d="M10,9V5L3,12L10,19V14.9C15,14.9 18.5,16.5 21,20C20,15 17,10 10,9Z"/>
                         </svg>
@@ -49,11 +48,11 @@
                 
                 <div class="exportar-local-container">
                     <h4>Baixar chamada no dispositivo</h4>
-                    <button id="baixar-excel-btn" class="btn-action" style="width: 100%;">
+                    <button id="baixar-excel-btn" class="btn-action">
                         <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
                             <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
                         </svg>
-                        Baixar
+                        Baixar Excel
                     </button>
                 </div>
             </div>

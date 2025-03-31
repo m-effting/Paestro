@@ -44,7 +44,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: var(--border-radius);
+    border-radius: 20px; /* Botões bem arredondados */
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
@@ -56,25 +56,15 @@
 
 /* Botão Adicionar Aluno */
 #add-aluno-btn {
-    background-color: #2e8b57;
+    background-color: #4285F4;
     color: white;
 }
 
 #add-aluno-btn:hover {
-    background-color: #3cb371;
+    background-color: #3367D6;
     transform: translateY(-1px);
 }
 
-/* Botão Limpar Turmas */
-#limpar-turmas-btn {
-    background-color: #dc3545;
-    color: white;
-}
-
-#limpar-turmas-btn:hover {
-    background-color: #c82333;
-    transform: translateY(-1px);
-}
 
 /* Botão Salvar Chamada */
 #salvar-chamada-btn {
@@ -87,31 +77,17 @@
     transform: translateY(-1px);
 }
 
-/* Botão Exportar Excel */
-#exportar-excel-btn {
+/* Botão Exportar Chamadas */
+#exportar-chamada-btn {
     background-color: #2e8b57;
     color: white;
-    border: none;
-    position: relative;
-    padding-left: 2.5rem;
 }
 
-#exportar-excel-btn:hover {
+#exportar-chamada-btn:hover {
     background-color: #3cb371;
+    transform: translateY(-1px);
 }
 
-#exportar-excel-btn::before {
-    content: "";
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1rem;
-    height: 1rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23ffffff' d='M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm60.1 106.5L224 336l60.1 93.5c5.1 8-.6 18.5-10.1 18.5h-34.9c-4.4 0-8.5-2.4-10.6-6.3C208.9 405.5 192 373 192 373c-6.4 14.8-10 20-36.6 68.8-2.1 3.9-6.1 6.3-10.5 6.3H110c-9.5 0-15.2-10.5-10.1-18.5l60.3-93.5-60.3-93.5c-5.2-8 .6-18.5 10.1-18.5h34.8c4.4 0 8.5 2.4 10.6 6.3 26.1 48.8 20 38.2 36.6 68.8 6.4 14.8 10 20 36.6 68.8 2.1 3.9 6.1 6.3 10.5 6.3h34.9c9.5 0 15.2-10.5 10.1-18.5zM384 121.9v6.1H256V0h6.1c6.4 0 12.5 2.5 17 7l97.9 98c4.5 4.5 7 10.6 7 16.9z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-}
 
 .actions {
     display: flex;
@@ -125,7 +101,7 @@
     width: 100%;
     padding: 0.65rem;
     border: 1px solid #e0e0e0;
-    border-radius: var(--border-radius);
+    border-radius: 12px;
     background-color: white;
     font-size: 0.9rem;
 }
@@ -134,7 +110,7 @@
     width: 100%;
     padding: 0.75rem;
     border: 1px solid #e0e0e0;
-    border-radius: var(--border-radius);
+    border-radius: 12px;
     background-color: white;
 }
 
@@ -155,6 +131,8 @@
 .btn-icon {
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
+    margin-right: 4px;
 }
 
 /* Botões de presença */
@@ -226,7 +204,6 @@ select {
     background-size: 1rem;
 }
 
-/* Adicione no chamada.css */
 button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -255,32 +232,21 @@ button:disabled {
     to { transform: translateY(-50%) rotate(360deg); }
 }
 
-/* Botão Exportar Chamadas */
-#exportar-chamada-btn {
-    background-color: #2e8b57;
-    color: white;
-    position: relative;
-    padding-left: 2.5rem;
+
+
+
+.btn-action {
+    width: 180px; 
+    min-width: 180px;
+    max-width: 180px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; 
 }
 
-#exportar-chamada-btn:hover {
-    background-color: #3cb371;
-    transform: translateY(-1px);
+.filtros .form-group {
+    width: 100%;
 }
-
-#exportar-chamada-btn::before {
-    content: "";
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1rem;
-    height: 1rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-}
-
 
 @media (max-width: 768px) {
     .chamada-container {
@@ -293,12 +259,12 @@ button:disabled {
     }
     
     .filter-buttons {
-        flex-direction: row; /* Mantém lado a lado no mobile */
+        flex-direction: row; 
         justify-content: space-between;
     }
     
     .btn-action {
-        width: 180px; /* Largura fixa mesmo no mobile */
+        width: 180px; 
         min-width: 180px;
         max-width: 180px;
     }

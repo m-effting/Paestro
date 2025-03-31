@@ -31,6 +31,7 @@
     background-color: #4285F4;
     color: white;
     margin-top: 1rem;
+    border-radius: 20px; /* Botões bem arredondados */
 }
 
 #salvar-drive-btn:hover {
@@ -42,6 +43,7 @@
 #baixar-excel-btn {
     background-color: #2e8b57;
     color: white;
+    border-radius: 20px; /* Botões bem arredondados */
 }
 
 #baixar-excel-btn:hover {
