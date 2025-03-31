@@ -5,9 +5,13 @@ const DOM = {
             salvarDriveBtn: document.getElementById('salvar-drive-btn'),
             baixarExcelBtn: document.getElementById('baixar-excel-btn'),
             pastaDriveSelect: document.getElementById('pasta-drive'),
+            customSelectInput: document.querySelector('.custom-select-input'),
+            customSelectDropdown: document.querySelector('.custom-select-dropdown'),
+            customSelectClear: document.querySelector('.custom-select-clear'),
+            customSelectArrow: document.querySelector('.custom-select-arrow'),
             dataAtualElement: document.getElementById('data-atual'),
             nomeUsuarioElement: document.getElementById('nome-usuario'),
-            loadingIndicator: document.getElementById('loading-indicator') // Adicione este elemento no HTML
+            loadingIndicator: document.getElementById('loading-indicator')
         };
         return this.elements;
     }
@@ -18,15 +22,21 @@ document.addEventListener('DOMContentLoaded', function() {
         salvarDriveBtn,
         baixarExcelBtn,
         pastaDriveSelect,
+        customSelectInput,
+        customSelectDropdown,
+        customSelectClear,
+        customSelectArrow,
         dataAtualElement,
         nomeUsuarioElement,
         loadingIndicator
     } = DOM.init();
 
+    let folders = []; // Store the folder list for filtering
+
     // Inicialização
     updateCurrentDate();
     loadCurrentUser();
-    loadDriveFolders(); // Carrega as pastas ao iniciar
+    loadDriveFolders();
     setupEventListeners();
 
     // ============== [FUNÇÕES PRINCIPAIS] ==============
@@ -37,8 +47,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                pastaDriveSelect.innerHTML = '<option value="">Selecione uma pasta</option>';
-                data.folders.forEach(folder => {
+                folders = data.folders; // Store folders for filtering
+                populateDropdown(folders); // Populate the dropdown initially
+                // Populate the hidden select for form submission
+                pastaDriveSelect.innerHTML = '';
+                folders.forEach(folder => {
                     const option = new Option(folder.name, folder.id);
                     pastaDriveSelect.add(option);
                 });
@@ -50,6 +63,27 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             hideLoading();
         }
+    }
+
+    function populateDropdown(folderList) {
+        customSelectDropdown.innerHTML = '';
+        folderList.forEach(folder => {
+            const option = document.createElement('div');
+            option.classList.add('custom-select-option');
+            option.textContent = folder.name;
+            option.dataset.value = folder.id;
+            option.addEventListener('click', () => {
+                selectOption(folder);
+            });
+            customSelectDropdown.appendChild(option);
+        });
+    }
+
+    function selectOption(folder) {
+        customSelectInput.value = folder.name;
+        pastaDriveSelect.value = folder.id; // Update the hidden select
+        customSelectDropdown.style.display = 'none';
+        customSelectClear.style.display = 'inline-block';
     }
 
     async function salvarNoDrive() {
@@ -133,6 +167,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
             } else {
                 window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;
+            }
+        });
+
+        // Custom select input event listeners
+        customSelectInput.addEventListener('input', () => {
+            const searchTerm = customSelectInput.value.toLowerCase();
+            const filteredFolders = folders.filter(folder => 
+                folder.name.toLowerCase().includes(searchTerm)
+            );
+            populateDropdown(filteredFolders);
+            customSelectDropdown.style.display = 'block';
+        });
+
+        customSelectInput.addEventListener('focus', () => {
+            customSelectDropdown.style.display = 'block';
+            populateDropdown(folders);
+        });
+
+        customSelectInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                customSelectDropdown.style.display = 'none';
+            }, 200);
+        });
+
+        customSelectClear.addEventListener('click', () => {
+            customSelectInput.value = '';
+            pastaDriveSelect.value = '';
+            customSelectClear.style.display = 'none';
+            populateDropdown(folders);
+        });
+
+        customSelectArrow.addEventListener('click', () => {
+            customSelectDropdown.style.display = 
+                customSelectDropdown.style.display === 'block' ? 'none' : 'block';
+            if (customSelectDropdown.style.display === 'block') {
+                populateDropdown(folders);
+                customSelectInput.focus();
             }
         });
 

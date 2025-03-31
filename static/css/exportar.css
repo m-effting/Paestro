@@ -96,15 +96,102 @@
 
 .form-group {
     margin-bottom: 1.5rem;
+    width: 100%;
 }
 
-.presenca-select {
+/* Custom Select Styles */
+.custom-select-wrapper {
+    position: relative;
     width: 100%;
-    padding: 0.75rem;
+}
+
+.custom-select {
+    position: relative;
+    width: 100%;
+    height: 48px;
     border: 1px solid #ced4da;
     border-radius: var(--border-radius);
+    background: white;
+    display: flex;
+    align-items: center;
+    padding-left: 40px; /* Space for the magnifying glass icon */
+    box-sizing: border-box;
+}
+
+.custom-select::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gray"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-1.42 1.42l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C11.67 14 14 11.67 14 9.5S11.67 5 9.5 5 5 7.33 5 9.5 7.33 14 9.5 14z"/></svg>');
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.custom-select-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
     font-size: 1rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    padding: 0 40px 0 0; /* Space for the clear and arrow icons */
+    box-sizing: border-box;
+    background: transparent;
+    line-height: 46px; /* Aligns text vertically */
+}
+
+.custom-select-input::placeholder {
+    color: #adb5bd;
+}
+
+.custom-select-clear {
+    position: absolute;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+.custom-select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.custom-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ced4da;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.custom-select-option {
+    padding: 0.75rem;
+    cursor: pointer;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.custom-select-option:hover {
+    background-color: #f8f9fa;
 }
 
 @media (max-width: 600px) {

@@ -31,9 +31,17 @@
             <div class="export-options">
                 <h4 class="section-title">Salvar chamada no Google Drive</h4>
                 <div class="form-group">
-                    <select id="pasta-drive" class="presenca-select">
-                        <option value="">Selecione uma pasta</option>
-                    </select>
+                    <!-- Custom select-like component -->
+                    <div class="custom-select-wrapper">
+                        <div class="custom-select">
+                            <input type="text" class="custom-select-input" placeholder="Buscar pasta..." autocomplete="off">
+                            <span class="custom-select-clear" style="display: none;">✕</span>
+                            <span class="custom-select-arrow">▼</span>
+                        </div>
+                        <div class="custom-select-dropdown" style="display: none;"></div>
+                        <!-- Hidden select to store the actual value -->
+                        <select id="pasta-drive" class="presenca-select" style="display: none;"></select>
+                    </div>
                 </div>
                 
                 <div class="buttons-container">
