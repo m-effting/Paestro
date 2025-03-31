@@ -43,7 +43,7 @@ def parse_html_content(html_content, filename=None):
     
     # Expressão regular melhorada para capturar nomes com parênteses não fechados
     TURMA_REGEX = re.compile(
-        r'Turma:\s*([^-]+-\s*\d+)\s*(?:\(([^)\n]+)|$)',  # Captura até parêntese fechado ou fim da linha
+        r'Turma:\s*([^(\n]+)\s*(?:\(([^)\n]+)|$)',
         re.UNICODE
     )
     
