@@ -106,17 +106,19 @@ function showConfirm(mensagem) {
     }
 
     // Carrega turmas salvas do servidor
-    async function loadSavedClasses() {
+    async function loadSavedClasses(escola) {
         try {
-            const response = await fetch('/api/get_saved_classes');
+            const url = escola ? `/api/get_saved_classes?escola=${encodeURIComponent(escola)}` : '/api/get_saved_classes';
+            const response = await fetch(url);
             const data = await response.json();
             if (data.success) {
-                data.saved_classes.forEach(turma => savedClasses.add(turma));
+                savedClasses = new Set(data.saved_classes);
                 atualizarTurmasSalvas();
             }
         } catch (error) {
             console.error('Erro ao carregar turmas salvas:', error);
         }
+    
         
         // Verifica periodicamente por atualizações
         setInterval(async () => {
@@ -176,6 +178,7 @@ function showConfirm(mensagem) {
 
     // Carrega turmas de uma escola
     async function carregarTurmas(escola) {
+        await loadSavedClasses(escola); // Carrega turmas salvas da escola específica
         if (!escola) return;
     
         try {
@@ -537,20 +540,22 @@ function showConfirm(mensagem) {
     }
 
     // Configura os event listeners
-function setupEventListeners() {
-    escolaSelect.addEventListener('change', () => {
-        sessionStorage.setItem('escola_selecionada', escolaSelect.value);
-        carregarTurmas(escolaSelect.value);
-    });
-    turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
-    addAlunoBtn.addEventListener('click', adicionarAluno);
-    salvarChamadaBtn.addEventListener('click', salvarChamada);
-    exportarChamadaBtn.addEventListener('click', exportarParaExcel);
-    
-    // Verifica turmas salvas quando a página ganha foco
-    window.addEventListener('focus', async () => {
-        await sincronizarTurmasSalvas();
-    });
+    function setupEventListeners() {
+        escolaSelect.addEventListener('change', async () => {
+            sessionStorage.setItem('escola_selecionada', escolaSelect.value);
+            await carregarTurmas(escolaSelect.value);
+        });
+        turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
+        addAlunoBtn.addEventListener('click', adicionarAluno);
+        salvarChamadaBtn.addEventListener('click', salvarChamada);
+        exportarChamadaBtn.addEventListener('click', exportarParaExcel);
+        
+        window.addEventListener('focus', async () => {
+            const escola = escolaSelect.value;
+            if (escola) {
+                await loadSavedClasses(escola);
+            }
+        });
 }
 
 });

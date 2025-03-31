@@ -6,6 +6,7 @@ import io
 import pickle
 from attendance_parser import parse_html_content
 from excel_exporter import export_to_excel, get_excel_filename
+import logging
 
 # Módulos para Google Drive utilizando Service Account
 from google.oauth2 import service_account
@@ -29,7 +30,7 @@ app_data = {
     'html_content': {},       
     'current_user': None,
     'periodo': None,
-    'saved_classes': set()   
+    'saved_classes': {}  
 }
 
 # ============================================================
@@ -157,12 +158,31 @@ def attendance_page():
                          current_user=app_data['current_user'],
                          current_date=datetime.now().strftime('%d/%m/%Y'))
 
-@app.route('/api/get_saved_classes_status', methods=['GET'])
-def get_saved_classes_status():
-    return jsonify({
-        'success': True,
-        'saved_classes': list(app_data['saved_classes'])
-    })
+@app.route('/api/get_saved_classes', methods=['GET'])
+def get_saved_classes():
+    try:
+        escola = request.args.get('escola')
+        if escola:
+            # Retorna apenas as turmas salvas da escola especificada
+            if escola in app_data['saved_classes']:
+                return jsonify({
+                    'success': True,
+                    'saved_classes': list(app_data['saved_classes'][escola])
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'saved_classes': []
+                })
+        else:
+            # Retorna todas as turmas salvas de todas as escolas como uma lista plana
+            all_saved = [turma for escola_turmas in app_data['saved_classes'].values() for turma in escola_turmas]
+            return jsonify({
+                'success': True,
+                'saved_classes': list(all_saved)
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 1000
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -260,18 +280,19 @@ def delete_file():
             return jsonify({'success': False, 'error': 'Nome do arquivo não fornecido'})
         
         if filename in app_data['schools']:
-            for turma in app_data['schools'][filename].keys():
-                app_data['saved_classes'].discard(turma)
+            # Captura as turmas associadas antes de deletar
+            turmas_da_escola = set(app_data['schools'][filename].keys())
             
+            # Remove a entrada da escola em saved_classes, se existir
+            if filename in app_data['saved_classes']:
+                del app_data['saved_classes'][filename]
+            
+            # Remove a escola e seu conteúdo
             del app_data['schools'][filename]
             del app_data['html_content'][filename]
             
-            turmas_para_remover = set()
-            for turma in app_data['attendance_status'].keys():
-                if turma in app_data['schools'].get(filename, {}):
-                    turmas_para_remover.add(turma)
-            
-            for turma in turmas_para_remover:
+            # Remove turmas associadas de attendance_status e observations
+            for turma in turmas_da_escola:
                 app_data['attendance_status'].pop(turma, None)
                 app_data['observations'].pop(turma, None)
             
@@ -288,12 +309,6 @@ def get_schools():
         'schools': list(app_data['schools'].keys())
     })
 
-@app.route('/api/get_saved_classes', methods=['GET'])
-def get_saved_classes():
-    return jsonify({
-        'success': True,
-        'saved_classes': list(app_data['saved_classes'])
-    })
 
 @app.route('/api/get_school_classes', methods=['POST'])
 def get_school_classes():
@@ -369,14 +384,22 @@ def save_attendance_data():
         
         for aluno in alunos:
             nome = aluno['nome']
+            presenca = aluno['presenca']
+            observacao = aluno['observacao']
             
+            # Adiciona o aluno à lista da turma, se ainda não estiver presente
             if nome not in app_data['schools'][escola][turma]:
                 app_data['schools'][escola][turma].append(nome)
             
-            app_data['attendance_status'][turma][nome] = aluno['presenca']
-            app_data['observations'][turma][nome] = aluno['observacao']
+            # Atualiza presença e observação no backend
+            app_data['attendance_status'][turma][nome] = presenca
+            app_data['observations'][turma][nome] = observacao
         
-        app_data['saved_classes'].add(turma)
+        # Adiciona a turma ao conjunto de turmas salvas da escola específica
+        if escola not in app_data['saved_classes']:
+            app_data['saved_classes'][escola] = set()
+        app_data['saved_classes'][escola].add(turma)
+        
         return jsonify({'success': True})
     
     except Exception as e:
@@ -416,45 +439,49 @@ def export_page():
 @app.route('/api/export_excel', methods=['GET'])
 def export_attendance():
     try:
-        # Obtém parâmetros da requisição ou dados armazenados
+        # Obtém parâmetros da requisição ou valores padrão
         escola_selecionada = request.args.get('escola')
         periodo = request.args.get('periodo') or app_data.get('periodo', 'indefinido')
         current_user = app_data.get('current_user', 'indefinido')
         auto_clear = request.args.get('auto_clear', 'false').lower() == 'true'
 
-        # Validação de turmas salvas
-        if not app_data['saved_classes']:
+        # Verifica se há turmas salvas em app_data
+        if 'saved_classes' not in app_data or not app_data['saved_classes']:
             return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'})
 
-        # Organiza turmas por escola
-        turmas_por_escola = {}
-        for turma in app_data['saved_classes']:
-            for escola, turmas in app_data['schools'].items():
-                if turma in turmas:
-                    if escola not in turmas_por_escola:
-                        turmas_por_escola[escola] = []
-                    turmas_por_escola[escola].append(turma)
-                    break
+        # Define as turmas salvas a serem usadas
+        if escola_selecionada:
+            # Filtra turmas salvas da escola selecionada
+            if escola_selecionada not in app_data['saved_classes'] or not app_data['saved_classes'][escola_selecionada]:
+                return jsonify({'success': False, 'error': 'Nenhuma turma salva para a escola selecionada'})
+            turmas_salvas = app_data['saved_classes'][escola_selecionada]
+        else:
+            # Usa todas as turmas salvas de todas as escolas
+            turmas_salvas = set().union(*app_data['saved_classes'].values())
+            if not turmas_salvas:
+                return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'})
 
-        # Se uma escola específica foi solicitada, filtra por ela
-        if escola_selecionada and escola_selecionada in turmas_por_escola:
-            turmas_por_escola = {escola_selecionada: turmas_por_escola[escola_selecionada]}
-
-        if not turmas_por_escola:
-            return jsonify({'success': False, 'error': 'Nenhuma turma válida encontrada'})
-
-        # Prepara dados para exportação
+        # Prepara os dados para exportação
         classes_to_export = {}
         attendance_to_export = {}
         observations_to_export = {}
 
-        for escola, turmas in turmas_por_escola.items():
-            for turma in turmas:
-                classes_to_export[turma] = app_data['schools'][escola][turma]
-                attendance_to_export[turma] = app_data['attendance_status'].get(turma, {})
-                observations_to_export[turma] = app_data['observations'].get(turma, {})
+        for turma in turmas_salvas:
+            for escola, turmas in app_data['schools'].items():
+                if turma in turmas:
+                    # Filtra por escola, se especificada
+                    if escola_selecionada and escola != escola_selecionada:
+                        continue
+                    classes_to_export[turma] = app_data['schools'][escola][turma]
+                    attendance_to_export[turma] = app_data['attendance_status'].get(turma, {})
+                    observations_to_export[turma] = app_data['observations'].get(turma, {})
+                    break
 
-        # Gera o Excel
+        # Verifica se há turmas válidas para exportar
+        if not classes_to_export:
+            return jsonify({'success': False, 'error': 'Nenhuma turma válida encontrada para exportação'})
+
+        # Gera o arquivo Excel
         output = export_to_excel(
             classes_to_export,
             attendance_to_export,
@@ -462,20 +489,24 @@ def export_attendance():
             None,  # Não envia o HTML content
             current_user,
             periodo,
-            escola_selecionada or list(turmas_por_escola.keys())[0]
+            escola_selecionada or "Todas as Escolas"
         )
 
-        # Limpeza após exportação
+        # Realiza limpeza, se solicitado
         if auto_clear:
+            if escola_selecionada:
+                app_data['saved_classes'][escola_selecionada].clear()
+            else:
+                app_data['saved_classes'].clear()
             for turma in classes_to_export:
                 app_data['attendance_status'].pop(turma, None)
                 app_data['observations'].pop(turma, None)
-                app_data['saved_classes'].discard(turma)
 
+        # Retorna o arquivo Excel
         return send_file(
             output,
             as_attachment=True,
-            download_name=get_excel_filename(escola_selecionada, periodo, current_user),
+            download_name=get_excel_filename(escola_selecionada or "Todas as Escolas", periodo, current_user),
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 
@@ -492,65 +523,99 @@ def get_drive_folders():
         return jsonify({'success': True, 'folders': folder_list})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+    
+# Configurar logging para depuração
+logging.basicConfig(level=logging.INFO)
 
 @app.route('/api/export_excel_drive', methods=['POST'])
 def export_attendance_drive():
     try:
+        # Obtém dados da requisição
         data = request.json
+        if not data:
+            return jsonify({'success': False, 'error': 'Nenhum dado fornecido na requisição'}), 400
+
         folder_id = data.get('folder_id')
         escola_selecionada = data.get('escola')
+        auto_clear = data.get('auto_clear', False)
 
-        if not folder_id:
-            return jsonify({'success': False, 'error': 'Nenhum folder_id fornecido'})
+        # Validação explícita de folder_id
+        if not folder_id or not folder_id.strip():
+            return jsonify({'success': False, 'error': 'Nenhum folder_id válido fornecido'}), 400
 
-        # Lógica idêntica à export_excel
-        if not app_data['saved_classes']:
-            return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'})
-        
+        # Verifica se há turmas salvas
+        if 'saved_classes' not in app_data or not app_data['saved_classes']:
+            return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'}), 400
+
+        # Define as turmas salvas a serem usadas
+        if escola_selecionada:
+            if escola_selecionada not in app_data['saved_classes'] or not app_data['saved_classes'][escola_selecionada]:
+                return jsonify({'success': False, 'error': 'Nenhuma turma salva para a escola selecionada'}), 400
+            turmas_salvas = app_data['saved_classes'][escola_selecionada]
+        else:
+            turmas_salvas = set().union(*app_data['saved_classes'].values())
+            if not turmas_salvas:
+                return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'}), 400
+
+        # Prepara os dados para exportação
         classes_to_export = {}
         attendance_to_export = {}
         observations_to_export = {}
-        
-        if not escola_selecionada and app_data['schools']:
-            escola_selecionada = next(iter(app_data['schools'].keys()))
-        
-        for turma in app_data['saved_classes']:
-            escola_da_turma = None
+
+        for turma in turmas_salvas:
             for escola, turmas in app_data['schools'].items():
                 if turma in turmas:
-                    escola_da_turma = escola
+                    if escola_selecionada and escola != escola_selecionada:
+                        continue
+                    classes_to_export[turma] = app_data['schools'][escola][turma]
+                    attendance_to_export[turma] = app_data['attendance_status'].get(turma, {})
+                    observations_to_export[turma] = app_data['observations'].get(turma, {})
                     break
-            
-            if escola_da_turma and (not escola_selecionada or escola_da_turma == escola_selecionada):
-                classes_to_export[turma] = app_data['schools'][escola_da_turma][turma]
-                attendance_to_export[turma] = app_data['attendance_status'].get(turma, {})
-                observations_to_export[turma] = app_data['observations'].get(turma, {})
-                escola_selecionada = escola_da_turma
-        
+
+        # Verifica se há turmas válidas para exportar
         if not classes_to_export:
-            return jsonify({'success': False, 'error': 'Nenhuma turma válida encontrada para exportação'})
-        
+            return jsonify({'success': False, 'error': 'Nenhuma turma válida encontrada para exportação'}), 400
+
+        # Obtém período e usuário
         periodo = data.get('periodo') or app_data.get('periodo', 'Não informado')
         current_user = app_data.get('current_user', 'indefinido')
-        
+
+        # Gera o arquivo Excel
         output = export_to_excel(
             classes_to_export,
             attendance_to_export,
             observations_to_export,
-            app_data['html_content'].get(escola_selecionada),
+            app_data['html_content'].get(escola_selecionada) if escola_selecionada else None,
             current_user,
             periodo,
-            escola_selecionada
+            escola_selecionada or "Todas as Escolas"
         )
-        
+
+        # Faz o upload para o Google Drive
         excel_data = output.getvalue()
-        file_name = get_excel_filename(escola_selecionada, periodo, current_user)
-        
-        drive_id = upload_excel_to_drive(excel_data, file_name, folder_id)
-        return jsonify({'success': True, 'drive_file_id': drive_id})
-    
+        file_name = get_excel_filename(escola_selecionada or "Todas as Escolas", periodo, current_user)
+        drive_file_id = upload_excel_to_drive(excel_data, file_name, folder_id)
+
+        # Realiza limpeza, se solicitado
+        if auto_clear:
+            if escola_selecionada and escola_selecionada in app_data['saved_classes']:
+                app_data['saved_classes'][escola_selecionada].clear()
+            else:
+                app_data['saved_classes'].clear()
+            for turma in classes_to_export:
+                app_data['attendance_status'].pop(turma, None)
+                app_data['observations'].pop(turma, None)
+
+        # Retorna resposta de sucesso
+        return jsonify({
+            'success': True,
+            'drive_file_id': drive_file_id
+        }), 200
+
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        logging.error(f"Erro ao exportar para o Drive: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
 # ============================================================
 # NOVOS ENDPOINTS PARA DRIVE (FIM)
 # ============================================================

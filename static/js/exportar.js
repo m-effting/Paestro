@@ -51,6 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateDropdown(folders); // Populate the dropdown initially
                 // Populate the hidden select for form submission
                 pastaDriveSelect.innerHTML = '';
+                // Adiciona uma opção vazia como padrão
+                const defaultOption = new Option('Selecione uma pasta', '', true, false);
+                pastaDriveSelect.add(defaultOption);
                 folders.forEach(folder => {
                     const option = new Option(folder.name, folder.id);
                     pastaDriveSelect.add(option);
@@ -87,14 +90,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function salvarNoDrive() {
-        const pastaSelecionada = pastaDriveSelect.value;
+        const pastaSelecionada = pastaDriveSelect.value.trim();
         const escola = sessionStorage.getItem('escola_selecionada');
         const periodo = document.querySelector('input[name="periodo"]:checked')?.value || '';
-
-        if (!pastaSelecionada) {
-            return showError('Selecione uma pasta do Drive!');
+    
+        // Validação explícita no cliente
+        if (!pastaSelecionada || pastaSelecionada === '') {
+            showError('Nenhuma pasta do Drive selecionada!');
+            return;
         }
-
+        if (!escola) {
+            showError('Nenhuma escola selecionada! Volte à página de chamada e selecione uma escola.');
+            return;
+        }
+    
         try {
             showLoading();
             const response = await fetch('/api/export_excel_drive', {
@@ -103,23 +112,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     folder_id: pastaSelecionada,
                     escola: escola,
-                    periodo: periodo
+                    periodo: periodo,
+                    auto_clear: true
                 })
             });
-            
+    
             const result = await response.json();
             if (result.success) {
-                alert(`✅ Arquivo salvo no Drive!\nID: ${result.drive_file_id}`);
+                showSuccess(`Arquivo salvo no Drive com sucesso! ID: ${result.drive_file_id}`);
                 sessionStorage.removeItem('escola_selecionada');
             } else {
-                showError(result.error || 'Erro desconhecido');
+                showError(result.error || 'Erro desconhecido ao salvar no Drive');
             }
         } catch (error) {
-            showError('Erro na requisição: ' + error.message);
+            showError('Erro na requisição ao servidor: ' + error.message);
         } finally {
             hideLoading();
         }
     }
+
+// Função auxiliar para exibir mensagens de sucesso
+function showSuccess(message) {
+    alert('✅ ' + message);
+    console.log(message);
+}
 
     // ============== [FUNÇÕES AUXILIARES] ==============
     function showLoading() {
