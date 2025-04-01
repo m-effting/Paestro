@@ -8,8 +8,7 @@ from attendance_parser import parse_html_content
 from excel_exporter import export_to_excel, get_excel_filename
 from drive_exporter import get_drive_folders, export_attendance_drive 
 from threading import Lock
-
-save_lock = Lock()
+from flask import session
 
 
 app = Flask(__name__,
@@ -27,7 +26,6 @@ app_data = {
     'observations': {},       
     'file_uploaded': False,
     'html_content': {},       
-    'periodo': None,
     'saved_classes': {}  
 }
 
@@ -42,7 +40,7 @@ def import_page():
 @app.route('/chamada')
 def attendance_page():
     return render_template('chamada.html',
-                         current_user=app_data['current_user'],
+                         current_user=session.get('current_user'),
                          current_date=datetime.now().strftime('%d/%m/%Y'))
 
 @app.route('/api/get_saved_classes', methods=['GET'])
@@ -86,14 +84,25 @@ def get_saved_classes_status():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.json
-    app_data['current_user'] = data.get('username')
-    app_data['periodo'] = data.get('periodo')
-    return jsonify({
-        'success': True, 
-        'username': app_data['current_user'],
-        'periodo': app_data['periodo']
-    })
+    if not request.json:
+        return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
+    
+    username = request.json.get('username')
+    periodo = request.json.get('periodo')
+    
+    if not username or not periodo:
+        return jsonify({'success': False, 'error': 'Nome e período são obrigatórios'}), 400
+    
+    try:
+        session['current_user'] = username
+        session['periodo'] = periodo
+        return jsonify({
+            'success': True,
+            'username': username,
+            'periodo': periodo
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/upload', methods=['POST'])
 def handle_file_upload():
@@ -158,8 +167,8 @@ def handle_file_upload():
 def get_current_user():
     return jsonify({
         'success': True,
-        'username': app_data.get('current_user', ''),
-        'periodo': app_data.get('periodo', '')
+        'username': session.get('current_user', ''),
+        'periodo': session.get('periodo', '')
     })
 
 @app.route('/api/get_imported_files', methods=['GET'])
@@ -330,10 +339,10 @@ def clear_saved_classes():
 
 @app.route('/exportar')
 def export_page():
-    escola = request.args.get('escola', '')  
+    escola = request.args.get('escola', '')
     return render_template('exportar.html',
-                         escola=escola,  
-                         current_user=app_data['current_user'],
+                         escola=escola,
+                         current_user=session.get('current_user'),
                          current_date=datetime.now().strftime('%d/%m/%Y'))
 
 @app.route('/api/export_excel', methods=['GET'])

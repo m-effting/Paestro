@@ -67,43 +67,33 @@ document.addEventListener('DOMContentLoaded', function() {
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        if (!validateFields()) {
-            return;
-        }
+        if (!validateFields()) return;
         
         const username = usernameInput.value.trim();
         const periodo = periodoSelect.value;
         
-        // Armazena temporariamente durante a sessão
-        sessionStorage.setItem('paestro_usuario', username);
-        sessionStorage.setItem('paestro_periodo', periodo);
+        sessionStorage.setItem('paestro_usuario_temp', username);
+        sessionStorage.setItem('paestro_periodo_temp', periodo);
         
         fetch('/api/login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                username: username,
-                periodo: periodo
-            })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username, periodo })
         })
-        .then(response => {
-            if (!response.ok) throw new Error('Erro no servidor');
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
                 window.location.href = '/chamada';
             } else {
-                throw new Error(data.error || 'Erro ao fazer login');
+                throw new Error(data.error || 'Erro no login');
             }
         })
         .catch(error => {
             console.error('Erro:', error);
-            alert(error.message || 'Erro ao conectar com o servidor');
+            alert(error.message);
         });
     });
+
 
     // Preenche campos se já existir na sessionStorage (durante a mesma sessão)
     const savedUser = sessionStorage.getItem('paestro_usuario');
