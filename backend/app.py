@@ -69,6 +69,19 @@ def get_saved_classes():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 1000
 
+
+@app.route('/api/get_saved_classes_status', methods=['GET'])
+def get_saved_classes_status():
+    try:
+        # Retorna todas as turmas salvas de todas as escolas
+        all_saved = [turma for escola_turmas in app_data['saved_classes'].values() for turma in escola_turmas]
+        return jsonify({
+            'success': True,
+            'saved_classes': all_saved
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json

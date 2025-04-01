@@ -141,13 +141,14 @@
 
 #imported-files-list li:last-child {
     border-bottom: none;
-}
+ }
 
 .file-name {
     flex-grow: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: left;
 }
 
 .delete-file-btn {
@@ -203,6 +204,7 @@
     }
     
     #imported-files-list li {
+        text-align: left;
         padding: 0.5rem;
         font-size: 0.875rem;
     }

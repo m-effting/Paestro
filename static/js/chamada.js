@@ -160,15 +160,30 @@ function showConfirm(mensagem) {
         }
     }
 
-    // Atualiza o visual das turmas salvas
-    function atualizarTurmasSalvas() {
+     // Atualiza o visual das turmas salvas
+     function atualizarTurmasSalvas() {
         const options = turmaSelect.querySelectorAll('option');
         options.forEach(option => {
             if (option.value) {
-                option.classList.toggle('turma-salva', savedClasses.has(option.value));
+                const isSaved = savedClasses.has(option.value);
+                option.classList.toggle('turma-salva', isSaved);
+                
+                // Adiciona ícone de verificação apenas se for salva
+                if (isSaved && !option.querySelector('.check-icon')) {
+                    const checkIcon = document.createElement('span');
+                    checkIcon.className = 'check-icon';
+                    checkIcon.textContent = ' ✓';
+                    option.appendChild(checkIcon);
+                } else if (!isSaved) {
+                    const checkIcon = option.querySelector('.check-icon');
+                    if (checkIcon) {
+                        option.removeChild(checkIcon);
+                    }
+                }
             }
         });
-        
+
+
         // Força o redesenho do select (para alguns navegadores que não atualizam imediatamente)
         turmaSelect.style.display = 'none';
         turmaSelect.offsetHeight; // Trigger reflow

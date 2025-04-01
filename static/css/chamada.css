@@ -177,24 +177,6 @@
     border-color: #ffc107;
 }
 
-/* Estilo para turmas salvas */
-.turma-salva {
-    background-color: #e6f7ee;
-    border-left: 4px solid #28a745;
-    position: relative;
-}
-
-.turma-salva::after {
-    content: "✓";
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #28a745;
-    font-weight: bold;
-}
-
-/* Melhoria no select */
 select {
     padding: 0.75rem 2rem 0.75rem 0.75rem;
     appearance: none;

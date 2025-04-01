@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
             const result = await response.json();
             if (result.success) {
-                showSuccess(`Arquivo salvo no Drive com sucesso! ID: ${result.drive_file_id}`);
+                showSuccess(`Arquivo salvo no Drive com sucesso!`);
                 sessionStorage.removeItem('escola_selecionada');
             } else {
                 showError(result.error || 'Erro desconhecido ao salvar no Drive');
@@ -131,11 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-// Função auxiliar para exibir mensagens de sucesso
-function showSuccess(message) {
-    alert('✅ ' + message);
-    console.log(message);
-}
 
     // ============== [FUNÇÕES AUXILIARES] ==============
     function showLoading() {
@@ -148,6 +143,11 @@ function showSuccess(message) {
         loadingIndicator.style.display = 'none';
         salvarDriveBtn.disabled = false;
         baixarExcelBtn.disabled = false;
+    }
+
+    function showSuccess(message) {
+        alert('✅ ' + message);
+        console.log(message);
     }
 
     function showError(message) {
