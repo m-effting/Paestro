@@ -182,17 +182,19 @@ function showConfirm(mensagem) {
                 const isSaved = savedClasses.has(option.value);
                 option.classList.toggle('turma-salva', isSaved);
                 
-                 // Atualiza o texto para incluir/remover o ícone
-            const textoOriginal = option.textContent.replace(' ✓', '');
-            option.textContent = isSaved ? textoOriginal + ' ✓' : textoOriginal;
-        }
-    });
+                // Remove qualquer ícone existente primeiro
+                const textoOriginal = option.textContent.replace(' ✓', '');
+                option.textContent = isSaved ? textoOriginal + ' ✓' : textoOriginal;
+            }
+        });
         
-        // Força o redesenho do select
+        // Força o redesenho do select com timeout duplo para mobile
         turmaSelect.style.display = 'none';
-        turmaSelect.offsetHeight; // Trigger reflow
-        turmaSelect.style.display = '';
-}
+        setTimeout(() => {
+            turmaSelect.offsetHeight; // Trigger reflow
+            turmaSelect.style.display = '';
+        }, 50);
+    }
     
 
     // Carrega turmas de uma escola
@@ -235,8 +237,8 @@ function showConfirm(mensagem) {
     async function sincronizarEstadoCompleto() {
         try {
             const [schoolsRes, savedRes] = await Promise.all([
-                fetch('/api/get_schools'),
-                fetch('/api/get_saved_classes')
+                fetch('/api/get_schools?_=' + Date.now()),
+                fetch('/api/get_saved_classes?_=' + Date.now())
             ]);
             
             const schoolsData = await schoolsRes.json();
@@ -558,28 +560,43 @@ function showConfirm(mensagem) {
         window.location.href = `/exportar?escola=${encodeURIComponent(escola)}`;
     }
 
-    // Configura os event listeners
     function setupEventListeners() {
         escolaSelect.addEventListener('change', async () => {
             sessionStorage.setItem('escola_selecionada', escolaSelect.value);
             await carregarTurmas(escolaSelect.value);
         });
+        
+        // Evento único para visibilitychange
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden) {
-                await sincronizarTurmasSalvas();
+                const escola = escolaSelect.value;
+                if (escola) {
+                    await Promise.all([
+                        sincronizarEstadoCompleto(),
+                        loadSavedClasses(escola)
+                    ]);
+                    atualizarTurmasSalvas();
+                }
             }
         });
+        
+        // Evento único para focus 
+        window.addEventListener('focus', async () => {
+            const escola = escolaSelect.value;
+            if (escola) {
+                await Promise.all([
+                    sincronizarEstadoCompleto(),
+                    loadSavedClasses(escola)
+                ]);
+                atualizarTurmasSalvas();
+            }
+        });
+        
+        // Outros listeners
         turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
         addAlunoBtn.addEventListener('click', adicionarAluno);
         salvarChamadaBtn.addEventListener('click', salvarChamada);
         exportarChamadaBtn.addEventListener('click', exportarParaExcel);
-        
-        window.addEventListener('focus', async () => {
-            const escola = escolaSelect.value;
-            if (escola) {
-                await loadSavedClasses(escola);
-            }
-        });
-}
+    }
 
 });
