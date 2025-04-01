@@ -110,6 +110,11 @@ function showConfirm(mensagem) {
         try {
             const url = escola ? `/api/get_saved_classes?escola=${encodeURIComponent(escola)}` : '/api/get_saved_classes';
             const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
             if (data.success) {
                 savedClasses = new Set(data.saved_classes);
@@ -117,27 +122,36 @@ function showConfirm(mensagem) {
             }
         } catch (error) {
             console.error('Erro ao carregar turmas salvas:', error);
+            // Não mostra alerta para evitar spam de mensagens
         }
     
-        
         // Verifica periodicamente por atualizações
-        setInterval(async () => {
-            try {
-                const response = await fetch('/api/get_saved_classes_status');
-                const data = await response.json();
-                if (data.success) {
-                    const novasTurmasSalvas = new Set(data.saved_classes);
-                    if (novasTurmasSalvas.size !== savedClasses.size || 
-                        ![...novasTurmasSalvas].every(t => savedClasses.has(t))) {
-                        savedClasses = novasTurmasSalvas;
-                        atualizarTurmasSalvas();
+        if (!this.updateInterval) {
+            this.updateInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/get_saved_classes_status');
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        const novasTurmasSalvas = new Set(data.saved_classes);
+                        if (novasTurmasSalvas.size !== savedClasses.size || 
+                            ![...novasTurmasSalvas].every(t => savedClasses.has(t))) {
+                            savedClasses = novasTurmasSalvas;
+                            atualizarTurmasSalvas();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar turmas salvas:', error);
+                    // Não mostra alerta para evitar spam de mensagens
                 }
-            } catch (error) {
-                console.error('Erro ao verificar turmas salvas:', error);
-            }
-        }, 5000); // Verifica a cada 5 segundos
-    }   
+            }, 10000); // Verifica a cada 10 segundos (reduzido de 5 para 10)
+        }
+    }
+    
 
     // Carrega escolas disponíveis
     async function carregarEscolas() {
@@ -160,35 +174,25 @@ function showConfirm(mensagem) {
         }
     }
 
-     // Atualiza o visual das turmas salvas
-     function atualizarTurmasSalvas() {
+    // Atualiza o visual das turmas salvas
+    function atualizarTurmasSalvas() {
         const options = turmaSelect.querySelectorAll('option');
         options.forEach(option => {
             if (option.value) {
                 const isSaved = savedClasses.has(option.value);
                 option.classList.toggle('turma-salva', isSaved);
                 
-                // Adiciona ícone de verificação apenas se for salva
-                if (isSaved && !option.querySelector('.check-icon')) {
-                    const checkIcon = document.createElement('span');
-                    checkIcon.className = 'check-icon';
-                    checkIcon.textContent = ' ✓';
-                    option.appendChild(checkIcon);
-                } else if (!isSaved) {
-                    const checkIcon = option.querySelector('.check-icon');
-                    if (checkIcon) {
-                        option.removeChild(checkIcon);
-                    }
-                }
-            }
-        });
-
-
-        // Força o redesenho do select (para alguns navegadores que não atualizam imediatamente)
+                 // Atualiza o texto para incluir/remover o ícone
+            const textoOriginal = option.textContent.replace(' ✓', '');
+            option.textContent = isSaved ? textoOriginal + ' ✓' : textoOriginal;
+        }
+    });
+        
+        // Força o redesenho do select
         turmaSelect.style.display = 'none';
         turmaSelect.offsetHeight; // Trigger reflow
         turmaSelect.style.display = '';
-    }
+}
     
 
     // Carrega turmas de uma escola
@@ -559,6 +563,11 @@ function showConfirm(mensagem) {
         escolaSelect.addEventListener('change', async () => {
             sessionStorage.setItem('escola_selecionada', escolaSelect.value);
             await carregarTurmas(escolaSelect.value);
+        });
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden) {
+                await sincronizarTurmasSalvas();
+            }
         });
         turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
         addAlunoBtn.addEventListener('click', adicionarAluno);

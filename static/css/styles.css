@@ -120,19 +120,26 @@ main {
     font-weight: 500;
 }
 
+
+select option.turma-salva {
+    background-color: #67eea6 !important;
+    color: #155724;
+    font-weight: 500;
+    padding-left: 8px;
+}
+.turma-salva {
+    background-color: #22a55f;
+    border-left: 4px solid #28a745;
+    position: relative;
+    font-weight: 500;
+}
+
 .turma-salva::after {
     content: "✓";
     position: absolute;
     right: 10px;
     color: #28a745;
     font-weight: bold;
-}
-
-select option.turma-salva {
-    background-color: #67eea6;
-    color: #155724;
-    font-weight: 500;
-    padding-left: 8px;
 }
 
 
