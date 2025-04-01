@@ -7,6 +7,9 @@ import pickle
 from attendance_parser import parse_html_content
 from excel_exporter import export_to_excel, get_excel_filename
 from drive_exporter import get_drive_folders, export_attendance_drive 
+from threading import Lock
+
+save_lock = Lock()
 
 
 app = Flask(__name__,
@@ -24,7 +27,6 @@ app_data = {
     'observations': {},       
     'file_uploaded': False,
     'html_content': {},       
-    'current_user': None,
     'periodo': None,
     'saved_classes': {}  
 }
@@ -259,6 +261,7 @@ def get_turmas():
 
 @app.route('/api/save_attendance', methods=['POST'])
 def save_attendance_data():
+
     data = request.json
     escola = data.get('escola')
     turma = data.get('turma')
