@@ -237,4 +237,32 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Melhoria: Focar na área de drop quando a página carrega
     dropArea.focus();
+
+
+    async function loadUser() {
+        try {
+            const response = await fetch('/api/get_current_user');
+            const data = await response.json();
+            
+            let username;
+            if (data.success) {
+                username = data.username || '';
+                sessionStorage.setItem('paestro_usuario_temp', username);
+            } else {
+                username = sessionStorage.getItem('paestro_usuario_temp') || '';
+            }
+            
+            nomeUsuarioElement.textContent = username;
+            return username;
+        } catch (error) {
+            console.error('Erro ao carregar usuário:', error);
+            const username = sessionStorage.getItem('paestro_usuario_temp') || '';
+            nomeUsuarioElement.textContent = username;
+            return username;
+        }
+    }
+
+    // Carrega o usuário ao iniciar
+    loadUser();
+
 });

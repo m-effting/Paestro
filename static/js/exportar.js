@@ -163,9 +163,19 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/api/get_current_user');
             const data = await response.json();
-            nomeUsuarioElement.textContent = data.username || 'Usuário não identificado';
+            
+            // Fallback para sessionStorage se a API não retornar dados
+            const username = data.username || sessionStorage.getItem('paestro_usuario_temp') || 'Usuário não identificado';
+            nomeUsuarioElement.textContent = username;
+            
+            // Armazena temporariamente para recarregamentos
+            if (data.username) {
+                sessionStorage.setItem('paestro_usuario_temp', data.username);
+            }
         } catch (error) {
             console.error('Erro ao carregar usuário:', error);
+            // Fallback para sessionStorage em caso de erro
+            nomeUsuarioElement.textContent = sessionStorage.getItem('paestro_usuario_temp') || 'Usuário não identificado';
         }
     }
 
