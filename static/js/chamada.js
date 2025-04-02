@@ -89,22 +89,19 @@ function showConfirm(mensagem) {
         dataAtualElement.textContent = hoje.toLocaleDateString('pt-BR');
     }
 
+    // Carrega o usuário atual
     function loadCurrentUser() {
         fetch('/api/get_current_user')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const username = data.username || '';
+                    const username = data.username || sessionStorage.getItem('paestro_usuario_temp') || '';
                     nomeUsuarioElement.textContent = username;
-                    
-                    // Armazena temporariamente no sessionStorage para recarregamento
-                    sessionStorage.setItem('paestro_usuario_temp', username);
                 }
             })
             .catch(error => {
                 console.error('Erro ao obter usuário:', error);
-                const username = sessionStorage.getItem('paestro_usuario_temp') || '';
-                nomeUsuarioElement.textContent = username;
+                nomeUsuarioElement.textContent = sessionStorage.getItem('paestro_usuario_temp') || '';
             });
     }
 
