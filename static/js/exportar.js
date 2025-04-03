@@ -189,14 +189,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Confirmação', 
                 'As turmas salvas serão limpas após exportar. Deseja continuar?',
                 () => {
+                    // Apenas baixa se confirmado
                     window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
-                },
-                () => {
-                    window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;
                 }
+                // Callback de cancelamento vazio (não faz nada)
             );
         });
-
+    
         // Custom select input event listeners
         customSelectInput.addEventListener('input', () => {
             const searchTerm = customSelectInput.value.toLowerCase();
@@ -206,25 +205,25 @@ document.addEventListener('DOMContentLoaded', function() {
             populateDropdown(filteredFolders);
             customSelectDropdown.style.display = 'block';
         });
-
+    
         customSelectInput.addEventListener('focus', () => {
             customSelectDropdown.style.display = 'block';
             populateDropdown(folders);
         });
-
+    
         customSelectInput.addEventListener('blur', () => {
             setTimeout(() => {
                 customSelectDropdown.style.display = 'none';
             }, 200);
         });
-
+    
         customSelectClear.addEventListener('click', () => {
             customSelectInput.value = '';
             pastaDriveSelect.value = '';
             customSelectClear.style.display = 'none';
             populateDropdown(folders);
         });
-
+    
         customSelectArrow.addEventListener('click', () => {
             customSelectDropdown.style.display = 
                 customSelectDropdown.style.display === 'block' ? 'none' : 'block';
@@ -233,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 customSelectInput.focus();
             }
         });
-
+    
         // Verificar periodicamente se há turmas salvas
         setInterval(async () => {
             try {
