@@ -124,8 +124,13 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     
             const result = await response.json();
+            
+            // Fechar o modal de loading antes de mostrar o de sucesso
+            modal.close();
+            
             if (result.success) {
-                showSuccess('Arquivo salvo no Drive com sucesso!');
+                // Mostrar modal de sucesso que só fecha quando o usuário clicar em OK
+                modal.alert('Sucesso', 'Arquivo salvo no Drive com sucesso!', 'success');
                 sessionStorage.removeItem('escola_selecionada');
             } else {
                 showError(result.error || 'Erro desconhecido ao salvar no Drive');
@@ -134,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Erro na requisição ao servidor: ' + error.message);
         } finally {
             hideLoading();
-            modal.close();
+            
         }
     }
 
