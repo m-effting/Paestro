@@ -7,20 +7,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Função para validar campos e mostrar notificações
     function validateFields() {
+        let isValid = true;
+        
+        // Validação do campo de nome
         if (!usernameInput.value.trim()) {
-            alert('Por favor, preencha o nome da dupla');
+            usernameInput.reportValidity();
             usernameInput.focus();
-            return false;
-        } else if (!periodoSelect.value) {
-            alert('Por favor, selecione o período');
+            isValid = false;
+        } 
+        // Validação do campo de período
+        else if (!periodoSelect.value) {
+            periodoSelect.reportValidity();
             periodoSelect.focus();
-            return false;
-        } else if (!senhaInput.value.trim()) {
-            alert('Por favor, informe a senha de acesso');
+            isValid = false;
+        } 
+        // Validação do campo de senha
+        else if (!senhaInput.value.trim()) {
+            senhaInput.reportValidity();
             senhaInput.focus();
-            return false;
+            isValid = false;
         }
-        return true;
+        
+        return isValid;
     }
 
     // Configura o botão de importar
