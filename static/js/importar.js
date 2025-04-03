@@ -83,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadImportedFiles();
     
     function loadImportedFiles() {
+        modal.loading('Carregando arquivos importados...');
+        
         fetch('/api/get_imported_files')
             .then(response => response.json())
             .then(data => {
@@ -90,11 +92,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateFilesList(data.files);
                 } else {
                     console.error('Erro ao carregar arquivos:', data.error);
+                    modal.alert('Erro', 'Falha ao carregar arquivos importados', 'error');
                 }
             })
             .catch(error => {
                 console.error('Erro ao carregar arquivos:', error);
+                modal.alert('Erro', 'Falha na conexão com o servidor', 'error');
                 showEmptyMessage();
+            })
+            .finally(() => {
+                modal.close();
             });
     }
     
@@ -121,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.delete-file-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const filename = this.getAttribute('data-filename');
-                deleteFile(filename);
+                confirmDeleteFile(filename);
             });
         });
     }
@@ -132,29 +139,41 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
     
+    function confirmDeleteFile(filename) {
+        modal.confirm(
+            'Confirmar Exclusão', 
+            `Tem certeza que deseja excluir o arquivo "${filename}"?\nEsta ação removerá todas as turmas associadas.`,
+            () => deleteFile(filename),
+            () => {}
+        );
+    }
+    
     function deleteFile(filename) {
-        if (confirm(`Tem certeza que deseja excluir o arquivo "${filename}"?\nEsta ação removerá todas as turmas associadas.`)) {
-            fetch('/api/delete_file', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ filename })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadImportedFiles();
-                    alert('Arquivo e turmas associadas foram removidos com sucesso!');
-                } else {
-                    alert('Erro ao excluir arquivo: ' + (data.error || 'Erro desconhecido'));
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Falha ao comunicar com o servidor');
-            });
-        }
+        modal.loading('Excluindo arquivo...');
+        
+        fetch('/api/delete_file', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadImportedFiles();
+                modal.alert('Sucesso', 'Arquivo e turmas associadas foram removidos com sucesso!', 'success');
+            } else {
+                modal.alert('Erro', 'Erro ao excluir arquivo: ' + (data.error || 'Erro desconhecido'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            modal.alert('Erro', 'Falha ao comunicar com o servidor', 'error');
+        })
+        .finally(() => {
+            modal.close();
+        });
     }
     
     function handleFiles(files) {
@@ -164,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
         
         if (fileArray.length === 0) {
-            alert('Por favor, selecione arquivos HTML (.html ou .htm)');
+            modal.alert('Atenção', 'Por favor, selecione arquivos HTML (.html ou .htm)', 'warning');
             return;
         }
         
@@ -181,13 +200,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function processSelectedFiles() {
         if (selectedFiles.length === 0) {
-            alert('Nenhum arquivo válido selecionado');
+            modal.alert('Atenção', 'Nenhum arquivo válido selecionado', 'warning');
             return;
         }
         
         // Mostra loading
         processBtn.disabled = true;
         processBtn.textContent = 'Processando...';
+        modal.loading('Processando arquivos...');
         
         const formData = new FormData();
         selectedFiles.forEach(file => {
@@ -217,17 +237,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Atualiza lista de arquivos importados
                 loadImportedFiles();
+                
+                modal.alert('Sucesso', 'Arquivos processados com sucesso!', 'success');
             } else {
                 throw new Error(data.error || 'Erro desconhecido no processamento');
             }
         })
         .catch(error => {
             console.error('Erro:', error);
-            alert(`Falha no processamento: ${error.message}`);
+            modal.alert('Erro', `Falha no processamento: ${error.message}`, 'error');
         })
         .finally(() => {
             processBtn.disabled = false;
             processBtn.textContent = 'Processar Arquivos';
+            modal.close();
         });
     }
     

@@ -67,21 +67,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Funções de mensagem
-function showError(mensagem) {
-    alert('Erro: ' + mensagem);
-}
-
-function showSuccess(mensagem) {
-    alert('Sucesso: ' + mensagem);
-}
-
-// Função para mostrar confirmação (retorna Promise)
-function showConfirm(mensagem) {
-    return new Promise((resolve) => {
-        const confirmed = confirm(mensagem);
-        resolve(confirmed);
-    });
-}
+    function showError(mensagem) {
+        modal.alert('Erro', mensagem, 'error');
+    }
+    
+    function showSuccess(mensagem) {
+        modal.alert('Sucesso', mensagem, 'success');
+    }
+    
+    function showConfirm(mensagem) {
+        return new Promise((resolve) => {
+            modal.confirm('Confirmação', mensagem, 
+                () => resolve(true), 
+                () => resolve(false)
+            );
+        });
+    }
 
     // Atualiza a data atual
     function updateCurrentDate() {
@@ -417,22 +418,24 @@ function showConfirm(mensagem) {
     }
 
     // Adiciona um aluno manualmente
-    async function adicionarAluno() {
-        const escola = escolaSelect.value;
-        const turma = turmaSelect.value;
-        
-        if (!escola || !turma) {
-            showError('Selecione uma escola e turma primeiro');
-            return;
-        }
-        
-        const nomeAluno = prompt('Digite o nome do aluno:');
-        if (nomeAluno) {
+async function adicionarAluno() {
+    const escola = escolaSelect.value;
+    const turma = turmaSelect.value;
+    
+    if (!escola || !turma) {
+        showError('Selecione uma escola e turma primeiro');
+        return;
+    }
+    
+    modal.prompt('Adicionar Aluno', 'Digite o nome do aluno:', '', (nomeAluno) => {
+        if (nomeAluno && nomeAluno.trim()) {
             adicionarAlunoNaTabela(nomeAluno, turma);
             atualizarEstruturasDados(nomeAluno, escola, turma);
+        } else if (nomeAluno !== null) { // null significa que foi cancelado
+            showError('O nome do aluno não pode estar vazio');
         }
-    }
-
+    });
+}
     // Adiciona aluno na tabela visual
     function adicionarAlunoNaTabela(nomeAluno, turma) {
         const row = alunosTable.insertRow();

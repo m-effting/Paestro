@@ -43,17 +43,20 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadDriveFolders() {
         try {
             showLoading();
+            modal.loading('Carregando pastas do Drive...');
+            
             const response = await fetch('/api/get_drive_folders');
             const data = await response.json();
             
             if (data.success) {
-                folders = data.folders; // Store folders for filtering
-                populateDropdown(folders); // Populate the dropdown initially
+                folders = data.folders;
+                populateDropdown(folders);
+                
                 // Populate the hidden select for form submission
                 pastaDriveSelect.innerHTML = '';
-                // Adiciona uma opção vazia como padrão
                 const defaultOption = new Option('Selecione uma pasta', '', true, false);
                 pastaDriveSelect.add(defaultOption);
+                
                 folders.forEach(folder => {
                     const option = new Option(folder.name, folder.id);
                     pastaDriveSelect.add(option);
@@ -65,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Falha na conexão: ' + error.message);
         } finally {
             hideLoading();
+            modal.close();
         }
     }
 
@@ -84,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function selectOption(folder) {
         customSelectInput.value = folder.name;
-        pastaDriveSelect.value = folder.id; // Update the hidden select
+        pastaDriveSelect.value = folder.id;
         customSelectDropdown.style.display = 'none';
         customSelectClear.style.display = 'inline-block';
     }
@@ -106,6 +110,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
         try {
             showLoading();
+            modal.loading('Salvando no Google Drive...');
+            
             const response = await fetch('/api/export_excel_drive', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -119,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
             const result = await response.json();
             if (result.success) {
-                showSuccess(`Arquivo salvo no Drive com sucesso!`);
+                showSuccess('Arquivo salvo no Drive com sucesso!');
                 sessionStorage.removeItem('escola_selecionada');
             } else {
                 showError(result.error || 'Erro desconhecido ao salvar no Drive');
@@ -128,9 +134,9 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Erro na requisição ao servidor: ' + error.message);
         } finally {
             hideLoading();
+            modal.close();
         }
     }
-
 
     // ============== [FUNÇÕES AUXILIARES] ==============
     function showLoading() {
@@ -146,12 +152,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showSuccess(message) {
-        alert('✅ ' + message);
+        modal.alert('Sucesso', message, 'success');
         console.log(message);
     }
-
+    
     function showError(message) {
-        alert('❌ ' + message);
+        modal.alert('Erro', message, 'error');
         console.error(message);
     }
 
@@ -179,11 +185,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            if (confirm('As turmas salvas serão limpas após exportar.')) {
-                window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
-            } else {
-                window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;
-            }
+            modal.confirm(
+                'Confirmação', 
+                'As turmas salvas serão limpas após exportar. Deseja continuar?',
+                () => {
+                    window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}&auto_clear=true`;
+                },
+                () => {
+                    window.location.href = `/api/export_excel?escola=${encodeURIComponent(escola)}`;
+                }
+            );
         });
 
         // Custom select input event listeners
