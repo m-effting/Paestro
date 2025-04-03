@@ -3,22 +3,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const importarBtn = document.getElementById('importar-btn');
     const usernameInput = document.getElementById('username');
     const periodoSelect = document.getElementById('periodo');
+    const senhaInput = document.getElementById('senha');
 
     // Função para validar campos e mostrar notificações
     function validateFields() {
-        let isValid = true;
-        
         if (!usernameInput.value.trim()) {
             alert('Por favor, preencha o nome da dupla');
             usernameInput.focus();
-            isValid = false;
+            return false;
         } else if (!periodoSelect.value) {
             alert('Por favor, selecione o período');
             periodoSelect.focus();
-            isValid = false;
+            return false;
+        } else if (!senhaInput.value.trim()) {
+            alert('Por favor, informe a senha de acesso');
+            senhaInput.focus();
+            return false;
         }
-        
-        return isValid;
+        return true;
     }
 
     // Configura o botão de importar
@@ -30,12 +32,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Se validado, faz login e redireciona para importar
         const username = usernameInput.value.trim();
         const periodo = periodoSelect.value;
+        const senha = senhaInput.value.trim();
         
         // Armazena temporariamente durante a sessão
         sessionStorage.setItem('paestro_usuario_temp', username);  
         sessionStorage.setItem('paestro_periodo_temp', periodo);
 
-        
         fetch('/api/login', {
             method: 'POST',
             headers: {
@@ -43,7 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 username: username,
-                periodo: periodo
+                periodo: periodo,
+                senha: senha
             })
         })
         .then(response => {
@@ -73,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const username = usernameInput.value.trim();
         const periodo = periodoSelect.value;
+        const senha = senhaInput.value.trim();
         
         // Armazena temporariamente durante a sessão
         sessionStorage.setItem('paestro_usuario', username);
@@ -85,7 +89,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 username: username,
-                periodo: periodo
+                periodo: periodo,
+                senha: senha
             })
         })
         .then(response => {

@@ -7,6 +7,8 @@ import pickle
 from attendance_parser import parse_html_content
 from excel_exporter import export_to_excel, get_excel_filename
 from drive_exporter import get_drive_folders, export_attendance_drive 
+from flask import Flask, request, jsonify, session, redirect, url_for
+
 
 
 app = Flask(__name__,
@@ -15,6 +17,7 @@ app = Flask(__name__,
 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = 'senha_ultramente_secreta'
+SENHA_CORRETA = "ProjetoPaestro@2025"
 
 app_data = {
     'schools': {},         
@@ -35,13 +38,25 @@ def home():
 
 @app.route('/importar')
 def import_page():
+    """
+    Página de Importação.
+    Só permite acesso se o usuário estiver autenticado.
+    """
+    if not session.get("autenticado"):
+        return redirect(url_for('home'))
     return render_template('importar.html')
 
 @app.route('/chamada')
 def attendance_page():
+    """
+    Página de Chamadas.
+    Só permite acesso se o usuário estiver autenticado.
+    """
+    if not session.get("autenticado"):
+        return redirect(url_for('home'))
     return render_template('chamada.html',
-                         current_user=app_data['current_user'],
-                         current_date=datetime.now().strftime('%d/%m/%Y'))
+                           current_user=app_data['current_user'],
+                           current_date=datetime.now().strftime('%d/%m/%Y'))
 
 @app.route('/api/get_saved_classes', methods=['GET'])
 def get_saved_classes():
@@ -84,9 +99,27 @@ def get_saved_classes_status():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.json
-    app_data['current_user'] = data.get('username')
-    app_data['periodo'] = data.get('periodo')
+    """
+    Rota para autenticação do usuário.
+    Agora espera os campos:
+     - username: Nome da dupla
+     - periodo: Período selecionado
+     - senha: Chave de acesso
+    Se a senha estiver correta, o usuário é autenticado na sessão.
+    """
+    data = request.get_json()
+    username = data.get('username')
+    periodo = data.get('periodo')
+    senha = data.get('senha')
+
+    if senha != SENHA_CORRETA:
+        return jsonify({'success': False, 'error': 'Senha incorreta!'}), 401
+
+    # Se a senha estiver correta, registra o usuário
+    session['autenticado'] = True
+    app_data['current_user'] = username
+    app_data['periodo'] = periodo
+
     return jsonify({
         'success': True, 
         'username': app_data['current_user'],
@@ -327,11 +360,17 @@ def clear_saved_classes():
 
 @app.route('/exportar')
 def export_page():
-    escola = request.args.get('escola', '')  
+    """
+    Página de Exportação.
+    Só permite acesso se o usuário estiver autenticado.
+    """
+    if not session.get("autenticado"):
+        return redirect(url_for('home'))
+    escola = request.args.get('escola', '')
     return render_template('exportar.html',
-                         escola=escola,  
-                         current_user=app_data['current_user'],
-                         current_date=datetime.now().strftime('%d/%m/%Y'))
+                           escola=escola,
+                           current_user=app_data['current_user'],
+                           current_date=datetime.now().strftime('%d/%m/%Y'))
 
 @app.route('/api/export_excel', methods=['GET'])
 def export_attendance():
