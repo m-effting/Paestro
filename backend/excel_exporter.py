@@ -2,6 +2,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 import io
 from datetime import datetime
+import pytz
 import re
 import unicodedata
 
@@ -10,12 +11,16 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
     ws = wb.active
     ws.title = "LISTA DE PRESENÇA"  # Título em maiúsculas
 
+    # NOVO: Define o fuso horário de Brasília e obtém a data/hora atual
+    br_tz = pytz.timezone('America/Sao_Paulo')
+    current_time = datetime.now(br_tz).strftime('%d/%m/%Y %H:%M')
+
     # Cabeçalho com informações gerais
     header_rows = [
         ("UNIDADE:", escola_nome.upper() if escola_nome else "NÃO INFORMADO"),
         ("RESPONSÁVEIS:", current_user.upper() if current_user else "NÃO INFORMADO"),
         ("PERÍODO:", periodo.upper() if periodo else "NÃO INFORMADO"),
-        ("DATA E HORA:", datetime.now().strftime('%d/%m/%Y %H:%M'))
+        ("DATA E HORA:", current_time)
     ]
 
     for i, (label, value) in enumerate(header_rows, start=1):
@@ -73,7 +78,6 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
 def get_excel_filename(escola_nome=None, periodo=None, current_user=None):
     """
     Gera o nome do arquivo no formato: NOME_DA_UNIDADE_DIA-MÊS-ANO_PERIODO_NOME_DA_DUPLA.xlsx
-
     """
     
     def sanitize(text, remove_hyphens=False):
@@ -102,7 +106,7 @@ def get_excel_filename(escola_nome=None, periodo=None, current_user=None):
 
     components = [
         sanitize(escola_nome, remove_hyphens=True) or "UNIDADE_NAO_INFORMADA",
-        datetime.now().strftime('%d-%m-%Y'),  # Mantém hífens na data
+        datetime.now().strftime('%d-%m-%Y'),
         sanitize(periodo) or "PERIODO_NAO_INFORMADO",
         sanitize(current_user) or "DUPLA_NAO_INFORMADA"
     ]
