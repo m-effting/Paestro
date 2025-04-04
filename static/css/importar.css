@@ -213,3 +213,10 @@
         padding: 0.25rem 0.5rem;
     }
 }
+
+.logo {
+    height: 150px; 
+    width: auto;
+    display: block;
+    margin: 0 auto;
+}

@@ -311,3 +311,10 @@ select {
         border-left: 4px solid #28a745 !important;
       }
 }
+
+.logo {
+    height: 150px; 
+    width: auto;
+    display: block;
+    margin: 0 auto;
+}
