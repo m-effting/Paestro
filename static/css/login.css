@@ -68,3 +68,10 @@
         margin: 1.5rem;
     }
 }
+
+.logo {
+    height: 150px; /* Ajuste conforme o tamanho da sua logo */
+    width: auto;
+    display: block;
+    margin: 0 auto; /* Centraliza se necessário */
+}
