@@ -208,3 +208,10 @@
         width: 100%;
     }
 }
+
+.logo {
+    height: 150px; 
+    width: auto;
+    display: block;
+    margin: 0 auto;
+}
