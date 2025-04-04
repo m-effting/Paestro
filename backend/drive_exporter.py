@@ -6,6 +6,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from excel_exporter import export_to_excel, get_excel_filename
+from data import app_data, normalize_school_name
 
 # Configuração do Google Drive utilizando Service Account
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")

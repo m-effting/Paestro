@@ -37,8 +37,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         exportarChamadaBtn,
         dataAtualElement,
         nomeUsuarioElement,
-        limparTurmasBtn
     } = DOM.init();
+
+    // Adicionar o botão de anotações ao cache DOM
+    DOM.elements.anotacoesBtn = document.getElementById('anotacoes-btn');
+    const { anotacoesBtn } = DOM.elements;
 
     // Conjunto para armazenar turmas salvas localmente
     let savedClasses = new Set();
@@ -153,6 +156,84 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
+    async function abrirModalAnotacoes() {
+        const escola = escolaSelect.value;
+        if (!escola) {
+            showError('Nenhuma escola selecionada');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/get_annotations?escola=${encodeURIComponent(escola)}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const annotations = data.annotations || [];
+                mostrarModalAnotacoes(escola, annotations);
+            } else {
+                showError(data.error || 'Erro ao carregar anotações');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            showError('Falha ao comunicar com o servidor');
+        }
+    }
+
+    // Nova função para exibir o modal de anotações
+    function mostrarModalAnotacoes(escola, annotations) {
+        const modalContent = `
+            <div class="modal-body">
+                <h4>Anotações existentes:</h4>
+                <div id="annotations-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
+                    ${annotations.length > 0 ? annotations.map(a => `<p>${a}</p>`).join('') : '<p>Nenhuma anotação</p>'}
+                </div>
+                <h4>Adicionar nova anotação:</h4>
+                <textarea id="nova-anotacao" class="modal-input" rows="3"></textarea>
+            </div>
+        `;
+        
+        modal.open('Anotações da Unidade', modalContent, [
+            {
+                text: 'Cancelar',
+                type: 'secondary',
+                handler: () => modal.close()
+            },
+            {
+                text: 'Salvar',
+                type: 'primary',
+                handler: () => salvarAnotacao(escola)
+            }
+        ]);
+    }
+
+    // Nova função para salvar uma anotação
+    async function salvarAnotacao(escola) {
+        const anotacao = document.getElementById('nova-anotacao').value.trim();
+        if (!anotacao) {
+            showError('A anotação não pode estar vazia');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/add_annotation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ escola: escola, anotacao: anotacao })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                showSuccess('Anotação salva com sucesso');
+                modal.close();
+                abrirModalAnotacoes(); // Recarrega o modal com as anotações atualizadas
+            } else {
+                showError(data.error || 'Erro ao salvar anotação');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            showError('Falha ao comunicar com o servidor');
+        }
+    }
 
     // Carrega escolas disponíveis
     async function carregarEscolas() {
@@ -600,6 +681,7 @@ async function adicionarAluno() {
         addAlunoBtn.addEventListener('click', adicionarAluno);
         salvarChamadaBtn.addEventListener('click', salvarChamada);
         exportarChamadaBtn.addEventListener('click', exportarParaExcel);
+        anotacoesBtn.addEventListener('click', abrirModalAnotacoes);
     }
 
 });
