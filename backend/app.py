@@ -45,6 +45,26 @@ def add_annotation():
     app_data['unit_annotations'][normalized_escola].append(anotacao)
     return jsonify({'success': True})
 
+# Endpoint para excluir uma anotação
+@app.route('/api/delete_annotation', methods=['POST'])
+def delete_annotation():
+    data = request.get_json()
+    escola = data.get('escola')
+    anotacao = data.get('anotacao')
+    
+    if not escola or not anotacao:
+        return jsonify({'success': False, 'error': 'Dados incompletos'})
+    
+    normalized_escola = normalize_school_name(escola)
+    if normalized_escola in app_data['unit_annotations']:
+        if anotacao in app_data['unit_annotations'][normalized_escola]:
+            app_data['unit_annotations'][normalized_escola].remove(anotacao)
+            if not app_data['unit_annotations'][normalized_escola]:
+                del app_data['unit_annotations'][normalized_escola]  # Remove chave se lista vazia
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Anotação não encontrada'})
+    return jsonify({'success': False, 'error': 'Escola não encontrada'})
+
 @app.route('/')
 def home():
     return render_template('index.html', now=datetime.now())

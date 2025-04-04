@@ -267,14 +267,14 @@ button:disabled {
 /* Botão circular de anotações */
 
 .btn-circle {
-    width: 38px; /* Tamanho menor que o botão Adicionar Aluno */
-    height: 38px; /* Igual à largura para garantir círculo perfeito */
-    border-radius: 50%; /* Círculo perfeito */
-    padding: 0; /* Remove padding para evitar deformação */
+    width: 38px; 
+    height: 38px;
+    border-radius: 50%; 
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #4285F4; /* Cor consistente com Adicionar Aluno */
+    background-color: #4285F4; 
     color: white;
     border: none;
     transition: var(--transition);
@@ -283,11 +283,11 @@ button:disabled {
 
 /* Estilo específico para #anotacoes-btn para sobrescrever .btn-action */
 #anotacoes-btn {
-    min-width: 0; /* Remove min-width de .btn-action */
-    width: 38px; /* Garante tamanho fixo */
-    height: 38px; /* Garante círculo perfeito */
-    padding: 0; /* Remove padding de .btn-action */
-    border-radius: 50%; /* Reforça círculo */
+    min-width: 0; 
+    width: 38px; 
+    height: 38px; 
+    padding: 0; 
+    border-radius: 50%; 
     background-color: #4285F4;
     color: white;
 }
@@ -303,7 +303,7 @@ button:disabled {
     justify-content: space-between;
     gap: 1rem;
     width: 100%;
-    align-items: center; /* Alinha verticalmente os botões */
+    align-items: center; 
 }
 
 
@@ -319,6 +319,43 @@ button:disabled {
     transform: translateY(-1px);
 }
 
+/* Estilo para a lista de anotações */
+.annotations-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    margin-top: 1rem; 
+}
+
+/* Estilo para cada item de anotação */
+.annotation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem; 
+}
+
+/* Estilo para o botão de exclusão */
+.delete-annotation-btn {
+    background-color: transparent;
+    border: none;
+    color: #dc3545; 
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.delete-annotation-btn:hover {
+    color: #c82333; 
+    transform: scale(1.1);
+}
 
 @media (max-width: 768px) {
     .chamada-container {

@@ -179,13 +179,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
 
-    // Nova função para exibir o modal de anotações
     function mostrarModalAnotacoes(escola, annotations) {
         const modalContent = `
             <div class="modal-body">
                 <h4>Anotações existentes:</h4>
-                <div id="annotations-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px;">
-                    ${annotations.length > 0 ? annotations.map(a => `<p>${a}</p>`).join('') : '<p>Nenhuma anotação</p>'}
+                <div id="annotations-list" class="annotations-list">
+                    ${annotations.length > 0 ? annotations.map((a, index) => `
+                        <div class="annotation-item">
+                            <span>${a}</span>
+                            <button class="delete-annotation-btn" data-index="${index}" title="Excluir anotação">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    `).join('') : '<p>Nenhuma anotação</p>'}
                 </div>
                 <h4>Adicionar nova anotação:</h4>
                 <textarea id="nova-anotacao" class="modal-input" rows="3"></textarea>
@@ -204,9 +212,41 @@ document.addEventListener('DOMContentLoaded', async function() {
                 handler: () => salvarAnotacao(escola)
             }
         ]);
+    
+        // Adicionar eventos de clique para os botões de exclusão
+        document.querySelectorAll('.delete-annotation-btn').forEach(btn => {
+            btn.addEventListener('click', () => excluirAnotacao(escola, btn.dataset.index));
+        });
+    }
+    
+    async function excluirAnotacao(escola, index) {
+        const annotations = await fetchAnnotations(escola);
+        const anotacao = annotations[index];
+        if (!anotacao) return;
+    
+        const confirmacao = await showConfirm(`Deseja excluir a anotação: "${anotacao}"?`);
+        if (!confirmacao) return;
+    
+        try {
+            const response = await fetch('/api/delete_annotation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ escola: escola, anotacao: anotacao })
+            });
+            const data = await response.json();
+    
+            if (data.success) {
+                showSuccess('Anotação excluída com sucesso');
+                abrirModalAnotacoes(); // Recarrega o modal
+            } else {
+                showError(data.error || 'Erro ao excluir anotação');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+            showError('Falha ao comunicar com o servidor');
+        }
     }
 
-    // Nova função para salvar uma anotação
     async function salvarAnotacao(escola) {
         const anotacao = document.getElementById('nova-anotacao').value.trim();
         if (!anotacao) {
@@ -234,6 +274,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             showError('Falha ao comunicar com o servidor');
         }
     }
+
+    // Função auxiliar para buscar anotações
+    async function fetchAnnotations(escola) {
+        const response = await fetch(`/api/get_annotations?escola=${encodeURIComponent(escola)}`);
+        const data = await response.json();
+        return data.success ? data.annotations : [];
+}
 
     // Carrega escolas disponíveis
     async function carregarEscolas() {

@@ -35,7 +35,7 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
         normalized_escola = normalize_school_name(escola_nome)
         annotations = app_data['unit_annotations'].get(normalized_escola, [])
         if annotations:
-            ws[f'A{current_row}'] = "Anotações:"
+            ws[f'A{current_row}'] = "ANOTAÇÕES:"
             ws[f'A{current_row}'].font = Font(bold=True)
             current_row += 1
             for anotacao in annotations:
