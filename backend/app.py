@@ -2,14 +2,11 @@ from flask import Flask, request, jsonify, send_file, render_template
 from datetime import datetime
 import os
 import re
-import io
-import pickle
 from attendance_parser import parse_html_content
 from excel_exporter import export_to_excel, get_excel_filename
 from drive_exporter import get_drive_folders, export_attendance_drive 
-from flask import Flask, request, jsonify, session, redirect, url_for
-
-
+from flask import session, redirect, url_for
+from data import app_data, normalize_school_name
 
 app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'templates'),
@@ -19,18 +16,34 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = 'senha_ultramente_secreta'
 SENHA_CORRETA = "ProjetoPaestro@2025"
 
-app_data = {
-    'schools': {},         
-    'selected_school': None,
-    'selected_class': None,
-    'attendance_status': {},  
-    'observations': {},       
-    'file_uploaded': False,
-    'html_content': {},       
-    'current_user': None,
-    'periodo': None,
-    'saved_classes': {}  
-}
+
+# Endpoint para obter anotações de uma escola
+@app.route('/api/get_annotations', methods=['GET'])
+def get_annotations():
+    escola = request.args.get('escola')
+    if not escola:
+        return jsonify({'success': False, 'error': 'Escola não especificada'})
+    
+    normalized_escola = normalize_school_name(escola)
+    annotations = app_data['unit_annotations'].get(normalized_escola, [])
+    return jsonify({'success': True, 'annotations': annotations})
+
+# Endpoint para adicionar uma nova anotação
+@app.route('/api/add_annotation', methods=['POST'])
+def add_annotation():
+    data = request.get_json()
+    escola = data.get('escola')
+    anotacao = data.get('anotacao')
+    
+    if not escola or not anotacao:
+        return jsonify({'success': False, 'error': 'Dados incompletos'})
+    
+    normalized_escola = normalize_school_name(escola)
+    if normalized_escola not in app_data['unit_annotations']:
+        app_data['unit_annotations'][normalized_escola] = []
+    
+    app_data['unit_annotations'][normalized_escola].append(anotacao)
+    return jsonify({'success': True})
 
 @app.route('/')
 def home():

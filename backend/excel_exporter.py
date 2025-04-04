@@ -5,17 +5,16 @@ from datetime import datetime
 import pytz
 import re
 import unicodedata
+from data import app_data, normalize_school_name
 
 def export_to_excel(classes, attendance_status, observations, html_content=None, current_user=None, periodo=None, escola_nome=None):
     wb = Workbook()
     ws = wb.active
-    ws.title = "LISTA DE PRESENÇA"  # Título em maiúsculas
+    ws.title = "LISTA DE PRESENÇA"
 
-    # NOVO: Define o fuso horário de Brasília e obtém a data/hora atual
     br_tz = pytz.timezone('America/Sao_Paulo')
     current_time = datetime.now(br_tz).strftime('%d/%m/%Y %H:%M')
 
-    # Cabeçalho com informações gerais
     header_rows = [
         ("UNIDADE:", escola_nome.upper() if escola_nome else "NÃO INFORMADO"),
         ("RESPONSÁVEIS:", current_user.upper() if current_user else "NÃO INFORMADO"),
@@ -29,7 +28,20 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
         ws[f'B{i}'] = value
         ws.merge_cells(f'B{i}:D{i}')
 
-    current_row = len(header_rows) + 2
+    current_row = len(header_rows) + 1  # Próxima linha após o cabeçalho
+
+    # Adicionar anotações da unidade
+    if escola_nome:
+        normalized_escola = normalize_school_name(escola_nome)
+        annotations = app_data['unit_annotations'].get(normalized_escola, [])
+        if annotations:
+            ws[f'A{current_row}'] = "Anotações:"
+            ws[f'A{current_row}'].font = Font(bold=True)
+            current_row += 1
+            for anotacao in annotations:
+                ws[f'A{current_row}'] = anotacao
+                current_row += 1
+            current_row += 1  # Linha em branco após as anotações
 
     if not classes:
         ws.merge_cells(f"A{current_row}:D{current_row}")
@@ -37,21 +49,18 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
         ws[f"A{current_row}"].font = Font(italic=True)
     else:
         for turma, alunos in classes.items():
-            # Cabeçalho da turma (agora sem o nome da unidade entre parênteses)
             turma_display = turma.split('(')[0].strip() if '(' in turma else turma
             ws.merge_cells(f"A{current_row}:D{current_row}")
             ws[f"A{current_row}"] = f"TURMA: {turma_display.upper()}"
             ws[f"A{current_row}"].font = Font(bold=True, size=12)
             current_row += 1
 
-            # Cabeçalho da tabela
             headers = ["ALUNO", "PRESENÇA", "OBSERVAÇÃO"]
             for col, header in enumerate(headers, start=1):
                 ws.cell(row=current_row, column=col).value = header
                 ws.cell(row=current_row, column=col).font = Font(bold=True)
             current_row += 1
 
-            # Dados dos alunos
             for aluno in alunos:
                 ws.cell(row=current_row, column=1).value = aluno
                 ws.cell(row=current_row, column=2).value = attendance_status.get(turma, {}).get(aluno, "P")
@@ -60,12 +69,10 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
 
             current_row += 1  # Espaço entre turmas
 
-    # Ajuste de colunas
     ws.column_dimensions["A"].width = 30
     ws.column_dimensions["B"].width = 15
     ws.column_dimensions["C"].width = 40
 
-    # Centralizar verticalmente e alinhar à esquerda todas as células
     for row in ws.iter_rows():
         for cell in row:
             cell.alignment = Alignment(vertical='center', horizontal='left')
