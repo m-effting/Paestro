@@ -70,8 +70,8 @@
 }
 
 .logo {
-    height: 150px; /* Ajuste conforme o tamanho da sua logo */
+    height: 200px; 
     width: auto;
     display: block;
-    margin: 0 auto; /* Centraliza se necessário */
+    margin: 0 auto;
 }
