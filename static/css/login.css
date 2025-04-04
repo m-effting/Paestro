@@ -100,3 +100,10 @@ input:invalid, select:invalid {
         margin: 1.5rem;
     }
 }
+
+.logo {
+    height: 200px; 
+    width: auto;
+    display: block;
+    margin: 0 auto;
+}
