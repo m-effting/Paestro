@@ -90,11 +90,21 @@ def get_school_info(html_content):
         if turma_elements:
             turma_text = turma_elements[0]
             # Expressão regular atualizada para capturar o nome completo da turma após "Turma:"
-            # incluindo padrões como "X ANO - Y" (onde X e Y são números)
-            match = re.search(r'Turma:\s*(\d+\s*[\u00ba\u00aa]*\s*ANO\s*-\s*\d+|[^(\n]+)', str(turma_text))
+            match = re.search(r'Turma:\s*(.+)', str(turma_text))
             if match:
-                info['class_name'] = match.group(1).strip()
-                logger.info(f"Turma encontrada: {info['class_name']}")
+                turma_completa = match.group(1).strip()
+                
+                # Verifica especificamente padrões de turmas infantis "GT X Y"
+                gt_match = re.search(r'GT\s*([0-5])\s*([A-Z])', turma_completa, re.IGNORECASE)
+                if gt_match:
+                    # Normaliza para o formato "GT X Y" com espaços
+                    gt_num = gt_match.group(1)
+                    gt_letter = gt_match.group(2).upper()
+                    info['class_name'] = f"GT {gt_num} {gt_letter}"
+                    logger.info(f"Turma GT encontrada via TURMA: {info['class_name']}")
+                else:
+                    info['class_name'] = turma_completa
+                    logger.info(f"Turma encontrada: {info['class_name']}")
                 
         # Segunda tentativa para turmas no formato X ANO - Y
         if 'Não identificada' in info['class_name'] or not info['class_name']:
@@ -115,10 +125,13 @@ def get_school_info(html_content):
                 text = span.get_text().strip()
                 
                 # Busca padrões específicos para capturar nome completo de turmas
-                # GT4 A, GT 4 A, GT4A
-                gt_match = re.search(r'GT\s*\d+\s*[A-Z]', text, re.IGNORECASE)
+                # GT4 A, GT 4 A, GT4A, GT 4A, etc (turmas infantis)
+                gt_match = re.search(r'GT\s*([0-5])\s*([A-Z])', text, re.IGNORECASE)
                 if gt_match:
-                    info['class_name'] = gt_match.group(0).strip()
+                    # Normaliza para o formato "GT X Y" com espaços
+                    gt_num = gt_match.group(1)
+                    gt_letter = gt_match.group(2).upper()
+                    info['class_name'] = f"GT {gt_num} {gt_letter}"
                     logger.info(f"Turma GT encontrada: {info['class_name']}")
                     break
                     
@@ -616,16 +629,40 @@ def analyze_elementary_file(html_content):
     Retorna o formato esperado pelo módulo original direct_parser.
     """
     try:
+        # Verificação prioritária para turmas GT (infantis)
+        soup = BeautifulSoup(html_content, 'html.parser')
+        class_name_override = None
+        
+        # Procura especificamente por "TURMA: GT X Y"
+        for span in soup.find_all('span', string=re.compile(r'TURMA:', re.IGNORECASE)):
+            parent = span.parent
+            next_siblings = parent.find_all('span')
+            for i, span_tag in enumerate(next_siblings):
+                if 'TURMA:' in span_tag.get_text().upper() and i+1 < len(next_siblings):
+                    text = next_siblings[i+1].get_text().strip()
+                    # Verifica se é uma turma infantil (GT)
+                    gt_match = re.search(r'GT\s*([0-5])\s*([A-Z])', text, re.IGNORECASE)
+                    if gt_match:
+                        gt_num = gt_match.group(1)
+                        gt_letter = gt_match.group(2).upper()
+                        class_name_override = f"GT {gt_num} {gt_letter}"
+                        logger.info(f"Encontrou turma infantil direto no campo TURMA: {class_name_override}")
+                        break
+        
         # 1. Extrai informações básicas
         info = get_school_info(html_content)
         
         # 2. Extrai a lista de alunos
         students = get_student_list(html_content)
         
-        # 3. Determina o tipo de educação
+        # 3. Se encontramos uma turma GT prioritariamente, use-a; caso contrário, use o que foi encontrado pelo método padrão
+        if class_name_override:
+            info['class_name'] = class_name_override
+            
+        # 4. Determina o tipo de educação
         education_type = get_education_type(info['class_name'])
         
-        # 4. Prepara o resultado final no formato esperado pelo direct_parser
+        # 5. Prepara o resultado final no formato esperado pelo direct_parser
         result = {
             'class_name': info['class_name'],
             'school_name': info['unit_name'],

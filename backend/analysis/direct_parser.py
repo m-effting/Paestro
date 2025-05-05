@@ -50,8 +50,18 @@ def extract_basic_info(html_content):
             match = re.search(r'TURMA:\s*(.+)', text)
             if match:
                 turma_completa = match.group(1).strip()
-                result['class_name'] = turma_completa
-                logger.info(f"Turma completa: {result['class_name']}")
+                
+                # Verifica especificamente padrões de turmas infantis "GT X Y"
+                gt_match = re.search(r'GT\s*([0-5])\s*([A-Z])', turma_completa, re.IGNORECASE)
+                if gt_match:
+                    # Normaliza para o formato "GT X Y" com espaços
+                    gt_num = gt_match.group(1)
+                    gt_letter = gt_match.group(2).upper()
+                    result['class_name'] = f"GT {gt_num} {gt_letter}"
+                    logger.info(f"Turma infantil encontrada: {result['class_name']}")
+                else:
+                    result['class_name'] = turma_completa
+                    logger.info(f"Turma completa: {result['class_name']}")
                 break
     
     # Se não encontrou via TURMA:, tenta outros padrões
@@ -60,10 +70,13 @@ def extract_basic_info(html_content):
             text = span.get_text().strip()
             
             # Busca padrões mais abrangentes e específicos para capturar nome completo de turmas
-            # GT4 A, GT 4 A, GT4A
-            gt_match = re.search(r'GT\s*\d+\s*[A-Z]', text, re.IGNORECASE)
+            # GT4 A, GT 4 A, GT4A, GT 4A, etc (turmas infantis)
+            gt_match = re.search(r'GT\s*([0-5])\s*([A-Z])', text, re.IGNORECASE)
             if gt_match:
-                result['class_name'] = gt_match.group(0).strip()
+                # Normaliza para o formato "GT X Y" com espaços
+                gt_num = gt_match.group(1)
+                gt_letter = gt_match.group(2).upper()
+                result['class_name'] = f"GT {gt_num} {gt_letter}"
                 logger.info(f"Turma GT: {result['class_name']}")
                 break
                 
@@ -487,7 +500,7 @@ def determine_education_type(class_name):
         return "fundamental"
     
     # GT4 e GT5 são infantis, mas obrigatórios
-    if "GT 4" in class_name or "GT 5" in class_name or "GT4" in class_name or "GT5" in class_name:
+    if any(f"GT {i}" in class_name or f"GT{i}" in class_name for i in ["4", "5"]):
         return "infantil_obrigatorio"
     
     # Outros são infantis não obrigatórios

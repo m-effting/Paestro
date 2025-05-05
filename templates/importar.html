@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAESTRO - Importar Chamadas</title>
+    <title>PAESTRO - Importar Estudantes Matriculados</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/importar.css">
@@ -26,17 +26,16 @@
             <a href="/" class="nav-link">Login</a>
             <a href="/chamada" class="nav-link">Chamada</a>
             <a href="/importar" class="nav-link active">Importar</a>
-            <a href="/exportar" class="nav-link">Exportar</a>
+            <a href="/analise" class="nav-link">Análise</a>
         </div>
     </nav>
 
 
     <main>
         <div class="container">
-            <h3>Importar Arquivos</h3>
+            <h3>Importar Estudantes Matriculados para Chamada</h3>
             
             <div class="unified-import-section">
-                <h4>Importar Arquivos de Chamada</h4>
                 
                 <div class="drop-zone" id="drop-area">
                     <div class="drop-zone-inner">
@@ -46,8 +45,8 @@
                             </svg>
                         </div>
                         <div class="drop-zone-text">
-                            <p>Arraste e solte os arquivos HTML aqui</p>
-                            <span class="drop-zone-prompt">ou</span>
+                            <p>Arraste e solte os arquivos HTML ou escolha arquivos</p>
+                            <span class="drop-zone-prompt"></span>
                         </div>
                         
                         <div class="file-input">
@@ -57,14 +56,15 @@
                                 <div id="file-info" style="display: none;">
                                     <p>Arquivo(s) selecionado(s): <span id="file-name"></span></p>
                                 </div>
-                                <div class="action-buttons">
-                                    <button type="button" id="process-btn" class="btn btn-primary">Processar Arquivo(s)</button>
-                                    <button type="button" id="cancel-btn" class="btn btn-secondary" style="display: none;">Cancelar</button>
-                                </div>
                             </form>
                         </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 15px; text-align: center;">
+                <button type="button" id="process-btn" class="btn btn-primary">Processar Arquivo(s)</button>
+                <button type="button" id="cancel-btn" class="btn btn-secondary" style="display: none;">Cancelar</button>
             </div>
             
             <div id="results" style="display: none;" class="results-section">
