@@ -1,9 +1,20 @@
-from flask import Flask
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-app = Flask(__name__)
+"""
+PAESTRO - Backend do Sistema de Gestão de Chamadas Escolares
 
-# Carrega configurações
-app.config.from_object('config')
+Este pacote contém o backend do sistema PAESTRO, com os módulos responsáveis
+por importação, processamento, análise e exportação de dados de chamadas escolares.
 
-# Importa as rotas diretamente 
-from .app import *
+Módulos principais:
+- app.py: Aplicação Flask principal com rotas e lógica de visualização
+- chamada_parser.py: Parser para extração de turmas e alunos na tela de importação
+- analysis/: Subpacote com algoritmos avançados de análise de frequência
+- excel_exporter.py: Exportação para Excel da lista de presença
+- drive_exporter.py: Integração opcional com Google Drive
+"""
+
+__version__ = '1.0.0'
+__author__ = 'Secretaria de Educação'
+__copyright__ = 'Copyright 2025, Secretaria de Educação'

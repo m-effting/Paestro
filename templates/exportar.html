@@ -14,7 +14,7 @@
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='css/favicon12.png') }}" alt="Logo PAESTRO" class="logo">
+        <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
         <div class="header-info">
             <span id="data-atual"></span>
             <span id="nome-usuario"></span>
@@ -30,15 +30,15 @@
         </div>
     </nav>
 
-    
+
     <main>
         <div class="export-container">
             <h3>Exportar Chamadas</h3>
-            
+
             <!-- Loading Indicator -->
             <div id="loading-indicator" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        
-                
+
+
             </div>
 
             <div class="export-options">
@@ -56,7 +56,7 @@
                         <select id="pasta-drive" class="presenca-select" style="display: none;"></select>
                     </div>
                 </div>
-                
+
                 <div class="buttons-container">
                     <button id="salvar-drive-btn" class="btn-action">
                         <svg class="btn-icon" viewBox="0 0 24 24">
@@ -65,9 +65,9 @@
                         Salvar no Drive
                     </button>
                 </div>
-                
+
                 <div class="export-divider">ou</div>
-                
+
                 <h4 class="section-title">Baixar chamada no dispositivo</h4>
                 <div class="buttons-container">
                     <button id="baixar-excel-btn" class="btn-action">
@@ -80,11 +80,11 @@
             </div>
         </div>
     </main>
-    
+
     <footer>
         <p>Secretaria de Educação © 2025</p>
     </footer>
-    
+
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/exportar.js"></script>
 </body>

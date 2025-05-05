@@ -2,20 +2,38 @@ import os
 import io
 import logging
 from flask import request, jsonify
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-from excel_exporter import export_to_excel, get_excel_filename
+from .excel_exporter import export_to_excel, get_excel_filename
 
-# Configuração do Google Drive utilizando Service Account
-SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
-DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
+# Variável para controlar se temos Google Drive habilitado
+DRIVE_ENABLED = False
 
-credentials = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=DRIVE_SCOPES
-)
+# Tentar carregar bibliotecas do Google Drive
+try:
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+    
+    # Configuração do Google Drive utilizando Service Account
+    SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "credentials.json")
+    
+    # Só habilita se o arquivo de credenciais existir
+    if os.path.exists(SERVICE_ACCOUNT_FILE):
+        DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
+        try:
+            credentials = service_account.Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=DRIVE_SCOPES
+            )
+            drive_service = build("drive", "v3", credentials=credentials)
+            DRIVE_ENABLED = True
+            print("Google Drive foi habilitado com sucesso!")
+        except Exception as e:
+            print(f"Erro ao carregar credenciais do Google Drive: {str(e)}")
+    else:
+        print("Arquivo de credenciais do Google Drive não encontrado.")
 
-drive_service = build("drive", "v3", credentials=credentials)
+except ImportError:
+    print("Módulos do Google Drive não estão disponíveis.")
+    pass  # Continua sem a funcionalidade do Drive
 
 # Mapa de pastas do Google Drive
 FOLDER_MAP = {
@@ -99,20 +117,36 @@ FOLDER_MAP = {
 }
 
 def upload_excel_to_drive(excel_data, file_name, folder_id=None):
-    file_metadata = {'name': file_name}
-    if folder_id:
-        file_metadata['parents'] = [folder_id]
+    """Faz upload de um arquivo Excel para o Google Drive se o Drive estiver habilitado."""
+    if not DRIVE_ENABLED:
+        return "drive-not-available"
+        
+    try:
+        file_metadata = {'name': file_name}
+        if folder_id:
+            file_metadata['parents'] = [folder_id]
 
-    media = MediaIoBaseUpload(
-        io.BytesIO(excel_data),
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        resumable=True
-    )
+        media = MediaIoBaseUpload(
+            io.BytesIO(excel_data),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            resumable=True
+        )
 
-    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-    return file.get('id')
+        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        return file.get('id')
+    except Exception as e:
+        logging.error(f"Erro ao fazer upload para o Drive: {str(e)}")
+        return None
 
 def get_drive_folders():
+    """Retorna a lista de pastas disponíveis no Google Drive."""
+    if not DRIVE_ENABLED:
+        return jsonify({
+            'success': False, 
+            'error': 'Google Drive não está habilitado nesta instalação.',
+            'folders': []
+        })
+    
     try:
         folder_list = [{'id': v, 'name': k} for k, v in FOLDER_MAP.items()]
         return jsonify({'success': True, 'folders': folder_list})
@@ -120,6 +154,14 @@ def get_drive_folders():
         return jsonify({'success': False, 'error': str(e)})
 
 def export_attendance_drive(app_data):
+    """Faz upload de um arquivo Excel para o Google Drive se o Drive estiver habilitado."""
+    if not DRIVE_ENABLED:
+        return jsonify({
+            'success': False, 
+            'error': 'Google Drive não está habilitado nesta instalação.',
+            'alternate_message': 'Você pode fazer download do arquivo manualmente pela opção de exportação.'
+        }), 400
+        
     try:
         # Obtém dados da requisição
         data = request.json
@@ -176,7 +218,7 @@ def export_attendance_drive(app_data):
             classes_to_export,
             attendance_to_export,
             observations_to_export,
-            app_data['html_content'].get(escola_selecionada) if escola_selecionada else None,
+            app_data.get('html_content', {}).get(escola_selecionada) if escola_selecionada else None,
             current_user,
             periodo,
             escola_selecionada or "Todas as Escolas"
@@ -186,6 +228,20 @@ def export_attendance_drive(app_data):
         excel_data = output.getvalue()
         file_name = get_excel_filename(escola_selecionada or "Todas as Escolas", periodo, current_user)
         drive_file_id = upload_excel_to_drive(excel_data, file_name, folder_id)
+        
+        if drive_file_id == "drive-not-available":
+            return jsonify({
+                'success': False, 
+                'error': 'Google Drive não está habilitado nesta instalação.',
+                'alternate_message': 'Você pode fazer download do arquivo manualmente pela opção de exportação.'
+            }), 400
+        
+        if not drive_file_id:
+            return jsonify({
+                'success': False, 
+                'error': 'Não foi possível fazer upload para o Google Drive.',
+                'alternate_message': 'Tente exportar o arquivo manualmente.'
+            }), 500
 
         # Realiza limpeza
         if auto_clear:

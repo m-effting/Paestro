@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('login-form');
     const importarBtn = document.getElementById('importar-btn');
+    const analiseBtn = document.getElementById('analise-btn');
     const usernameInput = document.getElementById('username');
     const periodoSelect = document.getElementById('periodo');
     const senhaInput = document.getElementById('senha');
@@ -8,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Função para validar campos e mostrar notificações
     function validateFields() {
         let isValid = true;
-        
+
         // Validação do campo de nome
         if (!usernameInput.value.trim()) {
             usernameInput.reportValidity();
@@ -27,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
             senhaInput.focus();
             isValid = false;
         }
-        
+
         return isValid;
     }
 
@@ -36,12 +37,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!validateFields()) {
             return;
         }
-        
+
         // Se validado, faz login e redireciona para importar
         const username = usernameInput.value.trim();
         const periodo = periodoSelect.value;
         const senha = senhaInput.value.trim();
-        
+
         // Armazena temporariamente durante a sessão
         sessionStorage.setItem('paestro_usuario_temp', username);  
         sessionStorage.setItem('paestro_periodo_temp', periodo);
@@ -73,23 +74,66 @@ document.addEventListener('DOMContentLoaded', function() {
             alert(error.message || 'Erro ao conectar com o servidor');
         });
     });
+    
+    // Configura o botão de análise
+    analiseBtn.addEventListener('click', function(e) {
+        if (!validateFields()) {
+            return;
+        }
+
+        // Se validado, faz login e redireciona para análise
+        const username = usernameInput.value.trim();
+        const periodo = periodoSelect.value;
+        const senha = senhaInput.value.trim();
+
+        // Armazena temporariamente durante a sessão
+        sessionStorage.setItem('paestro_usuario_temp', username);  
+        sessionStorage.setItem('paestro_periodo_temp', periodo);
+
+        fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                username: username,
+                periodo: periodo,
+                senha: senha
+            })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Erro no servidor');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/analise';
+            } else {
+                throw new Error(data.error || 'Erro ao fazer login');
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert(error.message || 'Erro ao conectar com o servidor');
+        });
+    });
 
     // Configura o formulário de login
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         if (!validateFields()) {
             return;
         }
-        
+
         const username = usernameInput.value.trim();
         const periodo = periodoSelect.value;
         const senha = senhaInput.value.trim();
-        
+
         // Armazena temporariamente durante a sessão
         sessionStorage.setItem('paestro_usuario', username);
         sessionStorage.setItem('paestro_periodo', periodo);
-        
+
         fetch('/api/login', {
             method: 'POST',
             headers: {

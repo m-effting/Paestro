@@ -15,9 +15,9 @@ const DOM = {
         };
         return this.elements;
     }
-};
-
-document.addEventListener('DOMContentLoaded', function() {
+  };
+  
+  document.addEventListener('DOMContentLoaded', function() {
     const {
         salvarDriveBtn,
         baixarExcelBtn,
@@ -30,33 +30,33 @@ document.addEventListener('DOMContentLoaded', function() {
         nomeUsuarioElement,
         loadingIndicator
     } = DOM.init();
-
+  
     let folders = []; // Store the folder list for filtering
-
+  
     // Inicialização
     updateCurrentDate();
     loadCurrentUser();
     loadDriveFolders();
     setupEventListeners();
-
+  
     // ============== [FUNÇÕES PRINCIPAIS] ==============
     async function loadDriveFolders() {
         try {
             showLoading();
             modal.loading('Carregando pastas do Drive...');
-            
+  
             const response = await fetch('/api/get_drive_folders');
             const data = await response.json();
-            
+  
             if (data.success) {
                 folders = data.folders;
                 populateDropdown(folders);
-                
+  
                 // Populate the hidden select for form submission
                 pastaDriveSelect.innerHTML = '';
                 const defaultOption = new Option('Selecione uma pasta', '', true, false);
                 pastaDriveSelect.add(defaultOption);
-                
+  
                 folders.forEach(folder => {
                     const option = new Option(folder.name, folder.id);
                     pastaDriveSelect.add(option);
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.close();
         }
     }
-
+  
     function populateDropdown(folderList) {
         customSelectDropdown.innerHTML = '';
         folderList.forEach(folder => {
@@ -85,19 +85,19 @@ document.addEventListener('DOMContentLoaded', function() {
             customSelectDropdown.appendChild(option);
         });
     }
-
+  
     function selectOption(folder) {
         customSelectInput.value = folder.name;
         pastaDriveSelect.value = folder.id;
         customSelectDropdown.style.display = 'none';
         customSelectClear.style.display = 'inline-block';
     }
-
+  
     async function salvarNoDrive() {
         const pastaSelecionada = pastaDriveSelect.value.trim();
         const escola = sessionStorage.getItem('escola_selecionada');
         const periodo = document.querySelector('input[name="periodo"]:checked')?.value || '';
-    
+  
         // Validação explícita no cliente
         if (!pastaSelecionada || pastaSelecionada === '') {
             showError('Nenhuma pasta do Drive selecionada!');
@@ -107,11 +107,11 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Nenhuma escola selecionada! Volte à página de chamada e selecione uma escola.');
             return;
         }
-    
+  
         try {
             showLoading();
             modal.loading('Salvando no Google Drive...');
-            
+  
             const response = await fetch('/api/export_excel_drive', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -122,12 +122,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     auto_clear: true
                 })
             });
-    
+  
             const result = await response.json();
-            
+  
             // Fechar o modal de loading antes de mostrar o de sucesso
             modal.close();
-            
+  
             if (result.success) {
                 // Mostrar modal de sucesso que só fecha quando o usuário clicar em OK
                 modal.alert('Sucesso', 'Arquivo salvo no Drive com sucesso!', 'success');
@@ -139,37 +139,37 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Erro na requisição ao servidor: ' + error.message);
         } finally {
             hideLoading();
-            
+  
         }
     }
-
+  
     // ============== [FUNÇÕES AUXILIARES] ==============
     function showLoading() {
         loadingIndicator.style.display = 'block';
         salvarDriveBtn.disabled = true;
         baixarExcelBtn.disabled = true;
     }
-
+  
     function hideLoading() {
         loadingIndicator.style.display = 'none';
         salvarDriveBtn.disabled = false;
         baixarExcelBtn.disabled = false;
     }
-
+  
     function showSuccess(message) {
         modal.alert('Sucesso', message, 'success');
         console.log(message);
     }
-    
+  
     function showError(message) {
         modal.alert('Erro', message, 'error');
         console.error(message);
     }
-
+  
     function updateCurrentDate() {
         dataAtualElement.textContent = new Date().toLocaleDateString('pt-BR');
     }
-
+  
     async function loadCurrentUser() {
         try {
             const response = await fetch('/api/get_current_user');
@@ -179,17 +179,17 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erro ao carregar usuário:', error);
         }
     }
-
+  
     function setupEventListeners() {
         salvarDriveBtn.addEventListener('click', salvarNoDrive);
-        
+  
         baixarExcelBtn.addEventListener('click', () => {
             const escola = sessionStorage.getItem('escola_selecionada');
             if (!escola) {
                 showError('Nenhuma escola selecionada. Volte à página de chamada e selecione uma escola primeiro.');
                 return;
             }
-            
+  
             modal.confirm(
                 'Confirmação', 
                 'As turmas salvas serão limpas após exportar. Deseja continuar?',
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Callback de cancelamento vazio (não faz nada)
             );
         });
-    
+  
         // Custom select input event listeners
         customSelectInput.addEventListener('input', () => {
             const searchTerm = customSelectInput.value.toLowerCase();
@@ -210,25 +210,25 @@ document.addEventListener('DOMContentLoaded', function() {
             populateDropdown(filteredFolders);
             customSelectDropdown.style.display = 'block';
         });
-    
+  
         customSelectInput.addEventListener('focus', () => {
             customSelectDropdown.style.display = 'block';
             populateDropdown(folders);
         });
-    
+  
         customSelectInput.addEventListener('blur', () => {
             setTimeout(() => {
                 customSelectDropdown.style.display = 'none';
             }, 200);
         });
-    
+  
         customSelectClear.addEventListener('click', () => {
             customSelectInput.value = '';
             pastaDriveSelect.value = '';
             customSelectClear.style.display = 'none';
             populateDropdown(folders);
         });
-    
+  
         customSelectArrow.addEventListener('click', () => {
             customSelectDropdown.style.display = 
                 customSelectDropdown.style.display === 'block' ? 'none' : 'block';
@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 customSelectInput.focus();
             }
         });
-    
+  
         // Verificar periodicamente se há turmas salvas
         setInterval(async () => {
             try {
@@ -253,4 +253,4 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 3000);
     }
-});
+  });

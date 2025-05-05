@@ -1,0 +1,616 @@
+/* Estilos para a página de análise */
+
+/* Estilos gerais da página */
+.analise-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.analise-container h3 {
+    color: #346789;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+/* Seção de upload */
+.upload-section {
+    margin-bottom: 2rem;
+}
+
+.file-upload-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.upload-droparea {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    color: #666;
+    transition: all 0.3s ease;
+    background-color: #f9f9f9;
+    margin-bottom: 15px;
+}
+
+.upload-droparea.highlight {
+    border-color: #4285F4;
+    background-color: #f0f7ff;
+}
+
+.upload-droparea svg {
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.file-label {
+    color: #4285F4;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.file-label:hover {
+    text-decoration: none;
+}
+
+.selected-files {
+    margin: 15px 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.file-item {
+    background-color: #f1f1f1;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-name {
+    word-break: break-all;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* Seção de resultados */
+.analysis-results-section {
+    margin-top: 2rem;
+}
+
+/* Estilo para o resumo da análise */
+.results-summary {
+    margin-bottom: 2rem;
+}
+
+.results-summary h4 {
+    color: #346789;
+    margin-bottom: 1rem;
+}
+
+.summary-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+.summary-card {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    padding: 15px;
+    min-width: 120px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    flex: 1;
+    max-width: 200px;
+}
+
+.summary-card.alert {
+    background-color: #fff3f3;
+    border-left: 3px solid #ff5252;
+}
+
+.summary-card.warning {
+    background-color: #fff8e1;
+    border-left: 3px solid #ffb300;
+}
+
+.summary-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #346789;
+    margin-bottom: 5px;
+}
+
+.summary-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Estilo para os filtros */
+.filters-container {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.filters-container h4 {
+    color: #346789;
+    margin-bottom: 1rem;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 150px;
+}
+
+.filter-group label {
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.filter-group select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+}
+
+.column-toggle {
+    margin-top: 10px;
+}
+
+.column-toggle label {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #555;
+    cursor: pointer;
+}
+
+.column-toggle input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+/* Estilo para a tabela de resultados */
+.results-table-container {
+    overflow-x: auto;
+    margin-bottom: 2rem;
+}
+
+#results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+#results-table th, #results-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+#results-table th {
+    background-color: #eef4f9;
+    color: #346789;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#results-table th.sortable {
+    cursor: pointer;
+}
+
+#results-table th .sort-icon {
+    font-size: 0.7rem;
+    margin-left: 5px;
+    opacity: 0.5;
+}
+
+#results-table th.sort-asc .sort-icon:after {
+    content: '▲';
+}
+
+#results-table th.sort-desc .sort-icon:after {
+    content: '▼';
+}
+
+#results-table td.numeric {
+    text-align: right;
+}
+
+#results-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+#results-table tbody tr:hover {
+    background-color: #f1f7fb;
+}
+
+/* Estilo para badges de status */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background-color: #e0e0e0;
+    color: #333;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.status-faltoso {
+    background-color: #ffebee;
+    color: #d32f2f;
+}
+
+.status-monitorar-faltas {
+    background-color: #fff8e1;
+    color: #ff8f00;
+}
+
+.status-monitorar-fjs {
+    background-color: #e8f5e9;
+    color: #388e3c;
+}
+
+.status-muitas-fjs {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+/* Estilo para a coluna de faltas por mês */
+.monthly-details {
+    max-width: 350px;
+}
+
+.month-absence {
+    display: inline-block;
+    background-color: #f1f1f1;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin: 2px;
+    font-size: 0.8rem;
+}
+
+.month-absence.high-absence {
+    background-color: #ffcdd2;
+    color: #c62828;
+}
+
+/* Seção de exportação */
+.export-section {
+    margin-bottom: 2rem;
+}
+
+.export-section h4 {
+    color: #346789;
+    margin-bottom: 1rem;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 15px;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #4285F4;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+}
+
+.btn-action:hover {
+    background-color: #3367d6;
+}
+
+/* Seção de regras (novo estilo como dropdown) */
+.rules-section {
+    margin: 2rem 0;
+    max-width: 800px;
+    margin: 0 auto 2rem auto;
+}
+
+.rules-details {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rules-summary {
+    background-color: #f2f2f2;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #346789;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.rules-summary:hover {
+    background-color: #e9e9e9;
+}
+
+.rules-summary:after {
+    content: '▼';
+    position: absolute;
+    right: 15px;
+    font-size: 12px;
+    transition: transform 0.3s ease;
+}
+
+.rules-details[open] .rules-summary:after {
+    transform: rotate(180deg);
+}
+
+.rules-content {
+    background-color: #fff;
+    border-top: 1px solid #ddd;
+    padding: 20px;
+    font-size: 0.9rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.rules-content h5 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    color: #346789;
+}
+
+.rules-content ul {
+    padding-left: 20px;
+}
+
+.rules-content li {
+    margin-bottom: 8px;
+}
+
+/* Animação de spinner */
+.spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 0.2em solid currentColor;
+    border-radius: 50%;
+    border-right-color: transparent;
+    animation: spinner-animation 0.8s linear infinite;
+    margin-right: 8px;
+}
+
+@keyframes spinner-animation {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+    /* Tablets maiores e laptops pequenos */
+    .analise-container {
+        padding: 15px;
+    }
+    
+    .file-upload-container,
+    .rules-section {
+        max-width: 700px;
+    }
+    
+    .summary-cards {
+        gap: 12px;
+    }
+    
+    .summary-card {
+        min-width: 110px;
+    }
+    
+    .btn-action {
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 1024px) {
+    /* Tablets */
+    .file-upload-container,
+    .rules-section {
+        max-width: 650px;
+    }
+    
+    .upload-droparea {
+        padding: 25px;
+    }
+    
+    .summary-cards {
+        flex-wrap: wrap;
+    }
+    
+    .summary-card {
+        min-width: 180px;
+        flex: 0 0 calc(50% - 10px);
+        max-width: calc(50% - 10px);
+    }
+    
+    .filters-container {
+        padding: 12px;
+    }
+    
+    .filters {
+        gap: 12px;
+    }
+    
+    .filter-group {
+        min-width: 130px;
+    }
+    
+    #results-table {
+        font-size: 0.85rem;
+    }
+    
+    #results-table th, #results-table td {
+        padding: 8px;
+    }
+    
+    .monthly-details {
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Tablets menores */
+    .analise-container h3 {
+        font-size: 1.4rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .upload-droparea {
+        padding: 20px;
+    }
+    
+    .summary-cards {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .summary-card {
+        width: 100%;
+        max-width: 100%;
+        min-width: 100%;
+    }
+    
+    .filters {
+        flex-direction: column;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .export-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .rules-summary {
+        padding: 10px 15px;
+    }
+    
+    .rules-content {
+        padding: 15px;
+    }
+    
+    .monthly-details {
+        max-width: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Smartphones */
+    .analise-container {
+        padding: 10px;
+    }
+    
+    .analise-container h3 {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .upload-section,
+    .analysis-results-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .upload-droparea {
+        padding: 15px;
+        font-size: 0.9rem;
+    }
+    
+    .summary-number {
+        font-size: 1.75rem;
+    }
+    
+    .summary-label {
+        font-size: 0.85rem;
+    }
+    
+    .filters-container h4,
+    .results-summary h4,
+    .export-section h4 {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .filters-container {
+        padding: 10px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-group label {
+        font-size: 0.85rem;
+    }
+    
+    .btn-action {
+        font-size: 0.85rem;
+        padding: 10px;
+        justify-content: center;
+    }
+    
+    #results-table {
+        font-size: 0.8rem;
+    }
+    
+    #results-table th, #results-table td {
+        padding: 6px;
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 3px 6px;
+    }
+    
+    .month-absence {
+        font-size: 0.75rem;
+        padding: 2px 5px;
+        margin: 1px;
+    }
+    
+    .monthly-details {
+        max-width: 200px;
+    }
+    
+    .rules-content {
+        font-size: 0.85rem;
+        padding: 12px;
+    }
+}

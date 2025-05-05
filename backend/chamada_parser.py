@@ -42,8 +42,9 @@ def parse_html_content(html_content, filename=None):
     unidade_name = None
     
     # Expressão regular melhorada para capturar nomes com parênteses não fechados
+    # e padrões como "X ANO - Y" (onde X e Y são números)
     TURMA_REGEX = re.compile(
-        r'Turma:\s*([^(\n]+)\s*(?:\(([^)\n]+)|$)',
+        r'Turma:\s*((\d+\s*[\u00ba\u00aa]*\s*ANO\s*-\s*\d+)|([^(\n]+))\s*(?:\(([^)\n]+)|$)',
         re.UNICODE
     )
     
@@ -85,8 +86,8 @@ def parse_html_content(html_content, filename=None):
                 current_turma = match.group(1).strip()
                 
                 # 2. Segunda tentativa: Extrai nome da unidade dos parênteses (mesmo não fechados)
-                if match.group(2):
-                    unidade_candidate = match.group(2).strip()
+                if match.group(4):  # Ajustado para o novo grupo devido à alteração da expressão regular
+                    unidade_candidate = match.group(4).strip()
                     # Remove hífens no final e limpa espaços
                     unidade_candidate = re.sub(r'-\s*$', '', unidade_candidate).strip()
                     if unidade_candidate and not unidade_name:

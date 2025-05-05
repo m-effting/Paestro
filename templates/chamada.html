@@ -14,7 +14,7 @@
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='css/favicon12.png') }}" alt="Logo PAESTRO" class="logo">
+        <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
         <div class="header-info">
             <span id="data-atual"></span>
             <span id="nome-usuario"></span>
@@ -26,14 +26,15 @@
             <a href="/" class="nav-link">Login</a>
             <a href="/chamada" class="nav-link active">Chamada</a>
             <a href="/importar" class="nav-link">Importar</a>
+            <a href="/analise" class="nav-link">Análise</a>
         </div>
     </nav>
-    
+
     <main>
         <main>
             <div class="chamada-container">
                 <h3>Chamada</h3>
-                
+
                 <div class="filtros-container">
                     <div class="filtros">
                         <div class="form-group">
@@ -63,7 +64,7 @@
                         </button>
                     </div>
                 </div>
-            
+
             <div class="tabela-container">
                 <table id="alunos-table">
                     <thead>
@@ -78,7 +79,7 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <div class="actions">
                 <button id="salvar-chamada-btn" class="btn-action">
                     <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
@@ -95,11 +96,11 @@
             </div>
         </div>
     </main>
-    
+
     <footer>
         <p>Secretaria de Educação © 2025</p>
     </footer>
-    
+
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/chamada.js"></script>
 </body>

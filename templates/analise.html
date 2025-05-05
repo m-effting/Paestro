@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAESTRO - Análise de Faltas</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/analise.css">
+    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
+    <link rel="icon" type="image/png" sizes="128x128" href="/css/favicon12.png"> 
+    <meta name="msapplication-TileColor" content="#ffffff"> 
+    <meta name="theme-color" content="#ffffff">
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
+        <div class="header-info">
+            <span id="data-atual"></span>
+            <span id="nome-usuario"></span>
+        </div>
+    </header>
+
+    <nav class="nav-container">
+        <div class="nav-links">
+            <a href="/" class="nav-link">Login</a>
+            <a href="/chamada" class="nav-link">Chamada</a>
+            <a href="/importar" class="nav-link">Importar</a>
+            <a href="/analise" class="nav-link active">Análise</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="analise-container">
+            <h3>Análise de Faltas</h3>
+            
+            <!-- Formulário de upload -->
+            <div class="upload-section">
+                <div class="file-upload-container">
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <div class="upload-droparea" id="upload-droparea">
+                            <svg viewBox="0 0 24 24" width="36" height="36">
+                                <path fill="currentColor" d="M14,13V17H10V13H7L12,8L17,13M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z" />
+                            </svg>
+                            <p>Arraste arquivos HTML de chamada para análise ou <label for="file-input" class="file-label">escolha arquivos</label></p>
+                            <input type="file" id="file-input" name="file" multiple accept=".html,.htm" hidden />
+                        </div>
+                        <div class="selected-files" id="selected-files"></div>
+                        <div class="upload-actions">
+                            <button type="submit" class="btn-action" id="process-btn">
+                                Processar Arquivos
+                            </button>
+                            <button type="button" class="btn-secondary" id="clear-btn" style="display:none;">Limpar Seleção</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Seção de resultados da análise -->
+            <div class="analysis-results-section" style="display:none;">
+                <div class="results-summary">
+                    <h4>Resumo da Análise</h4>
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <span class="summary-number" id="total-students">0</span>
+                            <span class="summary-label">Alunos</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="summary-number" id="total-schools">0</span>
+                            <span class="summary-label">Escolas</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="summary-number" id="total-classes">0</span>
+                            <span class="summary-label">Turmas</span>
+                        </div>
+                        <div class="summary-card alert">
+                            <span class="summary-number" id="total-absentees">0</span>
+                            <span class="summary-label">Faltosos</span>
+                        </div>
+                        <div class="summary-card warning">
+                            <span class="summary-number" id="total-monitors">0</span>
+                            <span class="summary-label">Monitorar</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filters-container">
+                    <h4>Filtros</h4>
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="school-filter">Escola:</label>
+                            <select id="school-filter">
+                                <option value="todos">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="class-filter">Turma:</label>
+                            <select id="class-filter">
+                                <option value="todos">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="status-filter">Status:</label>
+                            <select id="status-filter">
+                                <option value="todos">Todos</option>
+                                <option value="Faltoso">Faltosos</option>
+                                <option value="Monitorar Faltas">Monitorar Faltas</option>
+                                <option value="Monitorar FJs">Monitorar FJs</option>
+                                <option value="Muitas FJs">Muitas FJs</option>
+                                <option value="Regular">Regulares</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="education-filter">Tipo de Ensino:</label>
+                            <select id="education-filter">
+                                <option value="todos">Todos</option>
+                                <option value="Obrigatório">Obrigatório</option>
+                                <option value="Não Obrigatório">Não Obrigatório</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="column-toggle">
+                        <label>
+                            <input type="checkbox" id="toggle-details" checked>
+                            Mostrar detalhes de meses
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="results-table-container">
+                    <table id="results-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="school_name">Escola <span class="sort-icon">&#8597;</span></th>
+                                <th data-sort="class_name">Turma <span class="sort-icon">&#8597;</span></th>
+
+                                <th data-sort="student_name">Aluno <span class="sort-icon">&#8597;</span></th>
+                                <th data-sort="status" class="sortable">Status <span class="sort-icon">&#8597;</span></th>
+                                <th data-sort="attendance_percentage" class="numeric">% Presença <span class="sort-icon">&#8597;</span></th>
+                                <th data-sort="presence_total" class="numeric">Total P <span class="sort-icon">&#8597;</span></th>
+                                <th data-sort="absence_total" class="numeric">Total F <span class="sort-icon">&#8597;</span></th>
+                                <th data-sort="justified_total" class="numeric">Total FJ <span class="sort-icon">&#8597;</span></th>
+                                <th class="monthly-details">F por Mês</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Os resultados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="export-section">
+                    <h4>Exportar Dados</h4>
+                    <div class="export-buttons">
+                        <button id="export-excel" class="btn-action btn-primary">
+                            <svg viewBox="0 0 384 512" width="16" height="16">
+                                <path fill="currentColor" d="M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm60.1 106.5L224 336l60.1 93.5c5.1 8-.6 18.5-10.1 18.5h-34.9c-4.4 0-8.5-2.4-10.6-6.3C208.9 405.5 192 373 192 373c-6.4 14.8-10 20-36.6 68.8-2.1 3.9-6.1 6.3-10.5 6.3H110c-9.5 0-15.2-10.5-10.1-18.5l60.3-93.5-60.3-93.5c-5.2-8 .6-18.5 10.1-18.5h34.8c4.4 0 8.5 2.4 10.6 6.3 26.1 48.8 20 38.2 36.6 68.8 6.4 14.8 10 20 36.6 68.8 2.1 3.9 6.1 6.3 10.5 6.3h34.9c9.5 0 15.2-10.5 10.1-18.5zM384 121.9v6.1H256V0h6.1c6.4 0 12.5 2.5 17 7l97.9 98c4.5 4.5 7 10.6 7 16.9z"/>
+                            </svg>
+                            Exportar para Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logs foram removidos conforme solicitação -->
+            
+            <!-- Seção de regras (agora como dropdown) -->
+            <div class="rules-section">
+                <details class="rules-details">
+                    <summary class="rules-summary">Regras de Classificação</summary>
+                    <div class="rules-content">
+                        <h5>Ensino Obrigatório (Fundamental)</h5>
+                        <ul>
+                            <li><strong>Monitorar Faltas:</strong> 7 ou mais faltas por mês</li>
+                            <li><strong>Faltoso:</strong> 10 ou mais faltas por mês</li>
+                        </ul>
+                        
+                        <h5>Ensino Não Obrigatório (Infantil)</h5>
+                        <ul>
+                            <li><strong>Monitorar Faltas:</strong> 10 ou mais faltas por mês</li>
+                            <li><strong>Faltoso:</strong> 13 ou mais faltas por mês</li>
+                        </ul>
+                        
+                        <h5>Percentual de Presença</h5>
+                        <ul>
+                            <li><strong>Monitorar Faltas:</strong> Menor ou igual a 35%</li>
+                            <li><strong>Faltoso:</strong> Menor ou igual a 20%</li>
+                        </ul>
+                        
+                        <h5>Faltas Justificadas (FJ)</h5>
+                        <ul>
+                            <li><strong>Monitorar FJs:</strong> 45% ou mais das faltas são justificadas</li>
+                            <li><strong>Muitas FJs:</strong> 60% ou mais das faltas são justificadas</li>
+                        </ul>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Secretaria de Educação © 2025</p>
+    </footer>
+
+    <script src="/static/js/modal.js"></script>
+    <script src="/static/js/analise.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 import re
 import unicodedata
-from data import app_data, normalize_school_name
+from backend.data import app_data, normalize_school_name
 
 def export_to_excel(classes, attendance_status, observations, html_content=None, current_user=None, periodo=None, escola_nome=None):
     wb = Workbook()
@@ -86,29 +86,29 @@ def get_excel_filename(escola_nome=None, periodo=None, current_user=None):
     """
     Gera o nome do arquivo no formato: NOME_DA_UNIDADE_DIA-MÊS-ANO_PERIODO_NOME_DA_DUPLA.xlsx
     """
-    
+
     def sanitize(text, remove_hyphens=False):
         if not text or not isinstance(text, str):
             return ""
-        
+
         # Remove símbolos específicos
         symbols_to_remove = ['º', 'ª', '°', '¨', '´', '`', '^', '~']
         for symbol in symbols_to_remove:
             text = text.replace(symbol, '')
-        
+
         # Normaliza caracteres unicode (remove acentos)
         text = unicodedata.normalize('NFKD', text)
         text = ''.join([c for c in text if not unicodedata.combining(c)])
-        
+
         # Padrão de caracteres permitidos
         pattern = r'[^\w\s]' if remove_hyphens else r'[^\w\s-]'
         text = re.sub(pattern, '', text)
-        
+
         # Substitui todos os separadores por _
         text = re.sub(r'[\s\-\.]+', '_', text.strip())
         text = re.sub(r'_+', '_', text)
         text = text.strip('_')
-        
+
         return text.upper()
 
     components = [
@@ -117,6 +117,6 @@ def get_excel_filename(escola_nome=None, periodo=None, current_user=None):
         sanitize(periodo) or "PERIODO_NAO_INFORMADO",
         sanitize(current_user) or "DUPLA_NAO_INFORMADA"
     ]
-    
+
     filename = "_".join(filter(None, components)) + ".xlsx"
     return filename[:100]

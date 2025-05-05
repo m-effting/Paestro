@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Conjunto para armazenar turmas salvas localmente
     let savedClasses = new Set();
-    
+
     // Inicialização da aplicação
     await initApp();
 
@@ -55,17 +55,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         updateCurrentDate();
         loadCurrentUser();
         await carregarEscolas();
-        
+
         // Sincroniza as turmas salvas ao iniciar
         await sincronizarTurmasSalvas();
-        
+
         // Carrega a escola selecionada se existir no sessionStorage
         const escolaSalva = sessionStorage.getItem('escola_selecionada');
         if (escolaSalva && escolaSelect.querySelector(`option[value="${escolaSalva}"]`)) {
             escolaSelect.value = escolaSalva;
             await carregarTurmas(escolaSalva);
         }
-        
+
         setupEventListeners();
     }
 
@@ -73,11 +73,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     function showError(mensagem) {
         modal.alert('Erro', mensagem, 'error');
     }
-    
+
     function showSuccess(mensagem) {
         modal.alert('Sucesso', mensagem, 'success');
     }
-    
+
     function showConfirm(mensagem) {
         return new Promise((resolve) => {
             modal.confirm('Confirmação', mensagem, 
@@ -114,11 +114,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             const url = escola ? `/api/get_saved_classes?escola=${encodeURIComponent(escola)}` : '/api/get_saved_classes';
             const response = await fetch(url);
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             if (data.success) {
                 savedClasses = new Set(data.saved_classes);
@@ -128,17 +128,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Erro ao carregar turmas salvas:', error);
             // Não mostra alerta para evitar spam de mensagens
         }
-    
+
         // Verifica periodicamente por atualizações
         if (!this.updateInterval) {
             this.updateInterval = setInterval(async () => {
                 try {
                     const response = await fetch('/api/get_saved_classes_status');
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     const data = await response.json();
                     if (data.success) {
                         const novasTurmasSalvas = new Set(data.saved_classes);
@@ -155,18 +155,18 @@ document.addEventListener('DOMContentLoaded', async function() {
             }, 10000); // Verifica a cada 10 segundos (reduzido de 5 para 10)
         }
     }
-    
+
     async function abrirModalAnotacoes() {
         const escola = escolaSelect.value;
         if (!escola) {
             showError('Nenhuma escola selecionada');
             return;
         }
-        
+
         try {
             const response = await fetch(`/api/get_annotations?escola=${encodeURIComponent(escola)}`);
             const data = await response.json();
-            
+
             if (data.success) {
                 const annotations = data.annotations || [];
                 mostrarModalAnotacoes(escola, annotations);
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <textarea id="nova-anotacao" class="modal-input" rows="3"></textarea>
             </div>
         `;
-        
+
         modal.open('Anotações da Unidade', modalContent, [
             {
                 text: 'Cancelar',
@@ -212,21 +212,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 handler: () => salvarAnotacao(escola)
             }
         ]);
-    
+
         // Adicionar eventos de clique para os botões de exclusão
         document.querySelectorAll('.delete-annotation-btn').forEach(btn => {
             btn.addEventListener('click', () => excluirAnotacao(escola, btn.dataset.index));
         });
     }
-    
+
     async function excluirAnotacao(escola, index) {
         const annotations = await fetchAnnotations(escola);
         const anotacao = annotations[index];
         if (!anotacao) return;
-    
+
         const confirmacao = await showConfirm(`Deseja excluir a anotação: "${anotacao}"?`);
         if (!confirmacao) return;
-    
+
         try {
             const response = await fetch('/api/delete_annotation', {
                 method: 'POST',
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 body: JSON.stringify({ escola: escola, anotacao: anotacao })
             });
             const data = await response.json();
-    
+
             if (data.success) {
                 showSuccess('Anotação excluída com sucesso');
                 abrirModalAnotacoes(); // Recarrega o modal
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             showError('A anotação não pode estar vazia');
             return;
         }
-        
+
         try {
             const response = await fetch('/api/add_annotation', {
                 method: 'POST',
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 body: JSON.stringify({ escola: escola, anotacao: anotacao })
             });
             const data = await response.json();
-            
+
             if (data.success) {
                 showSuccess('Anotação salva com sucesso');
                 modal.close();
@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             const response = await fetch('/api/get_schools');
             const data = await response.json();
-            
+
             if (data.success) {
                 escolaSelect.innerHTML = '<option value="">Selecione uma escola</option>';
                 data.schools.forEach(escola => {
@@ -310,13 +310,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (option.value) {
                 const isSaved = savedClasses.has(option.value);
                 option.classList.toggle('turma-salva', isSaved);
-                
+
                 // Remove qualquer ícone existente primeiro
                 const textoOriginal = option.textContent.replace(' ✓', '');
                 option.textContent = isSaved ? textoOriginal + ' ✓' : textoOriginal;
             }
         });
-        
+
         // Força o redesenho do select com timeout duplo para mobile
         turmaSelect.style.display = 'none';
         setTimeout(() => {
@@ -324,13 +324,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             turmaSelect.style.display = '';
         }, 50);
     }
-    
+
 
     // Carrega turmas de uma escola
     async function carregarTurmas(escola) {
         await loadSavedClasses(escola); // Carrega turmas salvas da escola específica
         if (!escola) return;
-    
+
         try {
             const response = await fetch('/api/get_school_classes', {
                 method: 'POST',
@@ -338,23 +338,23 @@ document.addEventListener('DOMContentLoaded', async function() {
                 body: JSON.stringify({ school: escola })
             });
             const data = await response.json();
-            
+
             if (data.success) {
                 turmaSelect.innerHTML = '<option value="">Selecione uma turma</option>';
                 data.classes.forEach(turma => {
                     const option = document.createElement('option');
                     option.value = turma;
                     option.textContent = turma;
-                    
+
                     // Verifica se a turma está salva localmente ou no servidor
                     if (savedClasses.has(turma) || data.saved_classes.includes(turma)) {
                         option.classList.add('turma-salva');
                         savedClasses.add(turma); // Garante sincronização
                     }
-                    
+
                     turmaSelect.appendChild(option);
                 });
-                
+
                 alunosTable.innerHTML = '';
             }
         } catch (error) {
@@ -362,17 +362,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             showError('Falha ao carregar turmas');
         }
     }
-    
+
     async function sincronizarEstadoCompleto() {
         try {
             const [schoolsRes, savedRes] = await Promise.all([
                 fetch('/api/get_schools?_=' + Date.now()),
                 fetch('/api/get_saved_classes?_=' + Date.now())
             ]);
-            
+
             const schoolsData = await schoolsRes.json();
             const savedData = await savedRes.json();
-            
+
             if (schoolsData.success && savedData.success) {
                 // Atualiza lista de escolas
                 escolaSelect.innerHTML = '<option value="">Selecione uma escola</option>';
@@ -382,11 +382,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                     option.textContent = escola;
                     escolaSelect.appendChild(option);
                 });
-                
+
                 // Atualiza turmas salvas
                 savedClasses = new Set(savedData.saved_classes);
                 atualizarTurmasSalvas();
-                
+
                 // Restaura seleção anterior se existir
                 const escolaSalva = sessionStorage.getItem('escola_selecionada');
                 if (escolaSalva && schoolsData.schools.includes(escolaSalva)) {
@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Erro ao sincronizar estado:', error);
         }
     }
-    
+
 
     async function sincronizarTurmasSalvas() {
         try {
@@ -407,11 +407,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            
+
             if (data.success) {
                 // Cria um novo Set para evitar problemas de referência
                 const novasTurmas = new Set(data.saved_classes);
-                
+
                 // Verifica se houve mudança antes de atualizar
                 if (novasTurmas.size !== savedClasses.size || 
                     ![...novasTurmas].every(t => savedClasses.has(t))) {
@@ -431,16 +431,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Carrega alunos de uma turma
     async function carregarAlunos(escola, turma) {
         if (!escola || !turma) return;
-    
+
         try {
             const response = await fetch('/api/get_class', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ school: escola, class: turma })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 // Se não houver alunos (registros limpos), carrega a lista original
                 if (data.alunos.length === 0) {
@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         observacao: ''
                     }));
                 }
-                
+
                 renderizarAlunos(data.alunos, turma);
             }
         } catch (error) {
@@ -459,23 +459,23 @@ document.addEventListener('DOMContentLoaded', async function() {
             showError('Falha ao carregar alunos');
         }
     }
-    
+
 
     // Renderiza a lista de alunos na tabela
     function renderizarAlunos(alunos, turma) {
         alunosTable.innerHTML = '';
-        
+
         alunos.forEach(aluno => {
             const row = alunosTable.insertRow();
-            
+
             // Nome do aluno
             const cellNome = row.insertCell(0);
             cellNome.textContent = aluno.nome;
-            
+
             // Botões de presença
             const cellPresenca = row.insertCell(1);
             renderizarBotoesPresenca(cellPresenca, aluno.nome, aluno.presenca, turma);
-            
+
             // Campo de observação
             const cellObs = row.insertCell(2);
             renderizarCampoObservacao(cellObs, aluno.nome, aluno.observacao || '', turma);
@@ -493,12 +493,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             btn.className = `presenca-btn ${presencaAtual === opcao ? 'selected-' + opcao : ''}`;
             btn.textContent = opcao;
             btn.dataset.value = opcao;
-            
+
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 atualizarPresenca(presencaContainer, this, alunoNome, turma);
             });
-            
+
             presencaContainer.appendChild(btn);
         });
 
@@ -511,11 +511,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         container.querySelectorAll('.presenca-btn').forEach(b => {
             b.className = 'presenca-btn';
         });
-        
+
         // Adiciona a classe de seleção ao botão clicado
         const opcao = botaoClicado.dataset.value;
         botaoClicado.className = `presenca-btn selected-${opcao}`;
-        
+
         // Atualiza o status no appData
         if (turma) {
             if (!appData.attendance_status[turma]) {
@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         obsInput.className = 'observacao-input';
         obsInput.dataset.aluno = alunoNome;
         obsInput.value = observacao;
-        
+
         obsInput.addEventListener('change', function() {
             if (turma) {
                 if (!appData.observations[turma]) {
@@ -541,7 +541,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 appData.observations[turma][alunoNome] = this.value;
             }
         });
-        
+
         cell.appendChild(obsInput);
     }
 
@@ -549,12 +549,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 async function adicionarAluno() {
     const escola = escolaSelect.value;
     const turma = turmaSelect.value;
-    
+
     if (!escola || !turma) {
         showError('Selecione uma escola e turma primeiro');
         return;
     }
-    
+
     modal.prompt('Adicionar Aluno', 'Digite o nome do aluno:', '', (nomeAluno) => {
         if (nomeAluno && nomeAluno.trim()) {
             adicionarAlunoNaTabela(nomeAluno, turma);
@@ -567,15 +567,15 @@ async function adicionarAluno() {
     // Adiciona aluno na tabela visual
     function adicionarAlunoNaTabela(nomeAluno, turma) {
         const row = alunosTable.insertRow();
-        
+
         // Nome do aluno
         const cellNome = row.insertCell(0);
         cellNome.textContent = nomeAluno;
-        
+
         // Botões de presença
         const cellPresenca = row.insertCell(1);
         renderizarBotoesPresenca(cellPresenca, nomeAluno, 'P', turma);
-        
+
         // Campo de observação
         const cellObs = row.insertCell(2);
         renderizarCampoObservacao(cellObs, nomeAluno, '', turma);
@@ -587,11 +587,11 @@ async function adicionarAluno() {
         if (!appData.schools[escola]) appData.schools[escola] = {};
         if (!appData.schools[escola][turma]) appData.schools[escola][turma] = [];
         appData.schools[escola][turma].push(nomeAluno);
-        
+
         // Inicializa status de presença
         if (!appData.attendance_status[turma]) appData.attendance_status[turma] = {};
         appData.attendance_status[turma][nomeAluno] = 'P';
-        
+
         // Inicializa observações
         if (!appData.observations[turma]) appData.observations[turma] = {};
         appData.observations[turma][nomeAluno] = '';
@@ -601,14 +601,14 @@ async function adicionarAluno() {
     async function salvarChamada() {
         const escola = escolaSelect.value;
         const turma = turmaSelect.value;
-        
+
         if (!escola || !turma) {
             showError('Selecione uma escola e turma primeiro');
             return;
         }
-        
+
         const alunosData = coletarDadosAlunos();
-        
+
         try {
             const response = await fetch('/api/save_attendance', {
                 method: 'POST',
@@ -620,7 +620,7 @@ async function adicionarAluno() {
                 })
             });
             const data = await response.json();
-            
+
             if (data.success) {
                 showSuccess('Chamada salva com sucesso!');
                 savedClasses.add(turma);
@@ -633,25 +633,25 @@ async function adicionarAluno() {
             showError('Falha ao comunicar com o servidor');
         }
     }
-    
+
     // Coleta dados dos alunos da tabela
     function coletarDadosAlunos() {
         const alunosData = [];
         const rows = alunosTable.rows;
-        
+
         for (let i = 0; i < rows.length; i++) {
             const cells = rows[i].cells;
             const nome = cells[0].textContent;
             const presencaBtn = cells[1].querySelector('.presenca-btn.selected-P, .presenca-btn.selected-F, .presenca-btn.selected-FJ');
             const presenca = presencaBtn ? presencaBtn.dataset.value : 'P';
-            
+
             alunosData.push({
                 nome: nome,
                 presenca: presenca,
                 observacao: cells[2].querySelector('input').value
             });
         }
-        
+
         return alunosData;
     }
 
@@ -663,30 +663,30 @@ async function adicionarAluno() {
             showError('Selecione uma escola antes de exportar');
             return;
         }
-    
+
         // Verifica se há turmas salvas
         if (savedClasses.size === 0) {
             showError('Nenhuma chamada foi salva ainda. Por favor, salve pelo menos uma chamada antes de exportar.');
             return;
         }
-    
+
         // Verifica se todas as turmas da escola foram salvas
         const turmasDaEscola = Array.from(turmaSelect.options)
             .map(opt => opt.value)
             .filter(val => val);
-    
+
         const turmasNaoSalvas = turmasDaEscola.filter(t => !savedClasses.has(t));
-    
+
         if (turmasNaoSalvas.length > 0) {
             const confirmacao = await showConfirm(
                 `Atenção: Você tem ${turmasNaoSalvas.length} turma(s) não salva(s) nesta escola.\nDeseja continuar?` 
             );
-            
+
             if (!confirmacao) {
                 return; // Usuário escolheu não continuar
             }
         }
-    
+
         // Redireciona para a página de exportação 
         window.location.href = `/exportar?escola=${encodeURIComponent(escola)}`;
     }
@@ -696,7 +696,7 @@ async function adicionarAluno() {
             sessionStorage.setItem('escola_selecionada', escolaSelect.value);
             await carregarTurmas(escolaSelect.value);
         });
-        
+
         // Evento único para visibilitychange
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden) {
@@ -710,7 +710,7 @@ async function adicionarAluno() {
                 }
             }
         });
-        
+
         // Evento único para focus 
         window.addEventListener('focus', async () => {
             const escola = escolaSelect.value;
@@ -722,7 +722,7 @@ async function adicionarAluno() {
                 atualizarTurmasSalvas();
             }
         });
-        
+
         // Outros listeners
         turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
         addAlunoBtn.addEventListener('click', adicionarAluno);

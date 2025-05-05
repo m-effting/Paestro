@@ -12,44 +12,54 @@
     <meta name="theme-color" content="#ffffff">
 </head>
 <body>
-    <header>
-        <img src="{{ url_for('static', filename='css/favicon12.png') }}" alt="Logo PAESTRO" class="logo">
-    </header>
-    
-    <main>
-        <div class="login-container">
-            <h3>Login</h3>
-            <form id="login-form" novalidate>
-                <div class="form-group">
-                    <label for="username">Equipe:</label>
-                    <input type="text" id="username" required placeholder="Ex: Munich e Guilherme">
-                </div>
-                <div class="form-group">
-                    <label for="periodo">Período:</label>
-                    <select id="periodo" name="periodo" required>
-                        <option value="">Selecione</option>
-                        <option value="matutino">Matutino</option>
-                        <option value="vespertino">Vespertino</option>
-                    </select>
-                    <div class="error-message" id="periodo-error"></div>
-                </div>
-                <div class="form-group">
-                    <label for="senha">Senha de Acesso:</label>
-                    <input type="password" id="senha" name="senha" required placeholder="Digite a senha">
-                    <div class="error-message" id="senha-error"></div>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">Iniciar Chamada</button>
-                    <button type="button" id="importar-btn" class="btn-secondary">Importar Chamadas</button>
-                </div>
-            </form>
+    <div class="login-page">
+        <div class="login-logo-container">
+            <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
         </div>
-    </main>
-    
-    <footer>
-        <p>Secretaria de Educação © {{ now.year }}</p>
-    </footer>
-    
+
+        <main>
+            <div class="login-container">
+                <h3>Acesso ao Sistema</h3>
+                <form id="login-form" novalidate>
+                    <div class="form-group">
+                        <label for="username">Equipe</label>
+                        <input type="text" id="username" required placeholder="Ex: Munich e Guilherme">
+                    </div>
+                    <div class="form-group">
+                        <label for="periodo">Período</label>
+                        <select id="periodo" name="periodo" required>
+                            <option value="">Selecione o período</option>
+                            <option value="matutino">Matutino</option>
+                            <option value="vespertino">Vespertino</option>
+                        </select>
+                        <div class="error-message" id="periodo-error"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="senha">Senha de Acesso</label>
+                        <input type="password" id="senha" name="senha" required placeholder="Digite a senha">
+                        <div class="error-message" id="senha-error"></div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-action btn-login">Entrar</button>
+                    </div>
+                    <div class="login-options">
+                        <button type="button" id="importar-btn" class="btn-action btn-secondary">
+                            <span class="btn-icon">📋</span> Importar Chamadas
+                        </button>
+                        <button type="button" id="analise-btn" class="btn-action btn-secondary">
+                            <span class="btn-icon">📊</span> Análise de Faltas
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+
+        <footer>
+            <p>Secretaria de Educação © {{ now.year }}</p>
+        </footer>
+    </div>
+
     <script src="/static/js/modal.js"></script>
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 </body>
