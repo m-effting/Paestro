@@ -1,3 +1,12 @@
+
+"""
+PAESTRO - Sistema de Gestão de Chamadas Escolares
+
+Este é o script principal do aplicativo PAESTRO,
+que fornece ferramentas para importação, análise e exportação
+de dados de chamadas escolares.
+"""
+
 from flask import Flask, request, jsonify, send_file, render_template
 from flask import session, redirect, url_for
 from datetime import datetime
@@ -7,15 +16,26 @@ import sys
 import re
 from werkzeug.utils import secure_filename
 
-# Importações locais do PAESTRO
-from backend.chamada_parser import parse_html_content
-from backend.excel_exporter import export_to_excel, get_excel_filename
-from backend.drive_exporter import get_drive_folders, export_attendance_drive 
-from backend.data import app_data, normalize_school_name
+# Adiciona o diretório atual ao path para execução direta do script
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+
+# Importações locais do PAESTRO, com suporte a execução direta ou importada
+try:
+    # Tenta importar como módulo (run_flask.py importando)
+    from backend.chamada_parser import parse_html_content
+    from backend.excel_exporter import export_to_excel, get_excel_filename
+    from backend.drive_exporter import get_drive_folders, export_attendance_drive 
+    from backend.data import app_data, normalize_school_name
+except ImportError:
+    # Tenta importar para execução direta (python backend/app.py)
+    from chamada_parser import parse_html_content
+    from excel_exporter import export_to_excel, get_excel_filename
+    from drive_exporter import get_drive_folders, export_attendance_drive 
+    from data import app_data, normalize_school_name
 
 # Importações do módulo de análise de chamadas
 try:
-    # Importa do módulo de análise interno
+    # Tenta importar como módulo (run_flask.py importando)
     from backend.analysis.analise_parser import analyze_attendance_html as process_html_file
     from backend.analysis.analise_parser import analyze_elementary_file
     from backend.analysis.rules_engine import apply_classification_rules
@@ -26,19 +46,30 @@ try:
     print("Módulo de análise carregado com sucesso.")
     
 except (ImportError, ModuleNotFoundError) as e:
-    # Se falhar, usa o módulo local do PAESTRO
-    print(f"Erro ao importar módulo de análise: {e}")
-    from backend.attendance_analyzer import process_files, get_logs, export_to_file
-    
-    # Funções para compatibilidade
-    def process_html_file(html_content):
-        return process_files([{"content": html_content, "filename": "arquivo.html"}])["data"]
+    try:
+        # Tenta importar para execução direta (python backend/app.py)
+        from analysis.analise_parser import analyze_attendance_html as process_html_file
+        from analysis.analise_parser import analyze_elementary_file
+        from analysis.rules_engine import apply_classification_rules
+        from analysis.utils import setup_new_logger
         
-    def apply_classification_rules(data):
-        return data  # Sem regras no módulo local
+        # Configura o logger para análise de faltas
+        logger = setup_new_logger()
+        print("Módulo de análise carregado com sucesso.")
+    except (ImportError, ModuleNotFoundError) as e2:
+        # Se falhar, usa o módulo local do PAESTRO
+        print(f"Erro ao importar módulo de análise: {e2}")
+        from backend.attendance_analyzer import process_files, get_logs, export_to_file
         
-    def analyze_elementary_file(html_content):
-        return {"school_info": {}, "students": []}
+        # Funções para compatibilidade quando usa o módulo local
+        def process_html_file(html_content):
+            return process_files([{"content": html_content, "filename": "arquivo.html"}])["data"]
+            
+        def apply_classification_rules(data):
+            return data  # Sem regras no módulo local
+            
+        def analyze_elementary_file(html_content):
+            return {"school_info": {}, "students": []}
 
 app = Flask(__name__,
             template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'templates'),
@@ -686,9 +717,12 @@ app.route('/api/get_drive_folders', methods=['GET'])(get_drive_folders)
 app.route('/api/export_excel_drive', methods=['POST'])(lambda: export_attendance_drive(app_data))
 
 if __name__ == '__main__':
-    import os
+    # Adicionar o diretório atual ao path do sistema para encontrar os módulos corretamente
+    sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+    
     print(f"Template folder: {app.template_folder}")
     print(f"Static folder: {app.static_folder}")
     print(f"Templates existentes: {os.listdir(app.template_folder)}")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    
+    # Iniciar o servidor na porta 5000, acessível por qualquer IP
+    app.run(host='0.0.0.0', port=5000, debug=True)
