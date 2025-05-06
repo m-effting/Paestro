@@ -1,3 +1,4 @@
+
 from lxml import html
 from bs4 import BeautifulSoup
 import re
@@ -622,6 +623,45 @@ def find_totals_in_html(html_content, student_name):
     except Exception as e:
         logger.error(f"Erro ao buscar totais para {student_name}: {e}")
         return {'P': 0, 'F': 0, 'FJ': 0}
+
+def is_elementary_education(class_name):
+    """
+    Determina se uma turma é de ensino fundamental (obrigatório) ou infantil (não obrigatório).
+    """
+    if not class_name:
+        return False
+        
+    class_name = class_name.upper()
+    
+    # Verifica se é uma turma de 1º a 9º ano (ensino fundamental)
+    if any(pattern in class_name for pattern in ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º']):
+        return True
+    
+    # Também é considerado obrigatório GT4 e GT5
+    if 'GT4' in class_name or 'GT 4' in class_name or 'GT5' in class_name or 'GT 5' in class_name:
+        return True
+        
+    return False
+
+def get_education_type(class_name):
+    """
+    Determina o tipo de educação com base no nome da turma.
+    """
+    if not class_name:
+        return "nao_obrigatorio"
+        
+    class_name = class_name.upper()
+    
+    # Verifica se é uma turma de ensino fundamental ou GT4/GT5 (obrigatória)
+    if is_elementary_education(class_name):
+        return "obrigatorio"
+        
+    # GT0-GT3 são não obrigatórios
+    if any(pattern in class_name for pattern in ['GT0', 'GT 0', 'GT1', 'GT 1', 'GT2', 'GT 2', 'GT3', 'GT 3']):
+        return "nao_obrigatorio"
+    
+    # Default para não obrigatório se não conseguir identificar
+    return "nao_obrigatorio"
 
 def analyze_elementary_file(html_content):
     """

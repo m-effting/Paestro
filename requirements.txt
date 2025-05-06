@@ -1,9 +1,25 @@
-flask
-lxml
-openpyxl
-pandas
+# Principais dependências
+flask>=2.2.0
+beautifulsoup4>=4.11.1
+lxml>=4.9.1
+pandas>=1.5.0
+pytz>=2022.1
+
+# Exportação de dados
+openpyxl>=3.0.10
+xlsxwriter>=3.0.3
+
+# Google Drive API (para integração com Google Drive)
 google-auth>=2.3.0
 google-auth-oauthlib>=0.4.6
 google-auth-httplib2>=0.1.0
 google-api-python-client>=2.0.0
-pytz
+
+# Processamento de HTML
+trafilatura>=1.4.0
+
+# Ferramentas de desenvolvimento
+werkzeug>=2.2.0
+google-api-python-client
+google-auth
+flask-session

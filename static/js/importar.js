@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file-input');
     const browseBtn = document.querySelector('.file-input-label');
+    // Assegura que o browseBtn aponta para o elemento correto
+    console.log('browseBtn element found:', browseBtn);
     const fileInfo = document.getElementById('file-info');
     const fileName = document.getElementById('file-name');
     const processBtn = document.getElementById('process-btn');
@@ -69,11 +71,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Configure file input button
-    browseBtn.addEventListener('click', function() {
+    browseBtn.addEventListener('click', function(e) {
+        e.preventDefault(); // Previne o comportamento padrão
         fileInput.click();
+        // Evitar que o input seja fechado após a seleção
+        return false;
     });
 
-    fileInput.addEventListener('change', function() {
+    fileInput.addEventListener('change', function(e) {
+        // Previne o comportamento padrão de fechar o seletor
+        e.stopPropagation();
+        
         if (this.files.length) {
             handleFiles(this.files);
         }
@@ -225,8 +233,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         modal.loading('Processando arquivos...');
         
+        // Clonar a lista de arquivos selecionados antes de enviar
+        // Isso previne problemas ao reselecionar o mesmo arquivo
+        const filesToUpload = [...selectedFiles];
+        
         const formData = new FormData();
-        selectedFiles.forEach(file => {
+        filesToUpload.forEach(file => {
             formData.append('files', file); // Alterado para 'files' para corresponder ao backend
         });
 

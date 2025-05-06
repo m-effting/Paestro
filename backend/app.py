@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """
 PAESTRO - Sistema de Gestão de Chamadas Escolares
@@ -9,11 +11,12 @@ de dados de chamadas escolares.
 
 from flask import Flask, request, jsonify, send_file, render_template
 from flask import session, redirect, url_for
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import io
 import sys
 import re
+import time
 from werkzeug.utils import secure_filename
 
 # Adiciona o diretório atual ao path para execução direta do script
@@ -57,9 +60,24 @@ except (ImportError, ModuleNotFoundError) as e:
         logger = setup_new_logger()
         print("Módulo de análise carregado com sucesso.")
     except (ImportError, ModuleNotFoundError) as e2:
-        # Se falhar, usa o módulo local do PAESTRO
+        # Se falhar, tenta importar módulo local com caminhos alternativos
         print(f"Erro ao importar módulo de análise: {e2}")
-        from backend.attendance_analyzer import process_files, get_logs, export_to_file
+        try:
+            # Tenta importar com caminho relativo (para execução local direta)
+            from attendance_analyzer import process_files, get_logs, export_to_file
+        except ImportError as e3:
+            try:
+                # Tenta importar com caminho absoluto (para execução via VS Code/outro IDE)
+                from backend.attendance_analyzer import process_files, get_logs, export_to_file
+            except ImportError as e4:
+                print(f"Não foi possível importar attendance_analyzer: {e4}")
+                # Implementação mínima inline para evitar erro fatal
+                def process_files(files):
+                    return {"data": [], "errors": ["Módulo attendance_analyzer não disponível"]}
+                def get_logs():
+                    return ["Módulo attendance_analyzer não disponível"]
+                def export_to_file(data, file_format):
+                    return None, "text/plain", "erro.txt"
         
         # Funções para compatibilidade quando usa o módulo local
         def process_html_file(html_content):
@@ -77,6 +95,26 @@ app = Flask(__name__,
 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = 'senha_ultramente_secreta'
+
+# Configurações de sessão: 2 horas de expiração (7200 segundos)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
+
+# Configura sessão baseada em sistema de arquivos para lidar com cookies grandes
+from flask_session import Session
+session_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'session_data')
+
+# Cria o diretório de sessão se não existir
+os.makedirs(session_dir, exist_ok=True)
+
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = session_dir
+app.config['SESSION_PERMANENT'] = True  # Sessões permanentes por padrão
+app.config['SESSION_USE_SIGNER'] = True  # Assina os cookies para segurança
+app.config['SESSION_FILE_THRESHOLD'] = 500  # Número máximo de arquivos antes de limpeza
+
+# Inicializa o armazenamento de sessão
+Session(app)
+
 SENHA_CORRETA = "ProjetoPaestro@2025"
 
 
@@ -147,10 +185,16 @@ def analysis_page():
     """
     Página de Análise de Chamadas.
     Só permite acesso se o usuário estiver autenticado.
+    Inicializa o armazenamento de arquivos analisados na sessão do usuário.
     """
     # Temporariamente desabilitado para permitir testes
     # if not session.get("autenticado"):
     #     return redirect(url_for('home'))
+    
+    # Inicializa a lista de arquivos analisados na sessão se não existir
+    if 'analyzed_files' not in session:
+        session['analyzed_files'] = []
+        
     return render_template('analise.html')
 
 @app.route('/chamada')
@@ -223,7 +267,10 @@ def login():
         return jsonify({'success': False, 'error': 'Senha incorreta!'}), 401
 
     # Se a senha estiver correta, registra o usuário
+    session.permanent = True  # Torna a sessão permanente com duração definida nas configurações
     session['autenticado'] = True
+    session['current_user'] = username
+    session['periodo'] = periodo
     app_data['current_user'] = username
     app_data['periodo'] = periodo
 
@@ -294,10 +341,14 @@ def handle_file_upload():
 
 @app.route('/api/get_current_user', methods=['GET'])
 def get_current_user():
+    # Prioriza informações da sessão, com fallback para app_data se não presente
+    username = session.get('current_user') or app_data.get('current_user', '')
+    periodo = session.get('periodo') or app_data.get('periodo', '')
+    
     return jsonify({
         'success': True,
-        'username': app_data.get('current_user', ''),
-        'periodo': app_data.get('periodo', '')
+        'username': username,
+        'periodo': periodo
     })
 
 @app.route('/api/get_imported_files', methods=['GET'])
@@ -404,10 +455,15 @@ def process_analysis_files():
     """
     Processa arquivos HTML para análise de faltas e classifica os alunos.
     Integração com módulo analise_chamadas.
+    Armazena os resultados na sessão do usuário, não compartilhando entre usuários.
     """
     # Temporariamente desabilitado para permitir testes
     # if not session.get("autenticado"):
     #     return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+    
+    # Inicializar storage de arquivos analisados na sessão se não existir
+    if 'analyzed_files' not in session:
+        session['analyzed_files'] = []
         
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'})
@@ -436,6 +492,10 @@ def process_analysis_files():
                 
                 # Extrair os alunos da estrutura de resultado
                 students_data = result.get('students', [])
+                
+                # Adiciona o nome do arquivo como origem para cada aluno
+                for student in students_data:
+                    student['origem_arquivo'] = file.filename
                 
                 # Aplica as regras de classificação aos dados dos alunos
                 classified_data = apply_classification_rules({'students': students_data})
@@ -471,6 +531,138 @@ def process_analysis_files():
             ])
         }
         
+        # Armazenar arquivos processados na sessão do usuário
+        for idx, filename in enumerate(processed_files):
+            # Verifica se o arquivo já existe na lista da sessão
+            file_exists = False
+            file_id = None
+            for existing_file in session['analyzed_files']:
+                if existing_file['filename'] == filename:
+                    file_exists = True
+                    file_id = existing_file['id']
+                    break
+            
+            # Filtrar estudantes deste arquivo
+            file_students = [student for student in all_results if student.get('origem_arquivo', '') == filename]
+            
+            # Se o arquivo já existe, atualiza; senão, cria novo
+            if file_exists:
+                for i, file in enumerate(session['analyzed_files']):
+                    if file['id'] == file_id:
+                        # Extrair o nome da escola (primeiro aluno ou escola mais comum)
+                        escolas = {}
+                        escola_nome = "Desconhecida"
+                        for student in file_students:
+                            nome_escola = student.get('escola') or student.get('unidade') or student.get('school_name')
+                            if nome_escola:
+                                escolas[nome_escola] = escolas.get(nome_escola, 0) + 1
+                        
+                        if escolas:
+                            # Encontra a escola mais comum no arquivo
+                            escola_nome = max(escolas.items(), key=lambda x: x[1])[0]
+                        
+                        import json
+                        import gzip
+                        import base64
+                        
+                        # Função para comprimir dados grandes
+                        def compress_data(data):
+                            # Converte para JSON e depois comprime
+                            json_str = json.dumps(data)
+                            compressed = gzip.compress(json_str.encode('utf-8'))
+                            # Converte para base64 para armazenamento seguro na sessão
+                            return base64.b64encode(compressed).decode('utf-8')
+                        
+                        # Comprimir resultados para não exceder limite de tamanho do cookie
+                        compressed_results = compress_data(file_students)
+                        
+                        session['analyzed_files'][i] = {
+                            'id': file_id,
+                            'filename': filename,
+                            'school_name': escola_nome,
+                            'date': datetime.now().isoformat(),
+                            'student_count': len(file_students),
+                            'compressed_results': compressed_results,  # Armazena em formato comprimido
+                            'summary': {
+                                'total_students': len(file_students),
+                                'total_schools': len(escolas),
+                                'total_classes': len(set(item.get('turma', 'Desconhecida') for item in file_students)),
+                                'total_absentees': len([item for item in file_students if 'Faltoso' in item.get('status', '') or 'Faltoso' in item.get('situacao', '')]),
+                                'total_monitors': len([item for item in file_students if 
+                                                      'Monitorar Faltas' in item.get('status', '') or 
+                                                      'Monitorar FJs' in item.get('status', '')
+                                                     ])
+                            }
+                        }
+                        # Marcar sessão como modificada
+                        session.modified = True
+                        break
+            else:
+                # Gera um ID único para o arquivo
+                new_id = str(int(time.time())) + str(len(session['analyzed_files']))
+                
+                # Extrair o nome da escola e turma (mais comuns no arquivo)
+                escolas = {}
+                turmas = {}
+                escola_nome = "Desconhecida"
+                turma_nome = "Desconhecida"
+                
+                for student in file_students:
+                    nome_escola = student.get('escola') or student.get('unidade') or student.get('school_name')
+                    nome_turma = student.get('turma') or student.get('class_name') or ""
+                    
+                    if nome_escola:
+                        escolas[nome_escola] = escolas.get(nome_escola, 0) + 1
+                    if nome_turma:
+                        turmas[nome_turma] = turmas.get(nome_turma, 0) + 1
+                
+                if escolas:
+                    # Encontra a escola mais comum no arquivo
+                    escola_nome = max(escolas.items(), key=lambda x: x[1])[0]
+                    
+                if turmas:
+                    # Encontra a turma mais comum no arquivo
+                    turma_nome = max(turmas.items(), key=lambda x: x[1])[0]
+                
+                import json
+                import gzip
+                import base64
+                
+                # Função para comprimir dados grandes
+                def compress_data(data):
+                    # Converte para JSON e depois comprime
+                    json_str = json.dumps(data)
+                    compressed = gzip.compress(json_str.encode('utf-8'))
+                    # Converte para base64 para armazenamento seguro na sessão
+                    return base64.b64encode(compressed).decode('utf-8')
+                
+                # Comprimir resultados para não exceder limite de tamanho do cookie
+                compressed_results = compress_data(file_students)
+                
+                # Adiciona arquivo à lista de arquivos analisados na sessão
+                session['analyzed_files'].append({
+                    'id': new_id,
+                    'filename': filename,
+                    'school_name': escola_nome,
+                    'class_name': turma_nome,
+                    'date': datetime.now().isoformat(),
+                    'student_count': len(file_students),
+                    'compressed_results': compressed_results,  # Armazena em formato comprimido
+                    'summary': {
+                        'total_students': len(file_students),
+                        'total_schools': len(escolas),
+                        'total_classes': len(set(item.get('turma', 'Desconhecida') for item in file_students)),
+                        'total_absentees': len([item for item in file_students if 'Faltoso' in item.get('status', '') or 'Faltoso' in item.get('situacao', '')]),
+                        'total_monitors': len([item for item in file_students if 
+                                              'Monitorar Faltas' in item.get('status', '') or 
+                                              'Monitorar FJs' in item.get('status', '')
+                                             ])
+                    }
+                })
+                
+                # Marcar sessão como modificada
+                session.modified = True
+        
         return jsonify({
             'success': True,
             'results': all_results,  # Mantendo a nomenclatura esperada pelo front-end
@@ -482,6 +674,125 @@ def process_analysis_files():
         import traceback
         error_details = traceback.format_exc()
         return jsonify({'success': False, 'error': str(e), 'details': error_details})
+
+@app.route('/api/get_analyzed_files', methods=['GET'])
+def get_analyzed_files():
+    """
+    Obtém a lista de arquivos já analisados da sessão do usuário.
+    Implementa proteção contra expiração da sessão.
+    """
+    try:
+        # Verifica se o storage de arquivos existe na sessão
+        if 'analyzed_files' not in session:
+            session['analyzed_files'] = []
+            # Renova sessão ao acessar esta rota
+            session.permanent = True
+            session.modified = True
+        
+        # Sempre que obter arquivos analisados, atualiza o timestamp da sessão
+        # para evitar que ela expire durante a análise
+        session.modified = True
+        
+        return jsonify({
+            'success': True,
+            'files': [{
+                'id': file['id'],
+                'filename': file['filename'],
+                'school_name': file.get('school_name', 'Desconhecida'),
+                'class_name': file.get('class_name', 'Desconhecida'),
+                'date': file['date'],
+                'student_count': file.get('student_count', len(file.get('results', []))),
+                'summary': file.get('summary', {})
+            } for file in session['analyzed_files']]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete_analyzed_file/<file_id>', methods=['DELETE'])
+def delete_analyzed_file(file_id):
+    """
+    Exclui um arquivo analisado da lista de arquivos da sessão do usuário.
+    Implementa proteção contra expiração da sessão.
+    """
+    if not file_id:
+        return jsonify({'success': False, 'error': 'ID do arquivo não fornecido'})
+    
+    try:
+        # Verifica se o storage de arquivos existe na sessão
+        if 'analyzed_files' not in session:
+            session['analyzed_files'] = []
+            # Renova sessão ao acessar esta rota
+            session.permanent = True
+            session.modified = True
+            return jsonify({'success': False, 'error': 'Arquivo não encontrado'})
+        
+        # Busca e remove o arquivo pelo ID na sessão
+        for idx, file in enumerate(session['analyzed_files']):
+            if file['id'] == file_id:
+                session['analyzed_files'].pop(idx)
+                # Sempre que modificar a sessão, atualiza seu timestamp
+                session.permanent = True
+                session.modified = True
+                return jsonify({'success': True, 'message': 'Arquivo removido com sucesso'})
+        
+        return jsonify({'success': False, 'error': 'Arquivo não encontrado'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get_analyzed_file_content/<file_id>', methods=['GET'])
+def get_analyzed_file_content(file_id):
+    """
+    Obtém o conteúdo de um arquivo analisado pelo ID da sessão do usuário.
+    Implementa proteção contra expiração da sessão.
+    """
+    if not file_id:
+        return jsonify({'success': False, 'error': 'ID do arquivo não fornecido'})
+    
+    try:
+        # Verifica se o storage de arquivos existe na sessão
+        if 'analyzed_files' not in session:
+            session['analyzed_files'] = []
+            # Renova sessão ao acessar esta rota
+            session.permanent = True
+            session.modified = True
+            return jsonify({'success': False, 'error': 'Arquivo não encontrado'})
+        
+        # Funções para compressão e descompressão
+        import json
+        import gzip
+        import base64
+        
+        def decompress_data(compressed_str):
+            if not compressed_str:
+                return []
+            # Decodifica base64, descomprime e carrega JSON
+            decoded = base64.b64decode(compressed_str.encode('utf-8'))
+            decompressed = gzip.decompress(decoded).decode('utf-8')
+            return json.loads(decompressed)
+        
+        # Busca o conteúdo do arquivo pelo ID na sessão
+        for file in session['analyzed_files']:
+            if file['id'] == file_id:
+                # Sempre que buscar um arquivo, atualiza o timestamp da sessão
+                # para evitar que ela expire durante a análise
+                session.modified = True
+                
+                # Verifica se há dados comprimidos e faz a descompressão
+                results = []
+                if 'compressed_results' in file:
+                    results = decompress_data(file['compressed_results'])
+                elif 'results' in file:
+                    results = file.get('results', [])
+                    
+                return jsonify({
+                    'success': True, 
+                    'results': results,
+                    'summary': file.get('summary', {})
+                })
+        
+        return jsonify({'success': False, 'error': 'Arquivo não encontrado'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/logs', methods=['GET'])
 def get_analysis_logs():
@@ -521,25 +832,186 @@ def download_analysis_file():
         import io
         import pandas as pd
         
-        # Cria um DataFrame com os dados
-        df = pd.DataFrame(data['data'])
+        # Preparamos os dados por turma para o formato especificado
+        alunos_por_turma = {}
+        
+        # Filtrar apenas alunos com status diferente de "Regular"
+        alunos_nao_regulares = []
+        for aluno in data['data']:
+            status = aluno.get('status') or aluno.get('situacao') or 'Regular'
+            if isinstance(status, list):
+                status_normalizado = status
+            else:
+                status_normalizado = [str(status)]
+            
+            # Verifica se não é Regular (status deve conter alguma classificação como Faltoso ou Monitorar)
+            if any(s != 'Regular' for s in status_normalizado) and not all(s == 'Regular' for s in status_normalizado):
+                alunos_nao_regulares.append(aluno)
+        
+        # Agrupar alunos por turma
+        for aluno in alunos_nao_regulares:
+            turma = aluno.get('turma') or aluno.get('class_name') or 'Sem Turma'
+            if turma not in alunos_por_turma:
+                alunos_por_turma[turma] = []
+            alunos_por_turma[turma].append(aluno)
+        
         buffer = io.BytesIO()
         
         if format_type == 'csv':
+            # Criar DataFrame e exportar para CSV
+            df = pd.DataFrame(data['data'])
             df.to_csv(buffer, index=False, encoding='utf-8-sig')
             mime_type = 'text/csv'
             filename = f"analise_frequencia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         else:
-            # Configurações para o Excel
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df.to_excel(writer, index=False, sheet_name='Análise de Faltas')
-                worksheet = writer.sheets['Análise de Faltas']
-                # Ajusta largura das colunas
-                for idx, col in enumerate(df.columns):
-                    column_width = max(df[col].astype(str).map(len).max(), len(col)) + 2
-                    worksheet.set_column(idx, idx, column_width)
+            # Uso do openpyxl para criar um Excel formatado conforme especificação
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+            
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Análise de Faltas"
+            
+            # Configuração de estilos
+            title_font = Font(name='Arial', size=12, bold=True)
+            header_font = Font(name='Arial', size=11, bold=True)
+            data_font = Font(name='Arial', size=10)
+            center_alignment = Alignment(horizontal='center', vertical='center')
+            left_alignment = Alignment(horizontal='left', vertical='center')
+            thin_border = Side(style='thin')
+            border = Border(left=thin_border, right=thin_border, top=thin_border, bottom=thin_border)
+            
+            # Cabeçalho com nome da escola e data
+            escolas = set()
+            for aluno in data['data']:
+                escola = aluno.get('escola') or aluno.get('school_name') or aluno.get('unidade') or 'Desconhecida'
+                escolas.add(escola)
+            
+            # Configuração do fuso horário de Brasília
+            import pytz
+            tz_brasil = pytz.timezone('America/Sao_Paulo')
+            data_hora_brasil = datetime.now(tz_brasil).strftime('%d/%m/%Y %H:%M')
+            
+            escola_str = ", ".join(escolas) if len(escolas) <= 3 else f"{len(escolas)} escolas"
+            data_hora = data_hora_brasil  # Usa o horário de Brasília
+            
+            ws['A1'] = f"Escola(s): {escola_str}"
+            ws['A1'].font = title_font
+            ws.merge_cells('A1:I1')
+            
+            ws['A2'] = f"Data/Hora: {data_hora}"
+            ws['A2'].font = header_font
+            ws.merge_cells('A2:I2')
+            
+            # Linha em branco após o cabeçalho
+            current_row = 4
+            
+            # Colunas padrão para a tabela de alunos
+            columns = [
+                "Aluno", "Status", "% Presença", "Total P", "Total F", "Total FJ", 
+                "F por mês", "Nºs de contato", "Data do contato", "Motivo das faltas"
+            ]
+            
+            # Processar cada turma separadamente
+            for turma, alunos in alunos_por_turma.items():
+                # Título da turma (centralizado)
+                ws.cell(row=current_row, column=1, value=f"Turma: {turma}")
+                ws.cell(row=current_row, column=1).font = title_font
+                ws.cell(row=current_row, column=1).alignment = center_alignment
+                ws.merge_cells(f'A{current_row}:J{current_row}')
+                current_row += 1
+                
+                # Cabeçalho das colunas
+                for col_idx, col_name in enumerate(columns, start=1):
+                    cell = ws.cell(row=current_row, column=col_idx, value=col_name)
+                    cell.font = header_font
+                    cell.alignment = center_alignment
+                    cell.border = border
+                current_row += 1
+                
+                # Dados dos alunos da turma
+                for aluno in alunos:
+                    # Identificando os campos do aluno
+                    nome = aluno.get('aluno') or aluno.get('student_name') or 'Sem nome'
+                    
+                    # Formatar o status
+                    status = aluno.get('status') or aluno.get('situacao') or 'Regular'
+                    if isinstance(status, list):
+                        status = ", ".join(status)
+                    
+                    percentual = aluno.get('percentual_presenca') or aluno.get('attendance_percentage') or 0
+                    total_p = aluno.get('P') or aluno.get('presence_total') or 0
+                    total_f = aluno.get('F') or aluno.get('absence_total') or 0
+                    total_fj = aluno.get('FJ') or aluno.get('justified_total') or 0
+                    
+                    # Formatando F por mês
+                    faltas_mensais = ""
+                    if 'faltas_por_mes_texto' in aluno and aluno['faltas_por_mes_texto']:
+                        faltas_mensais = aluno['faltas_por_mes_texto']
+                    elif 'faltas_por_mes_formatado' in aluno and aluno['faltas_por_mes_formatado']:
+                        faltas_por_mes = aluno['faltas_por_mes_formatado']
+                        faltas_mensais = ", ".join([f"{mes}: {qtd}" for mes, qtd in faltas_por_mes.items()])
+                    elif 'faltas_por_mes' in aluno and aluno['faltas_por_mes']:
+                        faltas_por_mes = aluno['faltas_por_mes']
+                        faltas_mensais = ", ".join([f"{mes}: {qtd}" for mes, qtd in faltas_por_mes.items()])
+                    
+                    # Inserir os dados na linha
+                    values = [nome, status, f"{percentual}%", total_p, total_f, total_fj, faltas_mensais, "", "", ""]
+                    for col_idx, value in enumerate(values, start=1):
+                        cell = ws.cell(row=current_row, column=col_idx, value=value)
+                        cell.font = data_font
+                        cell.alignment = left_alignment if col_idx in [1, 2, 7, 10] else center_alignment
+                        cell.border = border
+                    
+                    current_row += 1
+                
+                # Linha em branco entre turmas
+                current_row += 1
+            
+            # Função para ajustar automaticamente as colunas ao tamanho do conteúdo
+            from openpyxl.utils import get_column_letter
+            
+            # Larguras iniciais mínimas para cada coluna (para garantir um tamanho mínimo razoável)
+            min_width = {
+                'A': 25,  # Aluno
+                'B': 15,  # Status
+                'C': 12,  # % Presença
+                'D': 10,  # Total P
+                'E': 10,  # Total F
+                'F': 10,  # Total FJ
+                'G': 25,  # F por mês
+                'H': 15,  # Nºs de contato
+                'I': 15,  # Data do contato
+                'J': 25,  # Motivo das faltas
+            }
+            
+            # Define as larguras iniciais mínimas
+            for col in range(1, 11):  # Colunas A a J
+                col_letter = get_column_letter(col)
+                ws.column_dimensions[col_letter].width = min_width.get(col_letter, 12)
+                
+            # Ajuste fino: adiciona um pouco de espaço extra para texto mais longo
+            # Percorre todas as células de dados e amplia a coluna se necessário
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value and isinstance(cell.value, str):
+                        col_letter = get_column_letter(cell.column)
+                        # Cálculo aproximado considerando o tamanho do texto + um pouco de margem
+                        # Usa o tamanho da fonte para ajustar a largura
+                        font_size_factor = 0.9  # fator para ajuste de fonte
+                        cell_length = len(str(cell.value)) * font_size_factor
+                        
+                        # Adiciona espaço para conteúdo mais longo nas colunas chave
+                        if col_letter in ['A', 'B', 'G', 'J'] and cell_length > ws.column_dimensions[col_letter].width:
+                            # Limita a largura máxima para não ficar muito extenso
+                            max_width = min(cell_length, 50) 
+                            ws.column_dimensions[col_letter].width = max_width
+            
+            wb.save(buffer)
             mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            filename = f"analise_frequencia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            # Usa o horário de Brasília também para o nome do arquivo
+            filename = f"analise_frequencia_{datetime.now(tz_brasil).strftime('%Y%m%d_%H%M%S')}.xlsx"
             
         buffer.seek(0)
         return send_file(

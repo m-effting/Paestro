@@ -492,19 +492,20 @@ def determine_education_type(class_name):
     
     class_name = class_name.upper()
     
-    # Ensino fundamental (é obrigatório)
+    # Ensino obrigatório: fundamental e GT4/GT5
     if any(pattern in class_name for pattern in [
         '1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º',
-        '1 ANO', '2 ANO', '3 ANO', '4 ANO', '5 ANO', '6 ANO', '7 ANO', '8 ANO', '9 ANO'
+        '1 ANO', '2 ANO', '3 ANO', '4 ANO', '5 ANO', '6 ANO', '7 ANO', '8 ANO', '9 ANO',
+        'GT4', 'GT 4', 'GT5', 'GT 5'
     ]):
-        return "fundamental"
+        return "obrigatorio"  # Unificando todos como obrigatórios
     
-    # GT4 e GT5 são infantis, mas obrigatórios
-    if any(f"GT {i}" in class_name or f"GT{i}" in class_name for i in ["4", "5"]):
-        return "infantil_obrigatorio"
+    # Não obrigatório: educação infantil GT0-GT3
+    if any(f"GT {i}" in class_name or f"GT{i}" in class_name for i in ["0", "1", "2", "3"]):
+        return "nao_obrigatorio"
     
-    # Outros são infantis não obrigatórios
-    return "infantil"
+    # Se não conseguir identificar, assume infantil não obrigatório
+    return "nao_obrigatorio"
 
 def process_html_file(html_content):
     """Processa o arquivo HTML e extrai todas as informações relevantes."""
@@ -529,7 +530,18 @@ def process_html_file(html_content):
         
         # Determina o tipo de educação com base no nome da turma
         education_type = determine_education_type(combined_info['class_name'])
-        logger.info(f"Tipo de educação: {education_type}")
+        logger.info(f"Tipo de educação: {education_type} para turma {combined_info['class_name']}")
+        
+        # Verifica se é GT3 - Ensino não obrigatório
+        class_name_upper = combined_info['class_name'].upper()
+        if 'GT3' in class_name_upper or 'GT 3' in class_name_upper or class_name_upper.startswith('GT3'):
+            education_type = 'nao_obrigatorio'
+            logger.info(f"Detectado GT3 como ensino não obrigatório: {class_name_upper}")
+        
+        # Garante que GT0, GT1, GT2, GT3 sejam sempre 'nao_obrigatorio'
+        if any(f"GT{i}" in class_name_upper or f"GT {i}" in class_name_upper for i in ["0", "1", "2", "3"]):
+            education_type = 'nao_obrigatorio'
+            logger.info(f"Revalidado como ensino não obrigatório para GT0-GT3: {class_name_upper}")
         
         # 4. Extrair lista de alunos (usando a função do analise_parser se possível)
         try:

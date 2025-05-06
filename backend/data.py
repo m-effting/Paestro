@@ -17,5 +17,7 @@ app_data = {
     'current_user': None,
     'periodo': None,
     'saved_classes': {},
-    'unit_annotations': {}  
+    'unit_annotations': {},
+    # Armazenamento global de arquivos analisados (legado, será redirecionado para sessão de usuário)
+    'analyzed_files': []  
 }

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -53,6 +54,30 @@
                             <button type="button" class="btn-secondary" id="clear-btn" style="display:none;">Limpar Seleção</button>
                         </div>
                     </form>
+                </div>
+            </div>
+            
+            <!-- Arquivos Salvos -->
+            <div class="saved-files-section">
+                <h4>Arquivos Processados</h4>
+                <div class="saved-files-container" id="saved-files-container">
+                    <table class="saved-files-table" id="saved-files-table">
+                        <thead>
+                            <tr>
+                                <th width="30"></th>
+                                <th>Escola</th>
+                                <th>Data</th>
+                                <th>Alunos</th>
+                                <th width="50"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Os arquivos processados serão carregados aqui via JavaScript -->
+                        </tbody>
+                    </table>
+                    <div id="no-saved-files" style="text-align: center; padding: 20px; display: none;">
+                        <p>Nenhum arquivo processado.</p>
+                    </div>
                 </div>
             </div>
             
@@ -114,8 +139,8 @@
                             <label for="education-filter">Tipo de Ensino:</label>
                             <select id="education-filter">
                                 <option value="todos">Todos</option>
-                                <option value="Obrigatório">Obrigatório</option>
-                                <option value="Não Obrigatório">Não Obrigatório</option>
+                                <option value="obrigatorio">Obrigatório</option>
+                                <option value="nao_obrigatorio">Não Obrigatório</option>
                             </select>
                         </div>
                     </div>
@@ -169,28 +194,28 @@
                 <details class="rules-details">
                     <summary class="rules-summary">Regras de Classificação</summary>
                     <div class="rules-content">
-                        <h5>Ensino Obrigatório (Fundamental)</h5>
+                        <h5>Ensino Obrigatório (GT4, GT5 e Fundamental 1º-9º)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> 7 ou mais faltas por mês</li>
-                            <li><strong>Faltoso:</strong> 10 ou mais faltas por mês</li>
+                            <li><strong>Monitorar Faltas:</strong> 7 ou mais faltas em um mês</li>
+                            <li><strong>Faltoso:</strong> 10 ou mais faltas em um mês</li>
                         </ul>
                         
-                        <h5>Ensino Não Obrigatório (Infantil)</h5>
+                        <h5>Ensino Não Obrigatório (GT0 ao GT3)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> 10 ou mais faltas por mês</li>
-                            <li><strong>Faltoso:</strong> 13 ou mais faltas por mês</li>
+                            <li><strong>Monitorar Faltas:</strong> 10 ou mais faltas em um mês</li>
+                            <li><strong>Faltoso:</strong> 12 ou mais faltas em um mês</li>
                         </ul>
                         
-                        <h5>Percentual de Presença</h5>
+                        <h5>Percentual de Presença (Ambos os Ensinos)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> Menor ou igual a 35%</li>
-                            <li><strong>Faltoso:</strong> Menor ou igual a 20%</li>
+                            <li><strong>Monitorar Faltas:</strong> Menor que 40%</li>
+                            <li><strong>Faltoso:</strong> Menor que 30%</li>
                         </ul>
                         
                         <h5>Faltas Justificadas (FJ)</h5>
                         <ul>
-                            <li><strong>Monitorar FJs:</strong> 45% ou mais das faltas são justificadas</li>
-                            <li><strong>Muitas FJs:</strong> 60% ou mais das faltas são justificadas</li>
+                            <li><strong>Monitorar FJs:</strong> 45% ou mais das presenças totais são FJs</li>
+                            <li><strong>Muitas FJs:</strong> 60% ou mais das presenças totais são FJs</li>
                         </ul>
                     </div>
                 </details>
@@ -204,5 +229,11 @@
 
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/analise.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            setupDragAndDrop();
+        });
+    </script>
 </body>
 </html>
