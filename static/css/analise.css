@@ -1,3 +1,4 @@
+/* Estilos para a página de análise */
 
 /* Estilos gerais da página */
 .analise-container {
@@ -272,29 +273,43 @@
 
 /* Estilo para a tabela de resultados */
 .results-table-container {
-    overflow-x: auto;
+    max-height: 500px;
+    overflow-y: auto;
     margin-bottom: 2rem;
+    border: 1px solid #e0e0e0;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    display: inline-block;
+    min-width: fit-content;
+    max-width: 100%;
 }
 
 #results-table {
-    width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
+    background-color: white;
+    width: auto;
+    table-layout: auto;
 }
 
 #results-table th, #results-table td {
-    padding: 10px;
-    border: 1px solid #ddd;
+    padding: 12px 15px;
     text-align: left;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 #results-table th {
-    background-color: #eef4f9;
-    color: #346789;
+    background-color: var(--primary-color);
+    color: white;
     font-weight: 600;
     position: sticky;
     top: 0;
     z-index: 10;
+    border-bottom: 1px solid #e0e0e0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: fit-content;
 }
 
 #results-table th.sortable {
@@ -320,11 +335,15 @@
 }
 
 #results-table tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: #f8f9fa;
+}
+
+#results-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 #results-table tbody tr:hover {
-    background-color: #f1f7fb;
+    background-color: #f0f7ff;
 }
 
 /* Estilo para badges de status */

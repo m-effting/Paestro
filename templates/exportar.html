@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAESTRO - Exportar Chamadas</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="stylesheet" href="/static/css/exportar.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/exportar.css') }}">
     <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
     <link rel="icon" type="image/png" sizes="128x128"  href="/css/favicon12.png"> 
     <meta name="msapplication-TileColor" content="#ffffff"> 
@@ -14,7 +18,9 @@
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
+        </div>
         <div class="header-info">
             <span id="data-atual"></span>
             <span id="nome-usuario"></span>
@@ -23,10 +29,21 @@
 
     <nav class="nav-container">
         <div class="nav-links">
-            <a href="/" class="nav-link">Login</a>
-            <a href="/chamada" class="nav-link">Chamada</a>
-            <a href="/importar" class="nav-link">Importar</a>
-            <a href="/exportar" class="nav-link active">Exportar</a>
+            <a href="/" class="nav-link">
+                <i class="fas fa-home"></i> Início
+            </a>
+            <a href="/chamada" class="nav-link">
+                <i class="fas fa-clipboard-check"></i> Chamada
+            </a>
+            <a href="/importar" class="nav-link">
+                <i class="fas fa-file-import"></i> Importar
+            </a>
+            <a href="/analise" class="nav-link">
+                <i class="fas fa-chart-bar"></i> Análise
+            </a>
+            <a href="/exportar" class="nav-link active">
+                <i class="fas fa-file-export"></i> Exportar
+            </a>
         </div>
     </nav>
 
@@ -59,9 +76,7 @@
 
                 <div class="buttons-container">
                     <button id="salvar-drive-btn" class="btn-action">
-                        <svg class="btn-icon" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M10,9V5L3,12L10,19V14.9C15,14.9 18.5,16.5 21,20C20,15 17,10 10,9Z"/>
-                        </svg>
+                        <i class="fas fa-cloud-upload-alt"></i>
                         Salvar no Drive
                     </button>
                 </div>
@@ -71,9 +86,7 @@
                 <h4 class="section-title">Baixar chamada no dispositivo</h4>
                 <div class="buttons-container">
                     <button id="baixar-excel-btn" class="btn-action">
-                        <svg class="btn-icon" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
-                        </svg>
+                        <i class="fas fa-file-excel"></i>
                         Baixar Excel
                     </button>
                 </div>
