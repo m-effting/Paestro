@@ -1,0 +1,206 @@
+/* Estilos específicos para a página de relatório */
+.relatorio-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.relatorio-container h3 {
+    color: #1a237e;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.relatorio-container h4 {
+    color: #283593;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.upload-section {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.file-upload-container {
+    margin-top: 15px;
+}
+
+.upload-instructions {
+    margin-bottom: 20px;
+}
+
+.upload-droparea {
+    border: 2px dashed #b0bec5;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-bottom: 20px;
+}
+
+.upload-droparea:hover,
+.upload-droparea.highlight {
+    background-color: #e8f5e9;
+    border-color: #66bb6a;
+}
+
+.upload-droparea svg {
+    color: #546e7a;
+    margin-bottom: 10px;
+}
+
+.file-label {
+    color: #1976d2;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.selected-files {
+    margin-top: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f5f5f5;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.file-name {
+    font-size: 14px;
+    color: #424242;
+    word-break: break-all;
+}
+
+.remove-file {
+    background: none;
+    border: none;
+    color: #f44336;
+    font-size: 18px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.progress-container {
+    margin: 20px 0;
+}
+
+.progress-bar {
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    background-color: #4caf50;
+    height: 100%;
+    width: 0;
+    transition: width 0.5s;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #757575;
+}
+
+.upload-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.report-generation-section {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.files-info {
+    margin-bottom: 20px;
+}
+
+.report-files-list {
+    list-style-type: none;
+    padding-left: 10px;
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.report-files-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 14px;
+}
+
+.export-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.instructions-section {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.instructions-section details {
+    cursor: pointer;
+}
+
+.instructions-section summary {
+    font-weight: 600;
+    color: #3f51b5;
+    padding: 10px 0;
+}
+
+.instructions-content {
+    padding: 15px 0;
+}
+
+.instructions-content h5 {
+    color: #455a64;
+    margin: 15px 0 8px;
+}
+
+.instructions-content p,
+.instructions-content li {
+    margin-bottom: 10px;
+    color: #546e7a;
+    line-height: 1.5;
+}
+
+.instructions-content ul,
+.instructions-content ol {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+    .relatorio-container {
+        padding: 15px;
+    }
+    
+    .upload-droparea {
+        padding: 20px;
+    }
+}

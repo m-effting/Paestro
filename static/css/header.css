@@ -1,9 +1,6 @@
-/* 
- * PAESTRO - Estilos padrão do cabeçalho
- * Padronização do tamanho do logo e posicionamento dos elementos do cabeçalho
- */
 
- .header-wrapper {
+
+.header-wrapper {
     display: flex;
     justify-content: center;
     width: 100%;

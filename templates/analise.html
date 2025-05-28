@@ -43,6 +43,10 @@
             <a href="/analise" class="nav-link active">
                 <i class="fas fa-chart-bar"></i> Análise
             </a>
+
+            <a href="/relatorio" class="nav-link">
+                <i class="fas fa-file-contract"></i> Relatório
+            </a>
         </div>
     </nav>
 
@@ -62,6 +66,21 @@
                             <input type="file" id="file-input" name="file" multiple accept=".html,.htm" hidden />
                         </div>
                         <div class="selected-files" id="selected-files"></div>
+                        <!-- Barra de progresso para processamento dinâmico -->
+                        <div class="progress-container" id="progress-container" style="display: none;">
+                            <div class="progress-bar" id="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                            <div class="progress-info">
+                                <span id="progress-text">Processando...</span>
+                                <span id="progress-percentage">0%</span>
+                            </div>
+                            <div class="progress-status">
+                                <span id="current-file"></span>
+                                <span id="files-processed">0/0 arquivos</span>
+                            </div>
+                        </div>
+                        
                         <div class="upload-actions">
                             <button type="submit" class="btn-action" id="process-btn">
                                 Processar Arquivos
@@ -223,8 +242,8 @@
                         
                         <h5>Percentual de Presença (Ambos os Ensinos)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> Menor que 40%</li>
-                            <li><strong>Faltoso:</strong> Menor que 30%</li>
+                            <li><strong>Monitorar Faltas:</strong> Menor que 75%</li>
+                            <li><strong>Faltoso:</strong> Menor que 60%</li>
                         </ul>
                         
                         <h5>Faltas Justificadas (FJ)</h5>

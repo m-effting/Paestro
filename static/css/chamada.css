@@ -1,570 +1,570 @@
 .chamada-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: white;
-    padding: 2rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-  }
-  
-  .chamada-container h3 {
-    text-align: center;
-    margin-bottom: 1.5rem;
-    color: var(--primary-color);
-    font-size: 1.4rem;
-  }
-  
-  .filtros-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 2rem;
-  }
-  
-  .filtros {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  
-  .filter-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    width: 100%;
-  }
-  
-  /* Botões Padronizados */
-  .btn-action {
-    min-width: 180px;
-    width: 180px; /* Largura fixa */
-    padding: 0.65rem 1rem;
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    border-radius: 20px; /* Botões bem arredondados */
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
-    white-space: nowrap;
-    border: none;
-    box-sizing: border-box;
-    font-size: 0.9rem;
-  }
-  
-  /* Botão Adicionar Aluno */
-  #add-aluno-btn {
-    background-color: #4285F4;
-    color: white;
-  }
-  
-  #add-aluno-btn:hover {
-    background-color: #3367D6;
-    transform: translateY(-1px);
-  }
-  
-  
-  /* Botão Salvar Chamada */
-  #salvar-chamada-btn {
-    background-color: var(--primary-color);
-    color: white;
-  }
-  
-  #salvar-chamada-btn:hover {
-    background-color: #0d2347;
-    transform: translateY(-1px);
-  }
-  
-  /* Botão Exportar Chamadas */
-  #exportar-chamada-btn {
-    background-color: #2e8b57;
-    color: white;
-  }
-  
-  #exportar-chamada-btn:hover {
-    background-color: #3cb371;
-    transform: translateY(-1px);
-  }
-  
-  
-  .actions {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-  
-  .presenca-select {
-    width: 100%;
-    padding: 0.65rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    background-color: white;
-    font-size: 0.9rem;
-  }
-  
-  .observacao-input {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    background-color: white;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+.chamada-container h3 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+  font-size: 1.4rem;
+}
+
+.filtros-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.filtros {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+/* Botões Padronizados */
+.btn-action {
+  min-width: 180px;
+  width: 180px; /* Largura fixa */
+  padding: 0.65rem 1rem;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 20px; /* Botões bem arredondados */
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  border: none;
+  box-sizing: border-box;
+  font-size: 0.9rem;
+}
+
+/* Botão Adicionar Aluno */
+#add-aluno-btn {
+  background-color: #4285F4;
+  color: white;
+}
+
+#add-aluno-btn:hover {
+  background-color: #3367D6;
+  transform: translateY(-1px);
+}
+
+
+/* Botão Salvar Chamada */
+#salvar-chamada-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+#salvar-chamada-btn:hover {
+  background-color: #0d2347;
+  transform: translateY(-1px);
+}
+
+/* Botão Exportar Chamadas */
+#exportar-chamada-btn {
+  background-color: #2e8b57;
+  color: white;
+}
+
+#exportar-chamada-btn:hover {
+  background-color: #3cb371;
+  transform: translateY(-1px);
+}
+
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.presenca-select {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background-color: white;
+  font-size: 0.9rem;
+}
+
+.observacao-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background-color: white;
+}
+
+.tabela-container {
+  max-height: 500px;
+  overflow-y: auto;
+  margin-bottom: 2rem;
+  border: 1px solid #e0e0e0;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+.tabela-container table {
+  width: 100%;
+}
+
+/* Ícones nos botões */
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+/* Botões de presença */
+.presenca-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.presenca-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  background-color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.presenca-btn:hover {
+  transform: scale(1.1);
+}
+
+.presenca-btn.selected-P {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.presenca-btn.selected-F {
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.presenca-btn.selected-FJ {
+  background-color: #ffc107;
+  color: black;
+  border-color: #ffc107;
+}
+
+select {
+  padding: 0.75rem 2rem 0.75rem 0.75rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-processing {
+  position: relative;
+  padding-left: 2.5rem;
+}
+
+.btn-processing::after {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+
+.btn-action {
+  width: 180px; 
+  min-width: 180px;
+  max-width: 180px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; 
+}
+
+.filtros .form-group {
+  width: 100%;
+}
+
+/* Estilo para mensagens de confirmação */
+.confirm-dialog {
+  font-family: 'Inter', sans-serif;
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  background-color: white;
+  box-shadow: var(--box-shadow);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.confirm-dialog p {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.confirm-dialog button {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: 0.5rem;
+  border: none;
+}
+
+.confirm-dialog .confirm-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.confirm-dialog .cancel-btn {
+  background-color: #f0f0f0;
+  color: var(--dark-color);
+}
+
+
+/* Botão circular de anotações */
+
+.btn-circle {
+  width: 38px; 
+  height: 38px;
+  border-radius: 50%; 
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #4285F4; 
+  color: white;
+  border: none;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+/* Estilo específico para #anotacoes-btn para sobrescrever .btn-action */
+#anotacoes-btn {
+  min-width: 0; 
+  width: 38px; 
+  height: 38px; 
+  padding: 0; 
+  border-radius: 50%; 
+  background-color: #4285F4;
+  color: white;
+}
+
+#anotacoes-btn:hover {
+  background-color: #3367D6;
+  transform: translateY(-1px);
+}
+
+/* Ajuste no container filter-buttons para suportar o novo botão */
+.filter-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  align-items: center; 
+}
+
+
+#add-aluno-btn {
+  background-color: #4285F4;
+  color: white;
+  min-width: 180px;
+  width: 180px;
+}
+
+#add-aluno-btn:hover {
+  background-color: #3367D6;
+  transform: translateY(-1px);
+}
+
+/* Estilo para a lista de anotações */
+.annotations-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+  margin-top: 1rem; 
+}
+
+/* Estilo para cada item de anotação */
+.annotation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem; 
+}
+
+/* Estilo para o botão de exclusão */
+.delete-annotation-btn {
+  background-color: transparent;
+  border: none;
+  color: #dc3545; 
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.delete-annotation-btn:hover {
+  color: #c82333; 
+  transform: scale(1.1);
+}
+
+/* Responsividade */
+@media (max-width: 1200px) {
+  /* Tablets grandes e laptops menores */
+  .chamada-container {
+    max-width: 1000px;
+    padding: 1.75rem;
   }
   
   .tabela-container {
-    max-height: 500px;
-    overflow-y: auto;
-    margin-bottom: 2rem;
-    border: 1px solid #e0e0e0;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    max-height: 450px;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Tablets */
+  .chamada-container {
+    max-width: 900px;
+    padding: 1.5rem;
   }
   
-  .tabela-container table {
-    width: 100%;
+  .chamada-container h3 {
+    font-size: 1.35rem;
+    margin-bottom: 1.25rem;
   }
-  
-  /* Ícones nos botões */
-  .btn-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    margin-right: 4px;
-  }
-  
-  /* Botões de presença */
-  .presenca-buttons {
-    display: flex;
-    gap: 0.5rem;
-  }
-  
-  .presenca-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 2px solid #ddd;
-    background-color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    transition: all 0.2s ease;
-  }
-  
-  .presenca-btn:hover {
-    transform: scale(1.1);
-  }
-  
-  .presenca-btn.selected-P {
-    background-color: #28a745;
-    color: white;
-    border-color: #28a745;
-  }
-  
-  .presenca-btn.selected-F {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
-  }
-  
-  .presenca-btn.selected-FJ {
-    background-color: #ffc107;
-    color: black;
-    border-color: #ffc107;
-  }
-  
-  select {
-    padding: 0.75rem 2rem 0.75rem 0.75rem;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23333'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 1rem;
-  }
-  
-  button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  
-  .btn-processing {
-    position: relative;
-    padding-left: 2.5rem;
-  }
-  
-  .btn-processing::after {
-    content: "";
-    position: absolute;
-    left: 0.8rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: #fff;
-    animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    to { transform: translateY(-50%) rotate(360deg); }
-  }
-  
   
   .btn-action {
-    width: 180px; 
-    min-width: 180px;
-    max-width: 180px;
-    align-items: center;
-    justify-content: center;
-    gap: 8px; 
+    min-width: 160px;
+    width: 160px;
+    max-width: 160px;
+    font-size: 0.85rem;
   }
   
+  .filter-buttons {
+    gap: 0.75rem;
+  }
+  
+  .tabela-container {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Tablets menores */
+  .chamada-container {
+    max-width: none;
+    padding: 1.5rem;
+  }
+
+  .chamada-container h3 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+
+  .filtros {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-buttons {
+    flex-direction: row; 
+    justify-content: space-between;
+  }
+
+  .btn-action {
+    width: 150px; 
+    min-width: 150px;
+    max-width: 150px;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.5rem;
+  }
+
   .filtros .form-group {
     width: 100%;
   }
   
-  /* Estilo para mensagens de confirmação */
-  .confirm-dialog {
-    font-family: 'Inter', sans-serif;
-    border-radius: var(--border-radius);
-    padding: 1rem;
-    background-color: white;
-    box-shadow: var(--box-shadow);
-    max-width: 400px;
-    margin: 0 auto;
+  .tabela-container {
+    max-height: 350px;
   }
   
-  .confirm-dialog p {
-    margin-bottom: 1rem;
-    line-height: 1.5;
+  th, td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.9rem;
   }
   
-  .confirm-dialog button {
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    cursor: pointer;
-    font-weight: 500;
-    margin-right: 0.5rem;
-    border: none;
-  }
-  
-  .confirm-dialog .confirm-btn {
-    background-color: var(--primary-color);
-    color: white;
-  }
-  
-  .confirm-dialog .cancel-btn {
-    background-color: #f0f0f0;
-    color: var(--dark-color);
-  }
-  
-  
-  /* Botão circular de anotações */
-  
-  .btn-circle {
-    width: 38px; 
-    height: 38px;
-    border-radius: 50%; 
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #4285F4; 
-    color: white;
-    border: none;
-    transition: var(--transition);
-    cursor: pointer;
-  }
-  
-  /* Estilo específico para #anotacoes-btn para sobrescrever .btn-action */
-  #anotacoes-btn {
-    min-width: 0; 
-    width: 38px; 
-    height: 38px; 
-    padding: 0; 
-    border-radius: 50%; 
-    background-color: #4285F4;
-    color: white;
-  }
-  
-  #anotacoes-btn:hover {
-    background-color: #3367D6;
-    transform: translateY(-1px);
-  }
-  
-  /* Ajuste no container filter-buttons para suportar o novo botão */
-  .filter-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    width: 100%;
-    align-items: center; 
-  }
-  
-  
-  #add-aluno-btn {
-    background-color: #4285F4;
-    color: white;
-    min-width: 180px;
-    width: 180px;
-  }
-  
-  #add-aluno-btn:hover {
-    background-color: #3367D6;
-    transform: translateY(-1px);
-  }
-  
-  /* Estilo para a lista de anotações */
-  .annotations-list {
-    max-height: 200px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-bottom: 10px;
-    margin-top: 1rem; 
-  }
-  
-  /* Estilo para cada item de anotação */
-  .annotation-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem; 
-  }
-  
-  /* Estilo para o botão de exclusão */
-  .delete-annotation-btn {
-    background-color: transparent;
-    border: none;
-    color: #dc3545; 
-    cursor: pointer;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition);
-  }
-  
-  .delete-annotation-btn:hover {
-    color: #c82333; 
-    transform: scale(1.1);
-  }
-  
-  /* Responsividade */
-  @media (max-width: 1200px) {
-    /* Tablets grandes e laptops menores */
-    .chamada-container {
-      max-width: 1000px;
-      padding: 1.75rem;
-    }
-    
-    .tabela-container {
-      max-height: 450px;
-    }
-  }
-  
-  @media (max-width: 1024px) {
-    /* Tablets */
-    .chamada-container {
-      max-width: 900px;
-      padding: 1.5rem;
-    }
-    
-    .chamada-container h3 {
-      font-size: 1.35rem;
-      margin-bottom: 1.25rem;
-    }
-    
-    .btn-action {
-      min-width: 160px;
-      width: 160px;
-      max-width: 160px;
-      font-size: 0.85rem;
-    }
-    
-    .filter-buttons {
-      gap: 0.75rem;
-    }
-    
-    .tabela-container {
-      max-height: 400px;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    /* Tablets menores */
-    .chamada-container {
-      max-width: none;
-      padding: 1.5rem;
-    }
-  
-    .chamada-container h3 {
-      font-size: 1.3rem;
-      margin-bottom: 1rem;
-    }
-  
-    .filtros {
-      flex-direction: column;
-      gap: 1rem;
-    }
-  
-    .filter-buttons {
-      flex-direction: row; 
-      justify-content: space-between;
-    }
-  
-    .btn-action {
-      width: 150px; 
-      min-width: 150px;
-      max-width: 150px;
-      font-size: 0.85rem;
-      padding: 0.6rem 0.5rem;
-    }
-  
-    .filtros .form-group {
-      width: 100%;
-    }
-    
-    .tabela-container {
-      max-height: 350px;
-    }
-    
-    th, td {
-      padding: 0.75rem 0.5rem;
-      font-size: 0.9rem;
-    }
-    
-    .btn-icon {
-      width: 14px;
-      height: 14px;
-    }
-    
-    .logo {
-      height: 130px;
-    }
-    
-    .annotations-list {
-      max-height: 180px;
-    }
-  }
-  
-  @media (max-width: 600px) {
-    /* Smartphones */
-    .chamada-container {
-      padding: 1.25rem;
-    }
-  
-    .chamada-container h3 {
-      font-size: 1.25rem;
-    }
-  
-    .filtros-container {
-      gap: 0.75rem;
-      margin-bottom: 1.5rem;
-    }
-  
-    .filter-buttons {
-      margin-top: 0.5rem;
-    }
-  
-    .btn-action {
-      font-size: 0.8rem;
-      width: 140px;
-      min-width: 140px;
-      max-width: 140px;
-      padding: 0.5rem;
-      border-radius: 18px;
-    }
-  
-    .actions {
-      flex-direction: column;
-      align-items: center;
-      gap: 0.75rem;
-    }
-  
-    .actions .btn-action {
-      width: 100%;
-      max-width: 100%;
-    }
-    
-    .tabela-container {
-      max-height: 300px;
-      margin-bottom: 1.5rem;
-    }
-    
-    th, td {
-      padding: 0.7rem 0.4rem;
-      font-size: 0.85rem;
-    }
-    
-    .presenca-select, 
-    .observacao-input {
-      padding: 0.6rem;
-      font-size: 0.85rem;
-      border-radius: 10px;
-    }
-    
-    .presenca-btn {
-      width: 28px;
-      height: 28px;
-    }
-    
-    .logo {
-      height: 110px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    /* Smartphones pequenos */
-    .chamada-container {
-      padding: 1rem;
-    }
-    
-    .chamada-container h3 {
-      font-size: 1.2rem;
-    }
-    
-    .filter-buttons {
-      gap: 0.5rem;
-    }
-    
-    #add-aluno-btn {
-      min-width: 130px;
-      width: 130px;
-      max-width: 130px;
-      font-size: 0.75rem;
-    }
-    
-    .btn-circle {
-      width: 34px;
-      height: 34px;
-    }
-    
-    #anotacoes-btn {
-      width: 34px;
-      height: 34px;
-    }
-    
-    .presenca-btn {
-      width: 26px;
-      height: 26px;
-    }
-    
-    .logo {
-      height: 90px;
-    }
+  .btn-icon {
+    width: 14px;
+    height: 14px;
   }
   
   .logo {
-    height: 150px; 
-    width: auto;
-    display: block;
-    margin: 0 auto;
+    height: 130px;
   }
+  
+  .annotations-list {
+    max-height: 180px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Smartphones */
+  .chamada-container {
+    padding: 1.25rem;
+  }
+
+  .chamada-container h3 {
+    font-size: 1.25rem;
+  }
+
+  .filtros-container {
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-buttons {
+    margin-top: 0.5rem;
+  }
+
+  .btn-action {
+    font-size: 0.8rem;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    padding: 0.5rem;
+    border-radius: 18px;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .actions .btn-action {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .tabela-container {
+    max-height: 300px;
+    margin-bottom: 1.5rem;
+  }
+  
+  th, td {
+    padding: 0.7rem 0.4rem;
+    font-size: 0.85rem;
+  }
+  
+  .presenca-select, 
+  .observacao-input {
+    padding: 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 10px;
+  }
+  
+  .presenca-btn {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .logo {
+    height: 110px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Smartphones pequenos */
+  .chamada-container {
+    padding: 1rem;
+  }
+  
+  .chamada-container h3 {
+    font-size: 1.2rem;
+  }
+  
+  .filter-buttons {
+    gap: 0.5rem;
+  }
+  
+  #add-aluno-btn {
+    min-width: 130px;
+    width: 130px;
+    max-width: 130px;
+    font-size: 0.75rem;
+  }
+  
+  .btn-circle {
+    width: 34px;
+    height: 34px;
+  }
+  
+  #anotacoes-btn {
+    width: 34px;
+    height: 34px;
+  }
+  
+  .presenca-btn {
+    width: 26px;
+    height: 26px;
+  }
+  
+  .logo {
+    height: 90px;
+  }
+}
+
+.logo {
+  height: 150px; 
+  width: auto;
+  display: block;
+  margin: 0 auto;
+}

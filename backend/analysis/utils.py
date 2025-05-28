@@ -2,61 +2,77 @@ import logging
 import datetime
 import os
 
+"""
+PAESTRO - Módulo de Análise de Chamadas Escolares - Utilitários
+
+Este módulo contém funções e classes utilitárias compartilhadas por todos os 
+componentes do módulo de análise de chamadas escolares.
+
+Funções principais:
+- get_month_name: Converte número do mês para nome em português
+- setup_new_logger: Configura um logger personalizado
+- get_batch_id: Gera um ID único para lotes de processamento
+
+Classes:
+- CustomLogFormatter: Formatador personalizado para logs
+
+Autor: Equipe PAESTRO
+Data: Maio 2025
+"""
+
+# Mapeamento de mês número -> nome (para output das faltas por mês)
+MONTH_NAMES = {
+    1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 
+    5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago',
+    9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'
+}
+
 def get_month_name(month_number):
     """
-    Convert month number to Portuguese month name abbreviation.
+    Converte número do mês para nome abreviado em português.
     
     Args:
-        month_number (int): Month number (1-12)
+        month_number (int): Número do mês (1-12)
         
     Returns:
-        str: Portuguese month name abbreviation
+        str: Nome abreviado do mês em português
     """
-    month_names = {
-        1: 'Jan',
-        2: 'Fev',
-        3: 'Mar',
-        4: 'Abr',
-        5: 'Mai',
-        6: 'Jun',
-        7: 'Jul',
-        8: 'Ago',
-        9: 'Set',
-        10: 'Out',
-        11: 'Nov',
-        12: 'Dez'
-    }
-    
-    return month_names.get(month_number, str(month_number))
+    try:
+        # Garantir que month_number seja um inteiro válido entre 1-12
+        month_int = int(month_number)
+        if 1 <= month_int <= 12:
+            return MONTH_NAMES.get(month_int)
+    except (ValueError, TypeError):
+        pass
+        
+    # Se não for possível converter ou estiver fora do intervalo, retorna o valor recebido
+    return str(month_number)
 
 
 class CustomLogFormatter(logging.Formatter):
     """
     Formatador personalizado de logs conforme o padrão específico do projeto.
-    Formato: YYYY-MM-DD HH:MM:SS [LEVEL] [módulo        ] função             - chave=valor, chave="valor com espaços"
+    Formato: YYYY-MM-DD HH:MM:SS [LEVEL] [módulo] - mensagem
     """
     def __init__(self):
         super().__init__()
 
     def format(self, record):
-        # Padronização dos módulos para 15 caracteres
-        module_name = record.name.replace('html_parser.', '').replace('rules_engine.', '').ljust(15)
+        # Versão mais concisa do formatador de logs
+        module_name = record.name.replace('html_parser.', '').replace('rules_engine.', '')
         level_name = record.levelname.ljust(5)[:5]
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        # Extrai o nome da função do nome do módulo se possível
-        func_name = record.funcName.ljust(20)[:20]
         
-        # Formatar a mensagem principal para separar os parâmetros
+        # Formatar a mensagem principal de forma mais concisa
         msg = record.getMessage()
         
-        # Se não contiver parâmetros após um traço, adicionar um
-        if ' - ' not in msg and ' – ' not in msg:
-            formatted_msg = f"{msg} – "
-        else:
-            formatted_msg = msg
+        # Remove detalhes técnicos excessivos para mensagens de DEBUG
+        if record.levelno == logging.DEBUG:
+            # Trunca mensagens muito longas
+            if len(msg) > 100:
+                msg = msg[:97] + "..."
         
-        return f"{timestamp} [{level_name}] [{module_name}] {func_name} – {formatted_msg}"
+        return f"{timestamp} [{level_name}] [{module_name}] - {msg}"
 
 
 def setup_new_logger(log_filename='attendance_parser.log'):
@@ -93,5 +109,12 @@ def setup_new_logger(log_filename='attendance_parser.log'):
 
 
 def get_batch_id():
-    """Gera um ID de lote com base na data e hora atual"""
+    """
+    Gera um ID de lote baseado na data e hora atual.
+    
+    Formato: YYYYMMDD_HHMMSS (ano, mês, dia, hora, minuto, segundo)
+    
+    Returns:
+        str: ID único de lote para o processamento atual
+    """
     return datetime.datetime.now().strftime('%Y%m%d_%H%M%S')

@@ -130,37 +130,187 @@ async function handleFormSubmit(event) {
         return;
     }
     
-    setLoading(true);
+    // Iniciar barra de progresso
+    showProgressBar(true);
+    setProgressStatus(0, fileInput.files.length, '');
     
     try {
         const formData = new FormData();
-        Array.from(fileInput.files).forEach(file => {
+        const files = Array.from(fileInput.files);
+        
+        // Variáveis para controle de progresso
+        let totalFiles = files.length;
+        let processed = 0;
+        
+        // Atualizar barra de progresso inicial
+        updateProgressBar(processed, totalFiles);
+        
+        // Adicionar todos os arquivos ao FormData
+        files.forEach(file => {
             formData.append('file', file);
         });
         
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            body: formData
+        // Configurar o fetch com suporte a monitoramento de upload
+        const xhr = new XMLHttpRequest();
+        let uploadStartTime = Date.now();
+        
+        xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+                // Calcular progresso do upload (0-50% do progresso total)
+                const uploadProgress = (event.loaded / event.total) * 50;
+                updateProgressBar(uploadProgress, 100);
+                
+                // Estimar tempo restante
+                const elapsedTime = Date.now() - uploadStartTime;
+                const estimatedTotalTime = (elapsedTime * event.total) / event.loaded;
+                const remainingTime = estimatedTotalTime - elapsedTime;
+                
+                // Mostrar mensagem de upload
+                setProgressStatus(processed, totalFiles, 
+                    `Enviando arquivos... (${formatBytes(event.loaded)}/${formatBytes(event.total)})`);
+            }
         });
         
-        const result = await response.json();
+        // Criar uma Promise para o XMLHttpRequest
+        const uploadPromise = new Promise((resolve, reject) => {
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const result = JSON.parse(xhr.responseText);
+                            resolve(result);
+                        } catch (e) {
+                            reject(new Error('Erro ao processar resposta do servidor'));
+                        }
+                    } else {
+                        reject(new Error(`Erro ${xhr.status}: ${xhr.statusText}`));
+                    }
+                }
+            };
+            
+            xhr.onerror = function() {
+                reject(new Error('Erro de rede durante o envio dos arquivos'));
+            };
+        });
+        
+        // Iniciar o envio
+        xhr.open('POST', '/api/analyze', true);
+        xhr.send(formData);
+        
+        // Simular progresso do processamento com base no número de arquivos (50-100%)
+        let processingInterval;
+        let currentFileIndex = 0;
+        let baseProgress = 50; // Inicia em 50% após o upload completo
+        let progressPerFile = totalFiles > 0 ? 45 / totalFiles : 45; // Distribui 45% entre os arquivos (reserva 5% para finalização)
+        
+        processingInterval = setInterval(() => {
+            // Calcula progresso de acordo com os arquivos processados
+            if (currentFileIndex < totalFiles) {
+                // Avança gradualmente o progresso para o arquivo atual
+                baseProgress += progressPerFile / 10; // Incremento gradual por arquivo
+                updateProgressBar(baseProgress, 100);
+                
+                // A cada 3 incrementos, simula a conclusão de um arquivo
+                if (baseProgress >= 50 + (currentFileIndex + 1) * progressPerFile) {
+                    currentFileIndex++;
+                    processed = currentFileIndex; // Atualiza contador de arquivos processados
+                }
+                
+                // Atualiza o status do processamento com informações específicas por fase
+                let statusMessage = '';
+                if (baseProgress >= 50 && baseProgress < 70) {
+                    statusMessage = 'Analisando estrutura dos arquivos HTML...';
+                } else if (baseProgress >= 70 && baseProgress < 85) {
+                    statusMessage = 'Extraindo informações de presença e faltas...';
+                } else {
+                    statusMessage = 'Aplicando regras de classificação...';
+                }
+                
+                // Atualiza o status com o número correto de arquivos processados
+                setProgressStatus(processed, totalFiles, statusMessage);
+            } else if (baseProgress < 95) {
+                // Finaliza o progresso até 95%
+                baseProgress += 0.5;
+                updateProgressBar(baseProgress, 100);
+                setProgressStatus(processed, totalFiles, 'Finalizando análise...');
+            }
+        }, 150);
+        
+        // Aguardar a conclusão do upload e processamento
+        const result = await uploadPromise;
+        
+        // Limpar o intervalo de simulação
+        clearInterval(processingInterval);
         
         if (result.success) {
-            // Não precisamos mais chamar handleResults aqui, pois loadSavedFiles já carrega todos os arquivos
-            // e chama handleResults com todos os dados combinados
+            // Definir progresso como 100% completo
+            updateProgressBar(100, 100);
+            setProgressStatus(totalFiles, totalFiles, 'Processamento concluído!');
+            
+            // Esperar 1 segundo para mostrar o progresso completo antes de esconder
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             // Limpar a seleção de arquivos
             clearSelectedFiles();
             
             // Atualizar a lista de arquivos salvos e automaticamente carregar todos
             await loadSavedFiles();
+            
+            // Esconder a barra de progresso
+            showProgressBar(false);
         } else {
             showError(`Erro ao processar arquivos: ${result.error}`, result.error_files);
+            showProgressBar(false);
         }
     } catch (error) {
         showError(`Erro ao enviar arquivos: ${error.message}`);
-    } finally {
-        setLoading(false);
+        showProgressBar(false);
+    }
+}
+
+// Função auxiliar para formatar bytes para formato legível
+function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+// Exibir ou esconder a barra de progresso
+function showProgressBar(show) {
+    const progressContainer = document.getElementById('progress-container');
+    const uploadActions = document.querySelector('.upload-actions');
+    
+    progressContainer.style.display = show ? 'block' : 'none';
+    uploadActions.style.display = show ? 'none' : 'flex';
+}
+
+// Atualizar o valor da barra de progresso
+function updateProgressBar(current, total) {
+    const progressFill = document.getElementById('progress-fill');
+    const progressPercentage = document.getElementById('progress-percentage');
+    
+    const percent = (current / total) * 100;
+    progressFill.style.width = `${percent}%`;
+    progressPercentage.textContent = `${Math.round(percent)}%`;
+}
+
+// Atualizar o texto de status do progresso
+function setProgressStatus(processed, total, statusText) {
+    const currentFile = document.getElementById('current-file');
+    const filesProcessed = document.getElementById('files-processed');
+    const progressText = document.getElementById('progress-text');
+    
+    currentFile.textContent = statusText;
+    filesProcessed.textContent = `${processed}/${total} arquivos`;
+    
+    if (statusText) {
+        progressText.textContent = statusText.split('...')[0];
     }
 }
 
@@ -353,10 +503,19 @@ function updateResultTable(results) {
         const studentName = item.student_name || item.aluno || 'N/A';
         const status = item.status || 'Regular';
         const classification = item.classification || item.classificacao || 'N/A';
-        const attendancePercentage = item.attendance_percentage || item.percentual_presenca || 0;
-        const absenceTotal = item.F || item.absence_total || item.total_faltas || 0;
-        const justifiedTotal = item.FJ || item.justified_total || item.total_fj || 0;
-        const presenceTotal = item.P || item.presence_total || item.total_presencas || 0;
+        
+        // Garantir que valores zero sejam exibidos como "0" e não como "N/A"
+        const attendancePercentage = item.attendance_percentage !== undefined ? item.attendance_percentage : 
+                                   (item.percentual_presenca !== undefined ? item.percentual_presenca : 0);
+        const absenceTotal = item.F !== undefined ? item.F : 
+                           (item.absence_total !== undefined ? item.absence_total : 
+                           (item.total_faltas !== undefined ? item.total_faltas : 0));
+        const justifiedTotal = item.FJ !== undefined ? item.FJ : 
+                             (item.justified_total !== undefined ? item.justified_total : 
+                             (item.total_fj !== undefined ? item.total_fj : 0));
+        const presenceTotal = item.P !== undefined ? item.P : 
+                            (item.presence_total !== undefined ? item.presence_total : 
+                            (item.total_presencas !== undefined ? item.total_presencas : 0));
         
         // Obter dados de faltas por mês (prioridade: faltas_por_mes > faltas_por_mes_texto > monthly_absences)
         let monthlyAbsences = {};
@@ -380,42 +539,77 @@ function updateResultTable(results) {
             monthlyAbsences = item.monthly_absences;
         }
         
-        // Construir a célula para as faltas mensais
-        const monthlyAbsencesCell = Object.entries(monthlyAbsences)
-            .map(([month, count]) => {
-                // Determinar o limite de faltas com base no tipo de educação
-                let limiteMonitoria, limiteFaltoso;
-                
-                if (educationType === 'fundamental' || educationType === 'infantil_obrigatorio') {
-                    limiteMonitoria = 7;
-                    limiteFaltoso = 10;
-                } else {
-                    limiteMonitoria = 10;
-                    limiteFaltoso = 13;
-                }
-                
-                // Aplicar classe CSS com base no número de faltas
-                let cssClass = 'month-absence';
-                if (count >= limiteFaltoso) {
-                    cssClass = 'month-absence high-absence';
-                } else if (count >= limiteMonitoria) {
-                    cssClass = 'month-absence medium-absence';
-                }
-                
-                return `<span class="${cssClass}">${month}: ${count}</span>`;
-            })
-            .join(' ');
+        // Verificar se há alguma falta em algum mês
+        const hasMonthlyAbsences = Object.values(monthlyAbsences).some(count => count > 0);
+        
+        // Construir a célula para as faltas mensais apenas se houver faltas
+        let monthlyAbsencesCell = '';
+        
+        if (hasMonthlyAbsences) {
+            monthlyAbsencesCell = Object.entries(monthlyAbsences)
+                .map(([month, count]) => {
+                    // Converter número do mês para abreviação
+                    const mesesAbrev = {
+                        '1': 'Jan', '2': 'Fev', '3': 'Mar', '4': 'Abr', 
+                        '5': 'Mai', '6': 'Jun', '7': 'Jul', '8': 'Ago',
+                        '9': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez',
+                        // Suporte para nomes de meses que já vêm por extenso
+                        'Jan': 'Jan', 'Fev': 'Fev', 'Mar': 'Mar', 'Abr': 'Abr',
+                        'Mai': 'Mai', 'Jun': 'Jun', 'Jul': 'Jul', 'Ago': 'Ago',
+                        'Set': 'Set', 'Out': 'Out', 'Nov': 'Nov', 'Dez': 'Dez'
+                    };
+                    
+                    // Converter mês para nome abreviado
+                    const mesDisplay = mesesAbrev[month] || month;
+                    
+                    // Determinar o limite de faltas com base no tipo de educação
+                    let limiteMonitoria, limiteFaltoso;
+                    
+                    if (educationType === 'fundamental' || educationType === 'infantil_obrigatorio') {
+                        limiteMonitoria = 7;
+                        limiteFaltoso = 10;
+                    } else {
+                        limiteMonitoria = 10;
+                        limiteFaltoso = 13;
+                    }
+                    
+                    // Aplicar classe CSS com base no número de faltas
+                    let cssClass = 'month-absence';
+                    if (count >= limiteFaltoso) {
+                        cssClass = 'month-absence high-absence';
+                    } else if (count >= limiteMonitoria) {
+                        cssClass = 'month-absence medium-absence';
+                    }
+                    
+                    return `<span class="${cssClass}">${mesDisplay}: ${count}</span>`;
+                })
+                .join(' ');
+        }
+        
+        // Garantir que os valores dos totais nunca são 'N/A'
+        let presenceTotalDisplay = presenceTotal === 'N/A' ? '0' : presenceTotal;
+        let absenceTotalDisplay = absenceTotal === 'N/A' ? '0' : absenceTotal;
+        let justifiedTotalDisplay = justifiedTotal === 'N/A' ? '0' : justifiedTotal;
+        
+        // Converter para números para cálculos
+        const presenceNum = parseInt(presenceTotalDisplay) || 0;
+        const absenceNum = parseInt(absenceTotalDisplay) || 0;
+        const justifiedNum = parseInt(justifiedTotalDisplay) || 0;
+        
+        // Calcular o total de dias e a porcentagem de presença
+        const totalDays = presenceNum + absenceNum + justifiedNum;
+        const calculatedPercentage = totalDays > 0 ? Math.round((presenceNum / totalDays) * 100) : 0;
         
         row.innerHTML = `
             <td>${schoolName}</td>
             <td>${className}</td>
             <td>${studentName}</td>
             <td>${createStatusBadge(status)}</td>
-            <td class="numeric">${attendancePercentage}%</td>
-            <td class="numeric">${presenceTotal}</td>
-            <td class="numeric">${absenceTotal}</td>
-            <td class="numeric">${justifiedTotal}</td>
-            <td class="monthly-details">${monthlyAbsencesCell || 'N/A'}</td>
+            <td class="numeric">${calculatedPercentage}%</td>
+            <td class="numeric">${presenceTotalDisplay}</td>
+            <td class="numeric">${absenceTotalDisplay}</td>
+            <td class="numeric">${justifiedTotalDisplay}</td>
+            <td class="monthly-details">${hasMonthlyAbsences ? monthlyAbsencesCell : 'N/A'}</td>
         `;
         
         tableBody.appendChild(row);
@@ -889,7 +1083,27 @@ async function deleteAnalyzedFile(fileId) {
         const data = await response.json();
         
         if (data.success) {
-            loadSavedFiles();
+            // Limpar os resultados combinados e a tabela
+            window.combinedResults = [];
+            
+            // Limpar a tabela de resultados
+            const tableBody = document.querySelector('#results-table tbody');
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center;">Nenhum resultado encontrado.</td></tr>';
+            }
+            
+            // Limpar o resumo
+            updateSummary({
+                total_students: 0,
+                total_schools: 0,
+                total_classes: 0,
+                total_absentees: 0,
+                total_monitors: 0
+            });
+            
+            // Recarregar a lista de arquivos salvos (isso vai recarregar os resultados automaticamente)
+            await loadSavedFiles();
+            
             window.modal.alert('Sucesso', 'Arquivo excluído com sucesso!');
         } else {
             window.modal.alert('Erro', `Erro ao excluir arquivo: ${data.error}`, 'error');
