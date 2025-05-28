@@ -58,7 +58,7 @@
                 <h4><i class="fas fa-file-excel"></i> Arquivos para Relatório Consolidado</h4>
                 <div class="file-upload-container">
                     <div class="upload-instructions">
-                        <p class="info-text">Selecione os arquivos Excel de chamada (um para cada data de visita) e o arquivo de análise para gerar o relatório consolidado.</p>
+                        <p class="info-text">Selecione os arquivos Excel de chamada e análise para gerar o relatório consolidado. Veja as instruções detalhadas abaixo.</p>
                     </div>
                     <form id="upload-form" enctype="multipart/form-data">
                         <div class="upload-droparea" id="upload-droparea">
@@ -72,7 +72,14 @@
                         
                         <!-- Botões de controle -->
                         <div class="file-controls" style="margin-top: 15px; display: none;" id="file-controls">
-                            <button type="button" class="btn-clear-files" id="clear-files-btn" style="background-color: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; margin-right: 15px; font-size: 14px; transition: all 0.3s;">
+                            <button type="button" class="btn-clear-files" id="clear-files-btn" onclick="
+                                console.log('Limpando arquivos...');
+                                document.getElementById('selected-files').innerHTML = '';
+                                document.getElementById('file-input').value = '';
+                                document.getElementById('upload-btn').disabled = true;
+                                document.getElementById('file-controls').style.display = 'none';
+                                alert('Arquivos removidos com sucesso!');
+                            " style="background-color: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; margin-right: 15px; font-size: 14px; transition: all 0.3s;">
                                 <i class="fas fa-trash-alt"></i> Limpar Arquivos
                             </button>
                             <span id="file-count" style="color: #666; font-size: 14px; font-weight: 500;"></span>
@@ -106,23 +113,70 @@
                 <details>
                     <summary>Instruções para o Relatório Consolidado</summary>
                     <div class="instructions-content">
-                        <h5>Como funciona o Relatório Consolidado?</h5>
-                        <p>Esta ferramenta combina múltiplos arquivos Excel gerados pelo PAESTRO em um único relatório consolidado, permitindo uma visão abrangente da unidade.</p>
-                        
-                        <h5>Arquivos necessários:</h5>
-                        <ol>
-                            <li>Arquivos de Exportação (um para cada dia de visita)</li>
-                            <li>Arquivo de Análise (opcional, para incluir estatísticas de faltas)</li>
-                        </ol>
-                        
-                        <h5>O relatório consolidado irá</h5>
-                        <ul>
-                            <li>Ordenar turmas em ordem numérica crescente</li>
-                            <li>Exibir dias de chamada lado a lado para fácil comparação</li>
-                            <li>Destacar alunos com faltas em todos os dias de visita</li>
-                            <li>Manter as observações de cada chamada</li>
-                            <li>Incluir cabeçalho com informações da unidade e datas</li>
-                        </ul>
+                        <div class="instructions-card">
+                            <h5><i class="fas fa-info-circle"></i> Como usar o Relatório Consolidado</h5>
+                            
+                            <div class="instruction-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>Arquivos de Chamada:</strong> Adicione todos os arquivos Excel de chamadas da unidade escolar
+                                    <br><small>Formato esperado: NOME_ESCOLA_DD-MM-AAAA_PERIODO_NOME_EQUIPE.xlsx</small>
+                                </div>
+                            </div>
+                            
+                            <div class="instruction-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>Arquivo de Análise:</strong> Inclua o arquivo com análise de frequência dos alunos
+                                    <br><small>Qualquer arquivo que não siga o padrão acima será identificado como análise</small>
+                                </div>
+                            </div>
+                            
+                            <div class="instruction-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>Relatório Gerado:</strong> O sistema criará um arquivo Excel com 3 abas:
+                                    <ul class="feature-list">
+                                        <li><strong>CHAMADAS:</strong> Dados consolidados de todas as visitas</li>
+                                        <li><strong>ANÁLISE:</strong> Informações de frequência e status dos alunos</li>
+                                        <li><strong>MONITORAR:</strong> Lista prioritária de alunos para acompanhamento</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="priority-info">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Prioridades na Aba MONITORAR</h6>
+                                <div class="priority-levels">
+                                    <div class="priority-item">
+                                        <span class="priority-badge">CRÍTICA</span>
+                                        <span>Faltou todos os dias da visita (3+ chamadas) E possui status Faltoso</span>
+                                    </div>
+                                    <div class="priority-item">
+                                        <span class="priority-badge">ALTA</span>
+                                        <span>Faltou todos os dias da visita OU possui status Faltoso</span>
+                                    </div>
+                                    <div class="priority-item">
+                                        <span class="priority-badge">MÉDIA</span>
+                                        <span>Faltou mais de 50% das visitas, status "Monitorar Faltas" ou "Monitorar FJs"</span>
+                                    </div>
+                                    <div class="priority-item">
+                                        <span class="priority-badge">BAIXA</span>
+                                        <span>Outros casos que necessitam acompanhamento</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="additional-info">
+                                <h6><i class="fas fa-cogs"></i> Funcionalidades do Relatório</h6>
+                                <ul>
+                                    <li>Ordenar turmas em ordem numérica crescente</li>
+                                    <li>Exibir dias de chamada lado a lado para fácil comparação</li>
+                                    <li>Destacar alunos com faltas em todos os dias de visita</li>
+                                    <li>Manter as observações de cada chamada</li>
+                                    <li>Incluir cabeçalho com informações da unidade e datas</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </details>
             </div>

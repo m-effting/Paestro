@@ -33,6 +33,143 @@
     margin-bottom: 20px;
 }
 
+/* Estilos para as instruções melhoradas */
+.instructions-card {
+    background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+    border: 1px solid #e1e5f2;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+.instructions-card h5 {
+    color: #1a237e;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.instruction-step {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 15px;
+}
+
+.step-number {
+    background: linear-gradient(135deg, #3f51b5, #1a237e);
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+    line-height: 1.5;
+}
+
+.step-content strong {
+    color: #1a237e;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.step-content small {
+    color: #666;
+    font-style: italic;
+    font-size: 13px;
+}
+
+.feature-list {
+    margin: 10px 0 0 0;
+    padding-left: 20px;
+}
+
+.feature-list li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.priority-info {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 2px solid #e1e5f2;
+}
+
+.priority-info h6 {
+    color: #d84315;
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.priority-levels {
+    display: grid;
+    gap: 12px;
+}
+
+.priority-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    border-left: 4px solid #ccc;
+    margin-bottom: 8px;
+}
+
+.priority-badge {
+    font-weight: 600;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    min-width: 70px;
+    text-align: center;
+    background: #666;
+    color: white;
+}
+
+.additional-info {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 2px solid #e1e5f2;
+}
+
+.additional-info h6 {
+    color: #1a237e;
+    margin-bottom: 15px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.additional-info ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.additional-info li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
 .upload-droparea {
     border: 2px dashed #b0bec5;
     border-radius: 8px;

@@ -330,12 +330,51 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Botão para limpar lista de arquivos
-    document.getElementById('clear-files-btn').addEventListener('click', function() {
+    // Função para limpar todos os arquivos - disponível globalmente
+    window.limparTodosArquivos = function() {
+        console.log('Limpando todos os arquivos...');
+        
+        // Reseta a lista de arquivos
         selectedFilesList = [];
-        document.getElementById('selected-files').innerHTML = '';
-        uploadBtn.disabled = true;
-        updateFileControls();
-        console.log('Lista de arquivos limpa');
+        
+        // Limpa a interface visual
+        const selectedFilesContainer = document.getElementById('selected-files');
+        if (selectedFilesContainer) {
+            selectedFilesContainer.innerHTML = '';
+            console.log('Container de arquivos limpo');
+        }
+        
+        // Desabilita o botão de upload
+        const uploadButton = document.getElementById('upload-btn');
+        if (uploadButton) {
+            uploadButton.disabled = true;
+            console.log('Botão de upload desabilitado');
+        }
+        
+        // Limpa o input de arquivo
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.value = '';
+            console.log('Input de arquivo limpo');
+        }
+        
+        // Atualiza os controles de arquivo
+        const fileControls = document.getElementById('file-controls');
+        if (fileControls) {
+            fileControls.style.display = 'none';
+            console.log('Controles de arquivo ocultados');
+        }
+        
+        console.log('✓ Todos os arquivos foram limpos com sucesso!');
+        alert('Arquivos removidos com sucesso!');
+    };
+    
+    // Event delegation para o botão limpar arquivos
+    document.addEventListener('click', function(e) {
+        if (e.target && (e.target.id === 'clear-files-btn' || e.target.closest('#clear-files-btn'))) {
+            e.preventDefault();
+            console.log('Botão limpar arquivos clicado');
+            clearAllFiles();
+        }
     });
 });

@@ -1657,15 +1657,37 @@ def generate_improved_report(files_data):
                             # Busca nas próximas colunas (até a coluna 10)
                             for col in range(2, min(10, analysis_sheet.max_column + 1)):
                                 value = analysis_sheet.cell(row=row, column=col).value
+                                
                                 if value:
                                     if isinstance(value, str):
                                         col_text = value.lower()
-                                        # Identifica campos de status
-                                        if any(status_word in col_text for status_word in ['monitorando', 'faltoso', 'status']):
+                                        
+                                        # Verifica se é um status válido (valor direto)
+                                        status_keywords = ['faltoso', 'monitorar faltas', 'monitorar fjs', 'regular', 'muitas fjs', 'crítico', 'atenção']
+                                        if any(status_keyword in col_text for status_keyword in status_keywords):
                                             status = value
+                                        # Verifica cabeçalhos de status
+                                        elif any(header_word in col_text for header_word in ['status', 'classificação', 'situação', 'monitorar']):
+                                            # Se é um cabeçalho, pega o valor da linha atual
+                                            header_value = analysis_sheet.cell(row=row, column=col).value
+                                            if header_value and isinstance(header_value, str):
+                                                status = header_value
                                         # Identifica campos de contato
                                         elif any(tel_word in col_text for tel_word in ['telefone', 'contato']):
                                             info_contato = value
+                                    
+                                    # Se não capturou status ainda, verifica se esta coluna tem cabeçalho de status
+                                    if not status:
+                                        # Verifica cabeçalhos nas linhas acima
+                                        for header_row in range(max(1, row-5), row):
+                                            header_cell = analysis_sheet.cell(row=header_row, column=col).value
+                                            if header_cell and isinstance(header_cell, str):
+                                                header_text = header_cell.lower()
+                                                if any(h in header_text for h in ['status', 'classificação', 'situação']):
+                                                    # Esta coluna é de status, então o valor atual é o status
+                                                    if isinstance(value, str) and value.strip():
+                                                        status = value
+                                                    break
                                     
                                     # Verifica todas as colunas buscando percentual de presença
                                     # Primeiro verifica no header atual
@@ -1711,6 +1733,9 @@ def generate_improved_report(files_data):
                                 'info_contato': info_contato,
                                 'percentual_presenca': percentual_presenca
                             }
+                            
+                            # Log para debug - mostra o que está sendo capturado
+                            logger.info(f"CAPTURADO ALUNO DA ANÁLISE: {aluno_nome} | Status: {status} | Turma: {current_turma}")
         
         # Processa alunos para identificar faltas
         alunos_com_faltas = []
@@ -1756,70 +1781,126 @@ def generate_improved_report(files_data):
                                     # Guarda a data da falta para mostrar na observação
                                     datas_falta.append(date)
                 
-                # Define prioridade baseada em % de faltas
+                # Verifica se o aluno está na análise primeiro
+                aluno_upper = aluno.upper()
+                status_analise = None
+                if aluno_upper in alunos_analise:
+                    status_analise = alunos_analise[aluno_upper]['status']
+                
+                # Define prioridade baseada na nova ordem especificada:
+                # 1. Faltou todos os dias da visita
+                # 2. Status: Faltoso  
+                # 3. Status: Muitas FJs
+                # 4. Status: Monitorar Faltas
+                # OBS: Se menos de 3 chamadas, não dar muita prioridade
+                
                 if total > 0:
                     percentual = (faltas / total) * 100
-                    
-                    # Cria string com as datas das faltas
                     datas_formatadas = ", ".join(datas_falta)
                     
-                    # Define prioridade inicial baseada nas faltas
-                    # Calcula porcentagem de presença também
-                    presenca_percentual = 100 - percentual
-                    
-                    if faltas == total:
-                        prioridade = "ALTA"
-                        obs = f"Faltou em todas as visitas: {datas_formatadas}"
-                    elif percentual >= 75:
-                        prioridade = "ALTA"
-                        obs = f"Faltou em {faltas} de {total} visitas: {datas_formatadas}"
-                    elif percentual >= 50:
-                        prioridade = "MÉDIA"
-                        obs = f"Faltou em {faltas} de {total} visitas: {datas_formatadas}"
-                    elif faltas > 0:
-                        prioridade = "BAIXA"
-                        obs = f"Faltou em {faltas} de {total} visitas: {datas_formatadas}"
-                    else:
-                        # Aluno sem faltas nas chamadas
-                        # Verifica se está na aba de análise para incluir mesmo sem faltas
-                        aluno_upper = aluno.upper()
-                        if aluno_upper in alunos_analise:
+                    if total < 3:
+                        # Pouca informação disponível (menos de 3 chamadas)
+                        if faltas == total:  # Faltou todos os dias mesmo com poucas chamadas
                             prioridade = "MÉDIA"
-                            obs = f"Sem faltas nas chamadas"
+                            obs = f"Faltou em todas as {total} visitas (poucos dados): {datas_formatadas}"
+                        elif status_analise == "Faltoso":
+                            prioridade = "MÉDIA" 
+                            obs = f"Status na análise: Faltoso (poucos dados de chamada: {faltas}/{total})"
+                        elif faltas > 0:
+                            prioridade = "BAIXA"
+                            obs = f"Faltou em {faltas} de {total} visitas (poucos dados)"
+                        elif status_analise:
+                            prioridade = "BAIXA"
+                            obs = f"Status na análise: {status_analise} (poucos dados de chamada)"
+                        else:
+                            continue  # Sem dados suficientes para monitoramento
+                    else:
+                        # Dados suficientes para análise (3+ chamadas)
+                        # Nova prioridade refinada:
+                        # 1. CRÍTICA: Faltou todos os dias E possui status Faltoso
+                        # 2. ALTA: Faltou todos os dias OU possui status Faltoso (mas não ambos)
+                        # 3. MÉDIA: Faltou 3-4 dias, status Monitorar Faltas ou Monitorar FJs
+                        # 4. BAIXA: outros casos
+                        
+                        # Lógica de prioridade mais consistente:
+                        # 1. CRÍTICA: Faltou TODOS os dias (100%) E tem status Faltoso
+                        # 2. ALTA: Faltou TODOS os dias (100%) OU tem status Faltoso (mas não ambos)
+                        # 3. MÉDIA: Faltou mais de 50% das visitas OU tem status Monitorar Faltas/FJs
+                        # 4. BAIXA: Outros casos com faltas ou status relevante
+                        
+                        if total > 0 and faltas == total and status_analise == "Faltoso":  # 1. CRÍTICA
+                            prioridade = "CRÍTICA"
+                            obs = f"CRÍTICO: Faltou todas as {total} visitas E classificado como Faltoso: {datas_formatadas}"
+                        elif (total > 0 and faltas == total) or status_analise == "Faltoso":  # 2. ALTA
+                            if total > 0 and faltas == total and status_analise != "Faltoso":
+                                prioridade = "ALTA"
+                                obs = f"Faltou em todas as {total} visitas: {datas_formatadas}"
+                                if status_analise:
+                                    obs += f" | Status: {status_analise}"
+                            elif status_analise == "Faltoso" and (total == 0 or faltas < total):
+                                prioridade = "ALTA"
+                                if total > 0:
+                                    obs = f"Status Faltoso na análise | Faltas: {faltas}/{total} visitas"
+                                    if datas_formatadas:
+                                        obs += f" ({datas_formatadas})"
+                                else:
+                                    obs = f"Status Faltoso na análise | Sem dados de chamadas"
+                        elif (total > 0 and percentual > 50) or status_analise in ["Monitorar Faltas", "Monitorar FJs"]:  # 3. MÉDIA
+                            if total > 0 and percentual > 50:
+                                prioridade = "MÉDIA"
+                                obs = f"Faltou mais de 50% das visitas: {faltas}/{total} ({percentual:.1f}%) - {datas_formatadas}"
+                                if status_analise:
+                                    obs += f" | Status: {status_analise}"
+                            elif status_analise in ["Monitorar Faltas", "Monitorar FJs"]:
+                                prioridade = "MÉDIA"
+                                if total > 0:
+                                    obs = f"Status '{status_analise}' na análise | Faltas: {faltas}/{total} visitas"
+                                    if datas_formatadas:
+                                        obs += f" ({datas_formatadas})"
+                                else:
+                                    obs = f"Status '{status_analise}' na análise | Sem dados de chamadas"
+                        elif faltas > 0 or status_analise:  # 4. BAIXA
+                            prioridade = "BAIXA"
+                            if total > 0 and faltas > 0:
+                                obs = f"Algumas faltas: {faltas}/{total} visitas ({percentual:.1f}%) - {datas_formatadas}"
+                                if status_analise:
+                                    obs += f" | Status: {status_analise}"
+                            elif status_analise:
+                                obs = f"Status na análise: {status_analise} | Sem faltas nas chamadas"
+                            else:
+                                obs = f"Faltas: {faltas}/{total} visitas ({datas_formatadas})"
                         else:
                             continue  # Sem faltas e não está na análise, não inclui
+                else:
+                    # Sem dados de chamadas, verifica apenas se está na análise
+                    if status_analise:
+                        prioridade = "BAIXA"
+                        obs = f"Status na análise: {status_analise} | Sem dados de chamadas"
+                    else:
+                        continue  # Sem dados e não está na análise, não inclui
+                
+                # Adiciona informações extras da análise se disponível
+                if aluno_upper in alunos_analise:
+                    info_analise = alunos_analise[aluno_upper]
                     
-                    # Verifica se o aluno também consta na aba ANÁLISE
-                    status_analise = None
-                    aluno_upper = aluno.upper()
+                    # Adiciona informação da porcentagem de presença da aba análise se disponível
+                    if info_analise.get('percentual_presenca') is not None:
+                        obs += f" | Presença na análise: {info_analise['percentual_presenca']:.0f}%"
                     
-                    if aluno_upper in alunos_analise:
-                        # Aluno está na aba ANÁLISE também
-                        info_analise = alunos_analise[aluno_upper]
-                        status_analise = info_analise['status']
-                        
-                        # Adiciona informação da porcentagem de presença da aba análise se disponível
-                        if info_analise.get('percentual_presenca') is not None:
-                            obs += f" | Presença na análise: {info_analise['percentual_presenca']:.0f}%"
-                        
-                        # Aumenta prioridade se tiver faltas E constar na análise
-                        if faltas > 0:
-                            prioridade = "ALTA"  # Sempre alta prioridade para alunos em ambas abas com faltas
-                            
-                        # Adiciona informação de contato se disponível
-                        if info_analise['info_contato']:
-                            obs += f" | Contato: {info_analise['info_contato']}"
-                    
-                    alunos_com_faltas.append({
-                        'aluno': aluno,
-                        'turma': turma,
-                        'faltas': faltas,
-                        'total': total,
-                        'percentual': percentual,
-                        'prioridade': prioridade,
-                        'status_analise': status_analise,
-                        'obs': obs
-                    })
+                    # Adiciona informação de contato se disponível
+                    if info_analise.get('info_contato'):
+                        obs += f" | Contato: {info_analise['info_contato']}"
+                
+                alunos_com_faltas.append({
+                    'aluno': aluno,
+                    'turma': turma,
+                    'faltas': faltas,
+                    'total': total,
+                    'percentual': percentual,
+                    'prioridade': prioridade,
+                    'status_analise': status_analise,
+                    'obs': obs
+                })
         
         # Adiciona alunos que estão APENAS na aba ANÁLISE
         for aluno_nome, info in alunos_analise.items():
@@ -1839,11 +1920,13 @@ def generate_improved_report(files_data):
                 })
         
         # Adiciona alunos prioritários à planilha, ordenados por prioridade
+        # Nova ordem: CRÍTICA -> ALTA -> MÉDIA -> BAIXA
         row_recom = 5
         for aluno_info in sorted(
             alunos_com_faltas, 
-            key=lambda x: (0 if x['prioridade'] == "ALTA" else 
-                           1 if x['prioridade'] == "MÉDIA" else 2, 
+            key=lambda x: (0 if x['prioridade'] == "CRÍTICA" else 
+                           1 if x['prioridade'] == "ALTA" else 
+                           2 if x['prioridade'] == "MÉDIA" else 3, 
                            x['percentual'] * -1)
         ):
             # Adiciona valores às células
@@ -1879,18 +1962,17 @@ def generate_improved_report(files_data):
             for col in range(1, 7):
                 ws_recom.cell(row=row_recom, column=col).border = thin_border
             
-            # Destaca alunos de alta prioridade com fundo vermelho claro
-            if aluno_info['prioridade'] == "ALTA":
+            # Aplica cores APENAS para prioridade CRÍTICA - resto sem cor
+            if aluno_info['prioridade'] == "CRÍTICA":
+                # Fundo vermelho claro apenas para CRÍTICA
+                fill_critical = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
                 for col in range(1, 7):
-                    ws_recom.cell(row=row_recom, column=col).fill = PatternFill(
-                        start_color="FFCCCC", end_color="FFCCCC", fill_type="solid"
-                    )
-            # Destaca alunos de média prioridade com fundo amarelo claro
-            elif aluno_info['prioridade'] == "MÉDIA":
+                    ws_recom.cell(row=row_recom, column=col).fill = fill_critical
+            else:
+                # Remove qualquer preenchimento para outras prioridades
+                fill_none = PatternFill(fill_type=None)
                 for col in range(1, 7):
-                    ws_recom.cell(row=row_recom, column=col).fill = PatternFill(
-                        start_color="FFF2CC", end_color="FFF2CC", fill_type="solid"
-                    )
+                    ws_recom.cell(row=row_recom, column=col).fill = fill_none
             
             row_recom += 1
         
