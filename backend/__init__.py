@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 PAESTRO - Backend do Sistema de Gestão de Chamadas Escolares

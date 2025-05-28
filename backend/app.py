@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 PAESTRO - Sistema de Gestão de Chamadas Escolares
@@ -17,6 +15,7 @@ import io
 import sys
 import re
 import time
+import tempfile
 from werkzeug.utils import secure_filename
 
 # Adiciona o diretório atual ao path para execução direta do script
@@ -482,9 +481,10 @@ def process_analysis_files():
             try:
                 html_content = file.read().decode('utf-8')
                 
-                # Usamos o arquivo analise_parser.py para análise
+                # Usamos o arquivo analise_parser.py para análise, passando o nome do arquivo
                 try:
-                    result = analyze_elementary_file(html_content)
+                    # Passamos o nome do arquivo para que o parser possa extrair informações da turma
+                    result = analyze_elementary_file(html_content, file.filename)
                     logger.info(f"Processou o arquivo {file.filename} com {len(result['students'])} alunos usando analyze_elementary_file")
                 except Exception as parser_error:
                     logger.error(f"Erro ao analisar o arquivo {file.filename}: {parser_error}")
@@ -507,11 +507,40 @@ def process_analysis_files():
                 for idx, student in enumerate(students_data[:3]):  # Mostra apenas os primeiros 3 alunos para log
                     if isinstance(student, dict):
                         logger.info(f"Exemplo de dados de aluno {idx+1}: {student.get('aluno', 'N/A')}")
-                        logger.info(f"  - P={student.get('P', 0)}, F={student.get('F', 0)}, FJ={student.get('FJ', 0)}")
-                        logger.info(f"  - Faltas por mês: {student.get('faltas_por_mes_texto', 'N/A')}")
+                        
+                        # Garantir que valores P, F, FJ sejam sempre exibidos como números, nunca como 'N/A'
+                        p_value = student.get('P')
+                        if p_value is None or (isinstance(p_value, str) and p_value == 'N/A'):
+                            p_value = 0
+                            
+                        f_value = student.get('F')
+                        if f_value is None or (isinstance(f_value, str) and f_value == 'N/A'):
+                            f_value = 0
+                            
+                        fj_value = student.get('FJ')
+                        if fj_value is None or (isinstance(fj_value, str) and fj_value == 'N/A'):
+                            fj_value = 0
+                            
+                        logger.info(f"  - P={p_value}, F={f_value}, FJ={fj_value}")
+                        
+                        # Exibir faltas por mês
+                        faltas_texto = student.get('faltas_por_mes_texto')
+                        if not faltas_texto or faltas_texto == 'N/A':
+                            faltas_texto = "Sem faltas"
+                        logger.info(f"  - Faltas por mês: {faltas_texto}")
+                        
+                        # Exibir maior falta mensal
                         if 'maior_falta_mensal' in student:
-                            logger.info(f"  - Maior falta mensal: {student.get('maior_falta_mensal', 0)}")
-                        logger.info(f"  - Percentual de presença: {student.get('percentual_presenca', 0)}%")
+                            maior_falta = student.get('maior_falta_mensal')
+                            if maior_falta is None or (isinstance(maior_falta, str) and maior_falta == 'N/A'):
+                                maior_falta = 0
+                            logger.info(f"  - Maior falta mensal: {maior_falta}")
+                            
+                        # Exibir percentual de presença
+                        perc_presenca = student.get('percentual_presenca')
+                        if perc_presenca is None or (isinstance(perc_presenca, str) and perc_presenca == 'N/A'):
+                            perc_presenca = 0
+                        logger.info(f"  - Percentual de presença: {perc_presenca}%")
                 
             except Exception as file_error:
                 logger.error(f"Erro ao processar arquivo {file.filename}: {file_error}")
@@ -587,11 +616,22 @@ def process_analysis_files():
                                 'total_students': len(file_students),
                                 'total_schools': len(escolas),
                                 'total_classes': len(set(item.get('turma', 'Desconhecida') for item in file_students)),
-                                'total_absentees': len([item for item in file_students if 'Faltoso' in item.get('status', '') or 'Faltoso' in item.get('situacao', '')]),
+                                'total_absentees': len([item for item in file_students if 
+                                                       (isinstance(item.get('status', []), list) and 'Faltoso' in item.get('status', [])) or
+                                                       (isinstance(item.get('status', ''), str) and 'Faltoso' in item.get('status', '')) or
+                                                       (isinstance(item.get('situacao', []), list) and 'Faltoso' in item.get('situacao', [])) or
+                                                       (isinstance(item.get('situacao', ''), str) and 'Faltoso' in item.get('situacao', ''))
+                                                      ]),
                                 'total_monitors': len([item for item in file_students if 
-                                                      'Monitorar Faltas' in item.get('status', '') or 
-                                                      'Monitorar FJs' in item.get('status', '')
-                                                     ])
+                                                       (isinstance(item.get('status', []), list) and 
+                                                        any(s in ['Monitorar Faltas', 'Monitorar FJs'] for s in item.get('status', []))) or
+                                                       (isinstance(item.get('status', ''), str) and 
+                                                        any(s in item.get('status', '') for s in ['Monitorar Faltas', 'Monitorar FJs'])) or
+                                                       (isinstance(item.get('situacao', []), list) and 
+                                                        any(s in ['Monitorar Faltas', 'Monitorar FJs'] for s in item.get('situacao', []))) or
+                                                       (isinstance(item.get('situacao', ''), str) and 
+                                                        any(s in item.get('situacao', '') for s in ['Monitorar Faltas', 'Monitorar FJs']))
+                                                      ])
                             }
                         }
                         # Marcar sessão como modificada
@@ -652,11 +692,22 @@ def process_analysis_files():
                         'total_students': len(file_students),
                         'total_schools': len(escolas),
                         'total_classes': len(set(item.get('turma', 'Desconhecida') for item in file_students)),
-                        'total_absentees': len([item for item in file_students if 'Faltoso' in item.get('status', '') or 'Faltoso' in item.get('situacao', '')]),
+                        'total_absentees': len([item for item in file_students if 
+                                               (isinstance(item.get('status', []), list) and 'Faltoso' in item.get('status', [])) or
+                                               (isinstance(item.get('status', ''), str) and 'Faltoso' in item.get('status', '')) or
+                                               (isinstance(item.get('situacao', []), list) and 'Faltoso' in item.get('situacao', [])) or
+                                               (isinstance(item.get('situacao', ''), str) and 'Faltoso' in item.get('situacao', ''))
+                                              ]),
                         'total_monitors': len([item for item in file_students if 
-                                              'Monitorar Faltas' in item.get('status', '') or 
-                                              'Monitorar FJs' in item.get('status', '')
-                                             ])
+                                               (isinstance(item.get('status', []), list) and 
+                                                any(s in ['Monitorar Faltas', 'Monitorar FJs'] for s in item.get('status', []))) or
+                                               (isinstance(item.get('status', ''), str) and 
+                                                any(s in item.get('status', '') for s in ['Monitorar Faltas', 'Monitorar FJs'])) or
+                                               (isinstance(item.get('situacao', []), list) and 
+                                                any(s in ['Monitorar Faltas', 'Monitorar FJs'] for s in item.get('situacao', []))) or
+                                               (isinstance(item.get('situacao', ''), str) and 
+                                                any(s in item.get('situacao', '') for s in ['Monitorar Faltas', 'Monitorar FJs']))
+                                              ])
                     }
                 })
                 
@@ -1106,6 +1157,582 @@ def export_page():
                            escola=escola,
                            current_user=app_data['current_user'],
                            current_date=datetime.now().strftime('%d/%m/%Y'))
+
+@app.route('/relatorio')
+def relatorio_page():
+    """
+    Página de Relatório Consolidado.
+    Só permite acesso se o usuário estiver autenticado.
+    """
+    if not session.get("autenticado"):
+        return redirect(url_for('home'))
+    return render_template('relatorio.html')
+
+@app.route('/process_report_files', methods=['POST'])
+def process_report_files():
+    """
+    Processa arquivos Excel para a geração de relatório consolidado.
+    Extrai metadados e estrutura para apresentação na interface.
+    """
+    if not session.get("autenticado"):
+        return jsonify({'error': 'Não autenticado'}), 401
+
+    try:
+        # Limpar arquivos anteriores se existirem
+        if 'report_files' in session:
+            # Remover arquivos temporários anteriores
+            for file_info in session.get('report_files', []):
+                if 'temp_path' in file_info and os.path.exists(file_info['temp_path']):
+                    try:
+                        os.unlink(file_info['temp_path'])
+                    except Exception as e:
+                        app.logger.warning(f"Não foi possível excluir o arquivo temporário: {e}")
+            
+        # Inicializar lista de arquivos na sessão
+        session['report_files'] = []
+        
+        # Lista para armazenar os arquivos e seus conteúdos
+        files_data = []
+        
+        # Verificar se há arquivos na requisição
+        if 'files' not in request.files:
+            app.logger.warning("Nenhum arquivo foi enviado na requisição")
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        # Processa cada arquivo enviado
+        for file in request.files.getlist('files'):
+            if file and file.filename.endswith(('.xlsx', '.xls')):
+                try:
+                    # Lê o conteúdo do arquivo
+                    file_content = file.read()
+                    
+                    # Salva temporariamente o arquivo para processamento
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+                    temp_file.write(file_content)
+                    temp_file.close()
+                    
+                    # Adiciona à lista de arquivos processados
+                    session['report_files'].append({
+                        'filename': file.filename,
+                        'temp_path': temp_file.name
+                    })
+                    
+                    files_data.append({
+                        'filename': file.filename,
+                        'content': file_content
+                    })
+                    
+                    app.logger.info(f"Arquivo processado e salvo: {file.filename}")
+                except Exception as e:
+                    app.logger.error(f"Erro ao processar arquivo {file.filename}: {str(e)}")
+                    continue
+        
+        # Marcar a sessão como modificada para garantir que seja salva
+        session.modified = True
+        
+        if not files_data:
+            app.logger.warning("Nenhum arquivo Excel válido foi processado")
+            return jsonify({'error': 'Nenhum arquivo Excel válido foi enviado'}), 400
+        
+        # Os arquivos já foram armazenados na sessão, não precisamos refazer
+        for file_info in files_data:
+            # Armazena apenas os metadados, não o conteúdo binário
+            session['report_files'].append({
+                'filename': file_info['filename'],
+                # Armazena o conteúdo do arquivo em um arquivo temporário
+                'temp_path': save_temp_file(file_info['content'])
+            })
+        
+        # Extrai metadados básicos dos arquivos
+        result = {
+            'files': [],
+            'total_alunos': 0,
+            'total_turmas': 0,
+            'datas_visita': [],
+            'escola': None
+        }
+        
+        for file_data in files_data:
+            result['files'].append({
+                'nome': file_data['filename'],
+                'tipo': 'Análise' if 'analise' in file_data['filename'].lower() else 'Chamada',
+                'data': '27/05/2025',  # Placeholder - será extraído do arquivo
+                'alunos': 50,  # Placeholder - será calculado
+                'turmas': 1,   # Placeholder - será calculado
+                'escola': None
+            })
+        
+        result['total_alunos'] = len(result['files']) * 50
+        result['total_turmas'] = len(result['files'])
+        result['datas_visita'] = ['27/05/2025']
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        logger.error(f"Erro ao processar arquivos para relatório: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/generate_consolidated_report', methods=['POST'])
+def generate_report():
+    """
+    Gera um relatório consolidado a partir dos arquivos Excel processados.
+    
+    O relatório contém 3 abas:
+    1. CHAMADAS - Todas as chamadas lado a lado para comparação
+    2. ANÁLISE - Dados de análise de frequência 
+    3. RELATÓRIO - Recomendações automáticas baseadas nos dados
+    """
+    if not session.get("autenticado"):
+        return jsonify({'error': 'Não autenticado'}), 401
+    
+    try:
+        app.logger.info("Iniciando geração de relatório consolidado")
+        
+        # Verifica se há arquivos processados na sessão
+        if 'report_files' not in session or not session['report_files']:
+            app.logger.warning("Nenhum arquivo encontrado na sessão para gerar relatório")
+            return jsonify({'error': 'Nenhum arquivo foi processado. Por favor, faça o upload primeiro.'}), 400
+        
+        # Recupera os arquivos da sessão
+        files_data = []
+        for file_info in session.get('report_files', []):
+            try:
+                # Recupera o arquivo temporário
+                temp_path = file_info.get('temp_path')
+                
+                if not temp_path or not os.path.exists(temp_path):
+                    app.logger.warning(f"Arquivo temporário não encontrado: {temp_path}")
+                    continue
+                    
+                with open(temp_path, 'rb') as f:
+                    file_content = f.read()
+                
+                files_data.append({
+                    'filename': file_info.get('filename', 'desconhecido'),
+                    'content': file_content
+                })
+                app.logger.info(f"Arquivo recuperado com sucesso: {file_info.get('filename', 'desconhecido')}")
+            except Exception as e:
+                app.logger.error(f"Erro ao processar arquivo {file_info.get('filename', 'desconhecido')}: {str(e)}")
+                continue
+        
+        if not files_data:
+            app.logger.warning("Nenhum arquivo válido foi recuperado da sessão")
+            return jsonify({'error': 'Nenhum arquivo válido foi encontrado para gerar o relatório.'}), 400
+        
+        # Importações necessárias
+        import io
+        
+        try:
+            # Importar funções do módulo de geração de relatórios
+            # Processa os dados para identificar as escolas e datas
+            app.logger.info(f"Processando {len(files_data)} arquivos para relatório consolidado")
+            
+            # Tenta usar a versão completamente nova do relatório
+            try:
+                # Importa a função do relatório melhorado
+                from backend.report_generator import generate_improved_report
+                
+                # Gera o relatório com nossa implementação nova que resolve os problemas de:
+                # 1. Status de presença (P/F/FJ) correto
+                # 2. Datas em ordem cronológica
+                # 3. Consolidação de observações por aluno
+                # 4. Processamento adequado de arquivos de análise
+                # 5. Nome do arquivo com período e escola extraídos dos cabeçalhos
+                app.logger.info("Gerando relatório com datas ordenadas e status de presença corretos")
+                report_result = generate_improved_report(files_data)
+                
+                # Verifica se o resultado contém as informações do cabeçalho
+                if isinstance(report_result, dict) and 'excel_data' in report_result:
+                    excel_output = report_result['excel_data']
+                    school_name = report_result.get('school_name')
+                    period = report_result.get('period')
+                    app.logger.info(f"Informações extraídas - Escola: {school_name}, Período: {period}")
+                else:
+                    # Compatibilidade com versão antiga
+                    excel_output = report_result
+                    school_name = None
+                    period = None
+                    
+                app.logger.info("Relatório consolidado gerado com sucesso")
+            except Exception as e:
+                # Se falhar, volta para o relatório padrão
+                app.logger.warning(f"Erro na geração do relatório melhorado: {e}")
+                app.logger.info("Gerando relatório consolidado com o método padrão")
+                excel_output = generate_consolidated_report(files_data)
+            
+            # Nome do arquivo de saída - formato melhorado com informações dos cabeçalhos (sem data)
+            if school_name and period:
+                # Usa as informações extraídas dos cabeçalhos dos arquivos
+                escola_formatada = re.sub(r'[^\w\s-]', '', school_name).strip().replace(' ', '_')
+                periodo_formatado = period.replace(' ', '_')
+                filename = f"Relatorio_Consolidado_de_Faltas_{periodo_formatado}_{escola_formatada}.xlsx"
+                app.logger.info(f"Nome do arquivo gerado com informações dos cabeçalhos: {filename}")
+            else:
+                # Fallback para o formato anterior se não conseguir extrair informações
+                escola = processed_data.get('escola', 'UnidadeEscolar')
+                if escola == 'escola' or not escola:
+                    escola = 'UnidadeEscolar'
+                
+                # Remove caracteres especiais do nome da escola
+                escola = re.sub(r'[^\w\s-]', '', escola).strip().replace(' ', '_')
+                
+                filename = f"Relatorio_Consolidado_de_Faltas_Periodo_{escola}.xlsx"
+                app.logger.warning(f"Usando formato padrão para nome do arquivo: {filename}")
+            
+            app.logger.info(f"Enviando relatório consolidado: {filename}")
+            
+            # Salva o arquivo temporariamente na sessão para download direto
+            session['temp_report'] = {
+                'data': excel_output,
+                'filename': filename
+            }
+            
+            # Retorna sucesso com URL de download
+            return jsonify({
+                'success': True,
+                'filename': filename,
+                'download_url': '/download_report'
+            })
+        except Exception as e:
+            app.logger.error(f"Erro no gerador de relatório: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
+            return jsonify({'error': f'Erro ao gerar o relatório: {str(e)}'}), 500
+    except Exception as e:
+        app.logger.error(f"Erro inesperado na geração de relatório: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'error': f'Erro ao gerar o relatório: {str(e)}'}), 500
+        
+        # Processar arquivos de análise
+        row_analise = 5
+        alunos_analise = {}
+        
+        try:
+            # Tentar extrair dados dos arquivos Excel de análise
+            for file_info in analise_files:
+                try:
+                    data_file = pd.read_excel(io.BytesIO(file_info.get('content')), engine='openpyxl')
+                    
+                    # Tentar identificar as colunas necessárias
+                    turma_col = None
+                    aluno_col = None
+                    total_col = None
+                    presenca_col = None
+                    falta_col = None
+                    freq_col = None
+                    class_col = None
+                    
+                    for col in data_file.columns:
+                        col_lower = str(col).lower()
+                        if 'turma' in col_lower:
+                            turma_col = col
+                        elif 'aluno' in col_lower or 'nome' in col_lower:
+                            aluno_col = col
+                        elif 'total' in col_lower and 'aula' in col_lower:
+                            total_col = col
+                        elif 'presen' in col_lower:
+                            presenca_col = col
+                        elif 'falta' in col_lower:
+                            falta_col = col
+                        elif 'frequ' in col_lower or '%' in col_lower:
+                            freq_col = col
+                        elif 'class' in col_lower or 'situação' in col_lower:
+                            class_col = col
+                    
+                    # Se encontramos as colunas mínimas necessárias
+                    if turma_col and aluno_col:
+                        for _, row in data_file.iterrows():
+                            turma = str(row.get(turma_col, '')).strip()
+                            aluno = str(row.get(aluno_col, '')).strip()
+                            
+                            if turma and aluno and turma != 'nan' and aluno != 'nan':
+                                # Extrair os outros dados se disponíveis
+                                total = str(row.get(total_col, '')) if total_col else ''
+                                presenca = str(row.get(presenca_col, '')) if presenca_col else ''
+                                falta = str(row.get(falta_col, '')) if falta_col else ''
+                                freq = str(row.get(freq_col, '')) if freq_col else ''
+                                classificacao = str(row.get(class_col, '')) if class_col else ''
+                                
+                                # Limpar valores nan
+                                total = '' if total == 'nan' else total
+                                presenca = '' if presenca == 'nan' else presenca
+                                falta = '' if falta == 'nan' else falta
+                                freq = '' if freq == 'nan' else freq
+                                classificacao = '' if classificacao == 'nan' else classificacao
+                                
+                                # Armazenar para o aluno
+                                key = f"{turma}|{aluno}"
+                                alunos_analise[key] = {
+                                    'turma': turma,
+                                    'aluno': aluno,
+                                    'total': total,
+                                    'presenca': presenca,
+                                    'falta': falta,
+                                    'freq': freq,
+                                    'classificacao': classificacao
+                                }
+                except Exception as e:
+                    app.logger.warning(f"Erro ao processar arquivo de análise {file_info.get('filename')}: {str(e)}")
+                    continue
+        except Exception as e:
+            app.logger.error(f"Erro geral ao processar arquivos de análise: {str(e)}")
+        
+        # Preencher a tabela de análise
+        for key, dados in alunos_analise.items():
+            ws_analise.cell(row=row_analise, column=1, value=dados['turma']).border = thin_border
+            ws_analise.cell(row=row_analise, column=2, value=dados['aluno']).border = thin_border
+            ws_analise.cell(row=row_analise, column=3, value=dados['total']).border = thin_border
+            ws_analise.cell(row=row_analise, column=4, value=dados['presenca']).border = thin_border
+            ws_analise.cell(row=row_analise, column=5, value=dados['falta']).border = thin_border
+            ws_analise.cell(row=row_analise, column=6, value=dados['freq']).border = thin_border
+            
+            class_cell = ws_analise.cell(row=row_analise, column=7, value=dados['classificacao'])
+            class_cell.border = thin_border
+            
+            # Colorir classificação
+            if 'ausente' in dados['classificacao'].lower():
+                class_cell.fill = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
+            elif 'monitoramento' in dados['classificacao'].lower():
+                class_cell.fill = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+            elif 'regular' in dados['classificacao'].lower():
+                class_cell.fill = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
+            
+            row_analise += 1
+        
+        # CRIAR ABA DE RELATÓRIO (resumo)
+        ws_relatorio = wb.create_sheet("RELATÓRIO")
+        
+        # Cabeçalho
+        ws_relatorio.cell(row=1, column=1, value=f"Relatório de Recomendações - {escola_name}")
+        ws_relatorio.cell(row=1, column=1).font = Font(bold=True, size=14)
+        ws_relatorio.merge_cells('A1:F1')
+        
+        # Data de criação
+        ws_relatorio.cell(row=2, column=1, value=f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        ws_relatorio.cell(row=2, column=1).font = Font(italic=True)
+        ws_relatorio.merge_cells('A2:F2')
+        
+        # Título dos arquivos processados
+        ws_relatorio.cell(row=4, column=1, value="Arquivos Processados:")
+        ws_relatorio.cell(row=4, column=1).font = Font(bold=True)
+        
+        # Listar arquivos processados
+        row_rel = 5
+        for file_info in files_data:
+            file_name = file_info.get('filename', 'Desconhecido')
+            ws_relatorio.cell(row=row_rel, column=1, value=file_name)
+            row_rel += 1
+        
+        # Espaço
+        row_rel += 1
+        
+        # Resumo das chamadas
+        ws_relatorio.cell(row=row_rel, column=1, value="Resumo de Faltas por Data:")
+        ws_relatorio.cell(row=row_rel, column=1).font = Font(bold=True)
+        row_rel += 1
+        
+        # Cabeçalho do resumo de chamadas
+        headers_resumo = ["Turma", "Data", "Total Alunos", "Presentes", "Ausentes", "% Presença"]
+        for idx, header in enumerate(headers_resumo, 1):
+            cell = ws_relatorio.cell(row=row_rel, column=idx, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = header_fill
+            cell.border = thin_border
+        row_rel += 1
+        
+        # Gerar estatísticas por turma e data
+        for turma in all_turmas:
+            for data in datas:
+                if data in chamada_data and turma in chamada_data[data]:
+                    alunos_turma_data = chamada_data[data][turma]
+                    total_alunos = len(alunos_turma_data)
+                    
+                    # Contar presentes e ausentes
+                    presentes = 0
+                    ausentes = 0
+                    
+                    for aluno, dados in alunos_turma_data.items():
+                        status = dados.get('status', '').lower()
+                        if 'presente' in status:
+                            presentes += 1
+                        elif 'ausente' in status or 'falta' in status:
+                            ausentes += 1
+                    
+                    # Calcular percentual
+                    perc_presenca = 0
+                    if total_alunos > 0:
+                        perc_presenca = round((presentes / total_alunos) * 100, 1)
+                    
+                    # Adicionar linha à tabela
+                    ws_relatorio.cell(row=row_rel, column=1, value=turma).border = thin_border
+                    ws_relatorio.cell(row=row_rel, column=2, value=data).border = thin_border
+                    ws_relatorio.cell(row=row_rel, column=3, value=total_alunos).border = thin_border
+                    ws_relatorio.cell(row=row_rel, column=4, value=presentes).border = thin_border
+                    ws_relatorio.cell(row=row_rel, column=5, value=ausentes).border = thin_border
+                    
+                    freq_cell = ws_relatorio.cell(row=row_rel, column=6, value=f"{perc_presenca}%")
+                    freq_cell.border = thin_border
+                    
+                    # Colorir célula conforme % de presença
+                    if perc_presenca < 60:
+                        freq_cell.fill = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
+                    elif perc_presenca < 75:
+                        freq_cell.fill = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+                    else:
+                        freq_cell.fill = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
+                    
+                    row_rel += 1
+        
+        # Espaço
+        row_rel += 2
+        
+        # Alunos com recomendações de intervenção
+        ws_relatorio.cell(row=row_rel, column=1, value="Alunos Prioritários para Acompanhamento:")
+        ws_relatorio.cell(row=row_rel, column=1).font = Font(bold=True)
+        row_rel += 1
+        
+        # Cabeçalho da tabela de alunos prioritários
+        priority_headers = ["Turma", "Aluno", "Tipo", "Justificativa"]
+        for idx, header in enumerate(priority_headers, 1):
+            cell = ws_relatorio.cell(row=row_rel, column=idx, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = header_fill
+            cell.border = thin_border
+        row_rel += 1
+        
+        # Identificar alunos prioritários: aqueles com ausência em mais de uma data
+        # ou classificados como "ausentes" na análise
+        alunos_prioritarios = []
+        alunos_ausencia_multipla = {}
+        
+        # Para cada aluno, contar suas ausências em diferentes datas
+        for turma in all_turmas:
+            for data in datas:
+                if data in chamada_data and turma in chamada_data[data]:
+                    for aluno, dados in chamada_data[data][turma].items():
+                        status = dados.get('status', '').lower()
+                        
+                        if 'ausente' in status or 'falta' in status:
+                            key = f"{turma}|{aluno}"
+                            if key not in alunos_ausencia_multipla:
+                                alunos_ausencia_multipla[key] = {
+                                    'turma': turma,
+                                    'aluno': aluno,
+                                    'datas': []
+                                }
+                            
+                            alunos_ausencia_multipla[key]['datas'].append(data)
+        
+        # Adicionar alunos com ausências múltiplas à lista de prioritários
+        for key, dados in alunos_ausencia_multipla.items():
+            if len(dados['datas']) > 1:  # Mais de uma ausência
+                alunos_prioritarios.append({
+                    'turma': dados['turma'],
+                    'aluno': dados['aluno'],
+                    'tipo': 'Alta Prioridade' if len(dados['datas']) >= len(datas) * 0.75 else 'Média Prioridade',
+                    'justificativa': f"Faltou em {len(dados['datas'])} de {len(datas)} dias verificados."
+                })
+        
+        # Adicionar alunos classificados como "ausentes" na análise
+        for key, dados in alunos_analise.items():
+            if 'ausente' in dados['classificacao'].lower():
+                # Verificar se já está na lista
+                ja_na_lista = False
+                for ap in alunos_prioritarios:
+                    if ap['turma'] == dados['turma'] and ap['aluno'] == dados['aluno']:
+                        ja_na_lista = True
+                        break
+                
+                if not ja_na_lista:
+                    alunos_prioritarios.append({
+                        'turma': dados['turma'],
+                        'aluno': dados['aluno'],
+                        'tipo': 'Alta Prioridade',
+                        'justificativa': f"Classificado como {dados['classificacao']} na análise de frequência."
+                    })
+        
+        # Ordenar por tipo (alta prioridade primeiro) e turma
+        alunos_prioritarios.sort(key=lambda x: (0 if 'alta' in x['tipo'].lower() else 1, x['turma'], x['aluno']))
+        
+        # Adicionar alunos prioritários à tabela
+        for ap in alunos_prioritarios:
+            ws_relatorio.cell(row=row_rel, column=1, value=ap['turma']).border = thin_border
+            ws_relatorio.cell(row=row_rel, column=2, value=ap['aluno']).border = thin_border
+            
+            tipo_cell = ws_relatorio.cell(row=row_rel, column=3, value=ap['tipo'])
+            tipo_cell.border = thin_border
+            
+            # Colorir por tipo de prioridade
+            if 'alta' in ap['tipo'].lower():
+                tipo_cell.fill = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
+            else:
+                tipo_cell.fill = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+            
+            ws_relatorio.cell(row=row_rel, column=4, value=ap['justificativa']).border = thin_border
+            row_rel += 1
+        
+        # Definir larguras das colunas na aba relatório
+        for col in ['A', 'B', 'C', 'D', 'E', 'F']:
+            ws_relatorio.column_dimensions[col].width = 20
+        
+        # Salva o workbook em memória
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        excel_content = output.getvalue()
+        
+        # Nome do arquivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Relatorio_Consolidado_{timestamp}.xlsx"
+        
+        # Retorna o arquivo para download
+        return send_file(
+            io.BytesIO(excel_content),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar relatório consolidado: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download_report')
+def download_report():
+    """
+    Rota para download direto do relatório consolidado gerado.
+    """
+    if 'temp_report' not in session:
+        return "Nenhum relatório disponível para download", 404
+    
+    report_data = session['temp_report']
+    
+    # Remove da sessão após o download
+    del session['temp_report']
+    
+    return send_file(
+        io.BytesIO(report_data['data']),
+        as_attachment=True,
+        download_name=report_data['filename'],
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+def save_temp_file(content):
+    """
+    Salva o conteúdo em um arquivo temporário e retorna o caminho.
+    """
+    import tempfile
+    
+    # Cria um arquivo temporário
+    fd, path = tempfile.mkstemp(suffix='.xlsx')
+    
+    # Escreve o conteúdo no arquivo
+    with os.fdopen(fd, 'wb') as f:
+        f.write(content)
+    
+    return path
 
 @app.route('/api/export_excel', methods=['GET'])
 def export_attendance():

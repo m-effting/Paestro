@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAESTRO - Relatório Consolidado</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/relatorio.css') }}">
+    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
+    <link rel="icon" type="image/png" sizes="128x128" href="/css/favicon12.png"> 
+    <meta name="msapplication-TileColor" content="#ffffff"> 
+    <meta name="theme-color" content="#ffffff">
+</head>
+<body>
+    <div class="header-wrapper">
+        <header>
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
+            </div>
+            <div class="header-info">
+                <span id="data-atual"></span>
+                <span id="nome-usuario"></span>
+            </div>
+        </header>
+    </div>
+
+    <nav class="nav-container">
+        <div class="nav-links">
+            <a href="/" class="nav-link">
+                <i class="fas fa-home"></i> Início
+            </a>
+            <a href="/chamada" class="nav-link">
+                <i class="fas fa-clipboard-check"></i> Chamada
+            </a>
+            <a href="/importar" class="nav-link">
+                <i class="fas fa-file-import"></i> Importar
+            </a>
+            <a href="/analise" class="nav-link">
+                <i class="fas fa-chart-bar"></i> Análise
+            </a>
+            <a href="/relatorio" class="nav-link active">
+                <i class="fas fa-file-contract"></i> Relatório
+            </a>
+        </div>
+    </nav>
+
+    <div class="content-wrapper">
+        <div class="relatorio-container">
+            <h3>Relatório Consolidado de Unidade</h3>
+            
+            <!-- Seção de upload de arquivos Excel -->
+            <div class="upload-section">
+                <h4><i class="fas fa-file-excel"></i> Arquivos para Relatório Consolidado</h4>
+                <div class="file-upload-container">
+                    <div class="upload-instructions">
+                        <p class="info-text">Selecione os arquivos Excel de chamada (um para cada data de visita) e o arquivo de análise para gerar o relatório consolidado.</p>
+                    </div>
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <div class="upload-droparea" id="upload-droparea">
+                            <svg viewBox="0 0 24 24" width="36" height="36">
+                                <path fill="currentColor" d="M14,13V17H10V13H7L12,8L17,13M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.03Z" />
+                            </svg>
+                            <p>Arraste os arquivos Excel aqui ou <label for="file-input" class="file-label">selecione os arquivos</label></p>
+                            <input type="file" id="file-input" name="file" multiple accept=".xlsx,.xls" hidden />
+                        </div>
+                        <div class="selected-files" id="selected-files"></div>
+                        
+                        <!-- Botões de controle -->
+                        <div class="file-controls" style="margin-top: 15px; display: none;" id="file-controls">
+                            <button type="button" class="btn-clear-files" id="clear-files-btn" style="background-color: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; margin-right: 15px; font-size: 14px; transition: all 0.3s;">
+                                <i class="fas fa-trash-alt"></i> Limpar Arquivos
+                            </button>
+                            <span id="file-count" style="color: #666; font-size: 14px; font-weight: 500;"></span>
+                        </div>
+                        
+                        <!-- Barra de progresso para processamento -->
+                        <div class="progress-container" id="progress-container" style="display: none;">
+                            <div class="progress-bar" id="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                            <div class="progress-info">
+                                <span id="progress-text">Processando...</span>
+                                <span id="progress-percentage">0%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="upload-actions">
+                            <button type="button" id="upload-btn" class="btn-action btn-primary" style="padding: 12px 24px; font-size: 16px; font-weight: 600; border-radius: 8px;">
+                                <i class="fas fa-file-alt"></i>
+                                Gerar Relatório Consolidado
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+
+            
+            <!-- Instruções de uso -->
+            <div class="instructions-section">
+                <details>
+                    <summary>Instruções para o Relatório Consolidado</summary>
+                    <div class="instructions-content">
+                        <h5>Como funciona o Relatório Consolidado?</h5>
+                        <p>Esta ferramenta combina múltiplos arquivos Excel gerados pelo PAESTRO em um único relatório consolidado, permitindo uma visão abrangente da unidade.</p>
+                        
+                        <h5>Arquivos necessários:</h5>
+                        <ol>
+                            <li>Arquivos de Exportação (um para cada dia de visita)</li>
+                            <li>Arquivo de Análise (opcional, para incluir estatísticas de faltas)</li>
+                        </ol>
+                        
+                        <h5>O relatório consolidado irá</h5>
+                        <ul>
+                            <li>Ordenar turmas em ordem numérica crescente</li>
+                            <li>Exibir dias de chamada lado a lado para fácil comparação</li>
+                            <li>Destacar alunos com faltas em todos os dias de visita</li>
+                            <li>Manter as observações de cada chamada</li>
+                            <li>Incluir cabeçalho com informações da unidade e datas</li>
+                        </ul>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <script src="../static/js/modal.js"></script>
+    <script src="../static/js/relatorio.js"></script>
+</body>
+</html>
