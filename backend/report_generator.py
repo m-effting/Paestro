@@ -24,6 +24,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from collections import defaultdict
+from backend.analysis_helpers import detect_analysis_file
 
 # Configuração de logging
 logger = logging.getLogger(__name__)
@@ -799,145 +800,20 @@ def generate_improved_report(files_data):
         for file_info in files_data:
             filename = file_info.get('filename', '')
             original_filename = filename
-            filename = filename.lower()  # Versão lower apenas para comparações
-            is_analysis = file_info.get('is_analysis', False)
             content = file_info.get('content', None)
             
-            # DETECÇÃO PELO PADRÃO DE NOME DE ARQUIVO DE CHAMADA
-            # Verifica se parece um arquivo de chamada gerado pelo nosso sistema (formato padrão)
-            is_call_file = False
-            date_pattern = re.search(r'\d{2}-\d{2}-\d{4}', original_filename)
+            # Usa nossa nova função simplificada de detecção baseada no padrão do nome
+            is_analysis_file = detect_analysis_file(original_filename, content if content else b'')
             
-            if date_pattern and ('_MATUTINO_' in original_filename or '_VESPERTINO_' in original_filename):
-                logger.info(f"[IMPORTANTE] Arquivo identificado como CHAMADA pelo padrão de nomenclatura: {original_filename}")
-                is_call_file = True
-                file_info['is_analysis'] = False  # Explicitamente marca como não sendo análise
-                regular_files.append(file_info)
-                continue
-            
-            # CASO ESPECIAL: PequenoPrincipe.xlsx é um arquivo de ANÁLISE, não de chamada regular
-            if ('pequenoprincipe.xlsx' in filename.replace(" ", "") or 'pequeno_principe.xlsx' in filename.replace(" ", "")):
-                # Verifica se já temos um arquivo com o mesmo nome para evitar duplicação
-                already_added = False
-                for existing_file in analysis_files:
-                    existing_name = existing_file.get('filename', '').lower().replace(" ", "")
-                    if 'pequenoprincipe.xlsx' in existing_name or 'pequeno_principe.xlsx' in existing_name:
-                        already_added = True
-                        break
-                
-                if not already_added:
-                    logger.info(f"[IMPORTANTE] Arquivo PequenoPrincipe.xlsx identificado como ANÁLISE: {original_filename}")
-                    file_info['is_analysis'] = True  # Marca explicitamente como arquivo de análise
-                    analysis_files.append(file_info)
-                else:
-                    logger.info(f"[IMPORTANTE] Ignorando arquivo duplicado: {original_filename}")
-                continue
-            # Outro padrão de nome de arquivo de chamada (formato alternativo)
-            elif 'pequeno' in filename.lower() and filename.lower().endswith('.xlsx'):
-                logger.info(f"[IMPORTANTE] Arquivo identificado como CHAMADA pelo nome alternativo: {original_filename}")
-                is_call_file = True
-                file_info['is_analysis'] = False  # Explicitamente marca como não sendo análise
-                regular_files.append(file_info)
-                continue
-                
-            # DETECÇÃO DE ARQUIVO DE ANÁLISE            
-            # 1. Verifica se já sabemos que é um arquivo de análise pela classificação prévia
-            if is_analysis:
-                logger.info(f"[IMPORTANTE] Arquivo identificado como ANÁLISE (classificação prévia): {original_filename}")
-                analysis_files.append(file_info)
-                continue
-                
-            # 2. Detecção pelo conteúdo usando análise avançada
-            if content:
-                try:
-                    # Melhoria na detecção de arquivos de análise pelo conteúdo
-                    with io.BytesIO(content) as buffer:
-                        df = pd.read_excel(buffer, nrows=15)
-                        
-                        # Verifica o conteúdo do arquivo para indicadores de análise
-                        content_text = ' '.join([str(x) for x in df.values.flatten() if pd.notna(x)])
-                        content_text = content_text.lower()
-                        
-                        # Palavras-chave específicas de arquivos de análise
-                        analysis_indicators = [
-                            'índice de frequência', 'indice de frequencia', 
-                            'análise de frequência', 'analise de frequencia',
-                            'percentual de presença', 'percentual de faltas',
-                            'monitoria de frequência', 'alunos em situação',
-                            'faltas mensais', 'presença acumulada',
-                            'prioridade de intervenção', 'situação crítica',
-                            'classificação de risco', 'monitoramento'
-                        ]
-                        
-                        for indicator in analysis_indicators:
-                            if indicator in content_text:
-                                logger.info(f"[IMPORTANTE] Arquivo identificado como ANÁLISE pelo conteúdo (indicator: {indicator}): {original_filename}")
-                                file_info['is_analysis'] = True
-                                analysis_files.append(file_info)
-                                continue
-                        
-                        # Verifica as colunas para padrões de análise
-                        column_names = [str(col).lower() for col in df.columns]
-                        analysis_column_indicators = [
-                            'status', 'classificação', 'situação', 'prioridade', 
-                            'faltas/total', 'percentual', '%', 'crítico', 'critico',
-                            'monitoramento', 'intervenção', 'intervencao'
-                        ]
-                        
-                        match_count = 0
-                        for col in column_names:
-                            for indicator in analysis_column_indicators:
-                                if indicator in col:
-                                    match_count += 1
-                                    break
-                        
-                        if match_count >= 2:
-                            logger.info(f"[IMPORTANTE] Arquivo identificado como ANÁLISE pelas colunas ({match_count} correspondências): {original_filename}")
-                            file_info['is_analysis'] = True
-                            analysis_files.append(file_info)
-                            continue
-                except Exception as e:
-                    logger.warning(f"Erro na análise avançada de conteúdo: {e}")
-                    
-                # Força o tratamento como análise se tiver 'frequencia' ou 'analysis' no nome
-                if 'analise_frequencia' in filename.lower() or 'análise_frequência' in filename.lower() or 'analysis' in filename.lower():
-                    logger.info(f"[IMPORTANTE] Arquivo identificado como ANÁLISE por nome específico: {original_filename}")
-                    file_info['is_analysis'] = True
-                    analysis_files.append(file_info)
-                    continue
-                
-            # 3. Detecção pelo nome do arquivo
-            if ("analise" in filename or "análise" in filename or 
-                (("indice" in filename or "índice" in filename) and 
-                 ("gt" in filename or "ano" in filename))):
-                logger.info(f"[IMPORTANTE] Arquivo identificado como ANÁLISE pelo nome: {original_filename}")
-                # Atualiza o registro para refletir que é um arquivo de análise
+            if is_analysis_file:
+                logger.info(f"[IMPORTANTE] Arquivo identificado como ANÁLISE: {original_filename}")
                 file_info['is_analysis'] = True
                 analysis_files.append(file_info)
-                continue
-                
-            # Se chegou até aqui, fazemos uma análise de conteúdo rápida para decidir
-            try:
-                if content:
-                    with io.BytesIO(content) as buffer:
-                        # Lê as primeiras linhas para análise de conteúdo
-                        df = pd.read_excel(buffer, nrows=10)
-                        content_text = ' '.join([str(x) for x in df.values.flatten() if pd.notna(x)])
-                        
-                        # Indicadores de arquivos de chamada
-                        call_indicators = ['presença', 'presente', 'falta', 'chamada', 'turma', 'aluno']
-                        if any(ind in content_text.lower() for ind in call_indicators):
-                            logger.info(f"[IMPORTANTE] Arquivo identificado como CHAMADA pelo conteúdo: {original_filename}")
-                            file_info['is_analysis'] = False
-                            regular_files.append(file_info)
-                            continue
-            except Exception as e:
-                logger.warning(f"Erro na análise de conteúdo para classificação: {e}")
-                
-            # Se chegou até aqui, assumimos que é um arquivo de chamada por padrão
-            logger.info(f"[IMPORTANTE] Arquivo identificado como CHAMADA por exclusão: {original_filename}")
-            file_info['is_analysis'] = False
-            regular_files.append(file_info)
+            else:
+                logger.info(f"[IMPORTANTE] Arquivo identificado como CHAMADA: {original_filename}")
+                file_info['is_analysis'] = False
+                regular_files.append(file_info)
+
         
         # Log resumo
         logger.info(f"[RESUMO] Total: {len(files_data)}, Arquivos de CHAMADA: {len(regular_files)}, Arquivos de ANÁLISE: {len(analysis_files)}")

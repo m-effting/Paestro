@@ -21,7 +21,10 @@ logger = logging.getLogger(__name__)
 
 def detect_analysis_file(file_name: str, file_content: bytes) -> bool:
     """
-    Detecta se um arquivo é um arquivo de análise com base no nome e conteúdo.
+    Detecta se um arquivo é um arquivo de análise baseado no padrão do nome.
+    
+    Qualquer arquivo que NÃO siga o padrão "NOME_DA_ESCOLA_DD-MM-AA_PERIODO_NOME_DA_EQUIPE"
+    é considerado um arquivo de análise.
     
     Args:
         file_name: Nome do arquivo
@@ -30,24 +33,38 @@ def detect_analysis_file(file_name: str, file_content: bytes) -> bool:
     Returns:
         bool: True se for um arquivo de análise, False caso contrário
     """
-    # Verifica pelo nome do arquivo
-    if "analise" in file_name.lower() or "análise" in file_name.lower():
+    # Remove a extensão do arquivo para análise
+    name_without_ext = file_name.rsplit('.', 1)[0] if '.' in file_name else file_name
+    
+    # Padrão para arquivos de chamada: NOME_DA_ESCOLA_DD-MM-AAAA_PERIODO_NOME_DA_EQUIPE
+    # Exemplo: EB_FREI_DAMIAO_09-05-2025_MATUTINO_MUNICH_E_GUILHERME
+    
+    # Verifica se contém uma data no formato DD-MM-AAAA
+    date_pattern = r'\d{2}-\d{2}-\d{4}'
+    has_date = re.search(date_pattern, name_without_ext)
+    
+    if not has_date:
+        # Se não tem data no padrão, é arquivo de análise
         return True
-        
-    # Verifica pelo conteúdo (procura por palavras-chave típicas de arquivos de análise)
-    try:
-        with io.BytesIO(file_content) as buffer:
-            df = pd.read_excel(buffer, nrows=10)
-            content_str = ' '.join([str(val) for val in df.values.flatten() if pd.notna(val)])
-            keywords = ["análise de frequência", "classificação", "monitorar faltas", 
-                        "infrequente", "total de faltas", "%"]
-            
-            for keyword in keywords:
-                if keyword.lower() in content_str.lower():
-                    return True
-    except:
-        pass
-        
+    
+    # Se tem data, verifica se segue o padrão completo de arquivo de chamada
+    # Divide o nome pelas partes separadas por underline
+    parts = name_without_ext.split('_')
+    
+    # Arquivo de chamada deve ter pelo menos 5 partes:
+    # [NOME_ESCOLA...], [DD], [MM], [AAAA], [PERIODO], [NOME_EQUIPE...]
+    if len(parts) < 5:
+        return True
+    
+    # Verifica se tem período válido (MATUTINO, VESPERTINO, NOTURNO, INTEGRAL)
+    periodos_validos = ['MATUTINO', 'VESPERTINO', 'NOTURNO', 'INTEGRAL']
+    has_periodo = any(periodo in part.upper() for part in parts for periodo in periodos_validos)
+    
+    if not has_periodo:
+        # Se não tem período válido, é arquivo de análise
+        return True
+    
+    # Se chegou até aqui, segue o padrão de arquivo de chamada
     return False
 
 def extract_date_from_analysis_file(file_name: str, file_content: bytes) -> Optional[str]:

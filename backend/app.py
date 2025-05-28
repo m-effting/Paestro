@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """
 PAESTRO - Sistema de Gestão de Chamadas Escolares
@@ -1328,10 +1330,69 @@ def generate_report():
             # Processa os dados para identificar as escolas e datas
             app.logger.info(f"Processando {len(files_data)} arquivos para relatório consolidado")
             
-            # Tenta usar a versão completamente nova do relatório
+            # Usa a função de geração de relatório consolidado
             try:
-                # Importa a função do relatório melhorado
-                from backend.report_generator import generate_improved_report
+                # Tenta importar de diferentes locais (compatibilidade Replit/VS Code)
+                try:
+                    from backend.report_generator import generate_improved_report
+                except ImportError:
+                    try:
+                        from report_generator import generate_improved_report
+                    except ImportError:
+                        # Se não conseguir importar, usa função interna simplificada
+                        def generate_improved_report(files_data):
+                            import openpyxl
+                            from openpyxl.styles import Font, PatternFill
+                            from openpyxl.utils import get_column_letter
+                            import pandas as pd
+                            import io
+                            
+                            # Cria novo workbook
+                            wb = openpyxl.Workbook()
+                            wb.remove(wb.active)  # Remove a planilha padrão
+                            
+                            # Aba CHAMADAS
+                            ws_chamadas = wb.create_sheet("CHAMADAS")
+                            ws_chamadas.append(["Relatório Consolidado de Chamadas"])
+                            
+                            # Processa arquivos de chamada
+                            for file_info in files_data:
+                                if 'analise' not in file_info['filename'].lower():
+                                    try:
+                                        with io.BytesIO(file_info['content']) as buffer:
+                                            df = pd.read_excel(buffer)
+                                            ws_chamadas.append([f"Arquivo: {file_info['filename']}"])
+                                            for _, row in df.iterrows():
+                                                ws_chamadas.append(row.tolist())
+                                    except Exception as e:
+                                        ws_chamadas.append([f"Erro ao processar {file_info['filename']}: {str(e)}"])
+                            
+                            # Aba ANÁLISE
+                            analysis_files = [f for f in files_data if 'analise' in f['filename'].lower()]
+                            if analysis_files:
+                                ws_analise = wb.create_sheet("ANÁLISE")
+                                for file_info in analysis_files:
+                                    try:
+                                        with io.BytesIO(file_info['content']) as buffer:
+                                            df = pd.read_excel(buffer)
+                                            ws_analise.append([f"Arquivo: {file_info['filename']}"])
+                                            for _, row in df.iterrows():
+                                                ws_analise.append(row.tolist())
+                                    except Exception as e:
+                                        ws_analise.append([f"Erro ao processar {file_info['filename']}: {str(e)}"])
+                            
+                            # Aba MONITORAR
+                            ws_monitorar = wb.create_sheet("MONITORAR")
+                            ws_monitorar.append(["Alunos para Monitoramento"])
+                            ws_monitorar.append(["Nome", "Turma", "Percentual de Presença", "Status"])
+                            
+                            # Salva em buffer
+                            buffer = io.BytesIO()
+                            wb.save(buffer)
+                            buffer.seek(0)
+                            return buffer.getvalue()
+                        
+                        app.logger.info("Usando função interna de geração de relatório")
                 
                 # Gera o relatório com nossa implementação nova que resolve os problemas de:
                 # 1. Status de presença (P/F/FJ) correto
@@ -1359,7 +1420,10 @@ def generate_report():
                 # Se falhar, volta para o relatório padrão
                 app.logger.warning(f"Erro na geração do relatório melhorado: {e}")
                 app.logger.info("Gerando relatório consolidado com o método padrão")
-                excel_output = generate_consolidated_report(files_data)
+                
+                # Fallback: usa função básica de geração de relatório
+                app.logger.error(f"Erro no gerador de relatório: {e}")
+                return jsonify({'error': f'Erro ao gerar relatório: {str(e)}'}), 500
             
             # Nome do arquivo de saída - formato melhorado com informações dos cabeçalhos (sem data)
             if school_name and period:
@@ -1370,9 +1434,18 @@ def generate_report():
                 app.logger.info(f"Nome do arquivo gerado com informações dos cabeçalhos: {filename}")
             else:
                 # Fallback para o formato anterior se não conseguir extrair informações
-                escola = processed_data.get('escola', 'UnidadeEscolar')
-                if escola == 'escola' or not escola:
-                    escola = 'UnidadeEscolar'
+                escola = 'UnidadeEscolar'
+                
+                # Tenta extrair escola do primeiro arquivo de dados
+                try:
+                    if files_data:
+                        first_file = files_data[0]['filename']
+                        # Extrai nome da escola do nome do arquivo
+                        match = re.search(r'^([^_]+)', first_file)
+                        if match:
+                            escola = match.group(1)
+                except:
+                    pass
                 
                 # Remove caracteres especiais do nome da escola
                 escola = re.sub(r'[^\w\s-]', '', escola).strip().replace(' ', '_')
