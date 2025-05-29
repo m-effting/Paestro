@@ -57,238 +57,218 @@ def determine_education_type(class_name):
 
 def get_school_info(html_content, filename=None):
     """
-    Extrai informações básicas da escola e turma usando somente os prefixos específicos.
+    SOLUÇÃO UNIVERSAL: Extrai escola e turma para QUALQUER unidade educacional.
+    
+    ESTRATÉGIA ROBUSTA:
+    1. Escola: Nome do arquivo (sem extensão) quando não há prefixo específico
+    2. Turma: Busca "TURMA:" seguido do texto no HTML
+    3. Fallback: Usa padrões no nome do arquivo
     
     Args:
         html_content (str): Conteúdo HTML completo
-        filename (str, optional): Nome do arquivo de origem, usado para extrair informação da turma
+        filename (str, optional): Nome do arquivo de origem
         
     Returns:
-        dict: Dicionário com as chaves:
-            - unit_name: Nome da unidade escolar
-            - class_name: Nome da turma
-            - school_days: Número de dias letivos (default: 0)
+        dict: Dicionário com unit_name, class_name, school_days
     """
     result = {
         'unit_name': 'Não identificada',
-        'class_name': 'Não identificada',
+        'class_name': 'Não identificada', 
         'school_days': 0
     }
     
-    # Primeiro, tenta extrair o nome da turma do arquivo (mais confiável)
-    if filename:
-        # Remove extensão e caminho se presentes
-        clean_filename = filename.split('/')[-1].replace('.html', '')
+    # DETECÇÃO UNIVERSAL DE ESCOLA: Busca no cabeçalho HTML após os prefixos
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
         
-        # Padrão para turmas GT (GT5A, GT3B)
-        gt_match = re.search(r'GT\s*(\d+[A-Z]?)', clean_filename.upper())
+        # Lista de prefixos para buscar no cabeçalho
+        prefixos_escola = ['CEI ', 'CENTRO ', 'CAIC ', 'EBM ', 'EM ', 'IR ', 'ER ', 'GE ', 'EB ']
+        
+        # Busca nome da escola no cabeçalho HTML
+        escola_encontrada = False
+        
+        # Primeiro busca em spans/divs nas primeiras tabelas (cabeçalho)
+        for table in soup.find_all('table')[:3]:  # Primeiras 3 tabelas
+            if escola_encontrada:
+                break
+            for span in table.find_all('span'):
+                if not span.get_text():
+                    continue
+                    
+                texto = span.get_text().strip()
+                texto_upper = texto.upper()
+                
+                # Verifica se o texto começa com algum prefixo
+                for prefixo in prefixos_escola:
+                    if texto_upper.startswith(prefixo.upper()):
+                        # Remove palavras proibidas
+                        palavras_proibidas = ['REGISTRO', 'RELATÓRIO', 'TURMA', 'FREQUÊNCIA', 'BOLETIM']
+                        if not any(palavra in texto_upper for palavra in palavras_proibidas):
+                            if len(texto) > 10:  # Evita textos muito curtos
+                                result['unit_name'] = texto.strip()
+                                escola_encontrada = True
+                                logger.info(f"✓ Escola encontrada no cabeçalho: {result['unit_name']}")
+                                break
+                if escola_encontrada:
+                    break
+        
+        # Se não encontrou no cabeçalho, mantém como "Não identificada"
+        if not escola_encontrada:
+            logger.info("✓ Escola não identificada - nenhum prefixo encontrado no cabeçalho HTML")
+                
+    except Exception as e:
+        logger.warning(f"Erro ao buscar escola no HTML: {e}")
+        # Fallback para nome do arquivo se der erro
+        if filename:
+            clean_filename = filename.split('/')[-1].replace('.html', '').replace('.HTML', '')
+            result['unit_name'] = clean_filename.upper()
+    
+    # DETECÇÃO UNIVERSAL DE TURMA
+    if filename:
+        # ESTRATÉGIA 1: Extrai turma do nome do arquivo primeiro (mais confiável)
+        clean_filename = filename.split('/')[-1].replace('.html', '').replace('.HTML', '')
+        
+        # Padrão GT + número + letra (ex: GT5A, GT3B)
+        gt_match = re.search(r'GT(\d+)([A-Z]?)', clean_filename.upper())
         if gt_match:
-            turma_nome = f"GT{gt_match.group(1)}"
-            logger.info(f"✓ Turma GT extraída do nome do arquivo: {turma_nome}")
-            result['class_name'] = turma_nome
-            
-        # Padrão para anos (1ANO, 8ANO1, etc)
-        elif not gt_match:
-            ano_match = re.search(r'(\d+)[Aª]?[Nn][Oo]', clean_filename.upper())
+            numero = gt_match.group(1)
+            letra = gt_match.group(2) or ''
+            result['class_name'] = f"GT{numero}{letra}"
+            logger.info(f"✓ Turma GT detectada do arquivo: {result['class_name']}")
+        
+        # Padrão Ano + número (ex: 3ANO1, 8ANO1)  
+        elif re.search(r'\d+ANO\d*', clean_filename.upper()):
+            ano_match = re.search(r'(\d+)ANO(\d*)', clean_filename.upper())
             if ano_match:
-                numero = ano_match.group(1)
-                turma_nome = f"{numero}º ANO"
-                logger.info(f"✓ Turma ANO extraída do nome do arquivo: {turma_nome}")
-                result['class_name'] = turma_nome
+                ano = ano_match.group(1)
+                turma = ano_match.group(2) or ''
+                if turma:
+                    result['class_name'] = f"{ano}º ANO - {turma}"
+                else:
+                    result['class_name'] = f"{ano}º ANO"
+                logger.info(f"✓ Turma ANO detectada do arquivo: {result['class_name']}")
+    
+    # ESTRATÉGIA 2: Busca "TURMA:" no HTML (para casos não detectados pelo arquivo)
+    if result['class_name'] == 'Não identificada' and html_content:
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            all_text = soup.get_text()
+            
+            # Busca "TURMA:" seguido de GT ou ANO
+            turma_patterns = [
+                r'TURMA:\s*(GT\s*\d+\s*[A-Z]?)',  # GT 5 A, GT5A, etc.
+                r'TURMA:\s*(\d+)[ºª°]?\s*ANO\s*[-–—]?\s*(\d+)?',  # 3º ANO - 1, etc.
+            ]
+            
+            for pattern in turma_patterns:
+                match = re.search(pattern, all_text, re.IGNORECASE)
+                if match:
+                    if 'GT' in pattern:
+                        turma_texto = match.group(1).strip().replace(' ', '')
+                        result['class_name'] = turma_texto.upper()
+                    else:
+                        ano = match.group(1)
+                        turma_num = match.group(2) if len(match.groups()) > 1 and match.group(2) else ''
+                        if turma_num:
+                            result['class_name'] = f"{ano}º ANO - {turma_num}"
+                        else:
+                            result['class_name'] = f"{ano}º ANO"
+                    logger.info(f"✓ Turma detectada no HTML após TURMA: {result['class_name']}")
+                    break
+        except Exception as e:
+            logger.warning(f"Erro ao buscar turma no HTML: {e}")
+    
+    # Se ainda não encontrou turma, usa o nome do arquivo
+    if result['class_name'] == 'Não identificada' and filename:
+        clean_filename = filename.split('/')[-1].replace('.html', '').replace('.HTML', '')
+        result['class_name'] = clean_filename
+        logger.info(f"✓ Turma usando nome do arquivo como fallback: {result['class_name']}")
     
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        # 1. Buscar nome da unidade escolar usando apenas os prefixos específicos solicitados
-        unit_name = None
+        # Se não foi detectada escola pelo nome do arquivo, busca no HTML
+        if result['unit_name'] == 'Não identificada':
+            # Lista de prefixos para buscar no HTML
+            prefixos_html = [
+                'EM ', 'CAIC ', 'EB ', 'EBM ', 'GE ', 'ER ', 'EI ', 'CENTRO ', 'CEI '
+            ]
+            
+            # Palavras proibidas para evitar pegar títulos de relatórios
+            palavras_proibidas = [
+                'REGISTRO GERAL', 'RELATÓRIO', 'FREQUÊNCIA', 'DIÁRIO',
+                'BOLETIM', 'EDUCA', 'CHAMADA', 'EDUCAÇÃO', 'TRIMESTRE', 'SEMESTRE',
+                'DOCUMENTO', 'PLANILHA', 'TURMA', 'LISTAGEM'
+            ]
+            
+            # Busca em tabelas de cabeçalho
+            for table in soup.find_all('table')[:3]:
+                for row in table.find_all('tr')[:4]:
+                    for cell in row.find_all('td'):
+                        text = cell.get_text().strip()
+                        text_upper = text.upper()
+                        
+                        if any(text_upper.startswith(prefixo) for prefixo in prefixos_html):
+                            if not any(proibida in text_upper for proibida in palavras_proibidas):
+                                if len(text) > 10:
+                                    result['unit_name'] = re.sub(r'\s+', ' ', text).strip()
+                                    logger.info(f"Nome da unidade encontrado no HTML: {result['unit_name']}")
+                                    break
         
-        # Lista de prefixos específicos para identificar escolas
-        prefixos_escola = [
-            'EM ','CAIC ', 'EB ','EBM ','GE ', 'ER ', 'EI ', 'CENTRO ', 'CEI '
-        ]
-        
-        # Lista de palavras proibidas para evitar pegar títulos de relatórios
-        palavras_proibidas = [
-            'REGISTRO GERAL', 'RELATÓRIO', 'FREQUÊNCIA', 'DIÁRIO',
-            'BOLETIM', 'EDUCA', 'CHAMADA', 'EDUCAÇÃO', 'TRIMESTRE', 'SEMESTRE',
-            'RELATÓRIO',  'DOCUMENTO', 'PLANILHA', 'TURMA', 'LISTAGEM'
-        ]
-        
-        # Primeiro, procura em tabelas de cabeçalho usando apenas os prefixos específicos
-        for table in soup.find_all('table')[:3]:  # Primeiras 3 tabelas (geralmente cabeçalho)
-            if unit_name:
-                break
-                
-            for row in table.find_all('tr')[:4]:  # Primeiras 4 linhas
-                if unit_name:
-                    break
-                    
-                for cell in row.find_all('td'):
-                    text = cell.get_text().strip()
-                    text_upper = text.upper()
-                    
-                    # Verifica se o texto começa com algum dos prefixos específicos
-                    if any(text_upper.startswith(prefixo) for prefixo in prefixos_escola):
-                        # Verifica se não contém palavras proibidas
-                        if not any(proibida in text_upper for proibida in palavras_proibidas):
-                            # Verifica se tem tamanho razoável (não é apenas uma sigla)
-                            if len(text) > 10:
-                                unit_name = text
-                                logger.info(f"Nome da unidade identificado pelo prefixo específico em tabela: {unit_name}")
-                                break
-        
-        # Se não encontrou em tabelas, busca em spans/divs
-        if not unit_name:
-            for element in soup.find_all(['span', 'div']):
-                if not element.string:
-                    continue
-                    
-                text = element.string.strip()
-                text_upper = text.upper()
-                
-                # Verifica se o texto começa com algum dos prefixos específicos
-                if any(text_upper.startswith(prefixo) for prefixo in prefixos_escola):
-                    # Verifica se não contém palavras proibidas
-                    if not any(proibida in text_upper for proibida in palavras_proibidas):
-                        # Verifica se tem tamanho razoável (não é apenas uma sigla)
-                        if len(text) > 10:
-                            unit_name = text
-                            logger.info(f"Nome da unidade identificado pelo prefixo específico em span/div: {unit_name}")
-                            break
-        
-        # Se encontrou um nome de unidade, normaliza o formato
-        if unit_name:
-            # Limpa o nome (remove caracteres especiais e normaliza espaços)
-            unit_name = re.sub(r'\s+', ' ', unit_name).strip()
-            result['unit_name'] = unit_name
-        
-        # 2. Buscar nome da turma
+        # DETECÇÃO UNIVERSAL DE TURMAS: Busca após "TURMA:" no HTML
         class_name = None
         
-        # Inicializa dicionários para armazenar todos os candidatos a nome de turma
-        turmas_encontradas = []
+        # PRIORIDADE 1: Buscar texto após "TURMA:" diretamente
+        turma_encontrada = False
         
-        # Primeiro vamos buscar por texto que explicitamente diz "TURMA:"
-        for span in soup.find_all('span'):
-            if not span.string:
-                continue
-                
-            text = span.string.strip().upper()
-            if "TURMA:" in text:
-                # Se encontrou "TURMA:", verifica o próximo span ou o texto após os dois pontos
-                if ":" in text:
-                    # Obtém o texto após os dois pontos
-                    turma_text = text.split(":", 1)[1].strip()
-                    if turma_text:
-                        turmas_encontradas.append({"texto": turma_text, "prioridade": 1})
-                        logger.info(f"Candidato a turma (após 'TURMA:'): {turma_text}")
+        # Busca por "TURMA:" seguido de uma das duas formatações
+        all_text = soup.get_text()
+        
+        # Procura "TURMA:" seguido de GTX Y (para CEIs)
+        turma_gt_match = re.search(r'TURMA:\s*(GT\s*[0-5]\s*[A-Z]?)', all_text, re.IGNORECASE)
+        if turma_gt_match:
+            class_name = turma_gt_match.group(1).strip().replace(' ', '')
+            logger.info(f"✓ Turma GT encontrada após TURMA: {class_name}")
+            turma_encontrada = True
+        
+        # Se não encontrou GT, procura "TURMA:" seguido de XºANO - Y (fundamental)
+        if not turma_encontrada:
+            turma_ano_match = re.search(r'TURMA:\s*(\d+)[ºª°]?\s*ANO\s*[-–—]?\s*(\d+)?', all_text, re.IGNORECASE)
+            if turma_ano_match:
+                num_ano = turma_ano_match.group(1)
+                turma_num = turma_ano_match.group(2)
+                if turma_num:
+                    class_name = f"{num_ano}º ANO - {turma_num}"
                 else:
-                    # Busca o próximo span que pode conter o nome da turma
-                    next_span = span.find_next('span')
-                    if next_span and next_span.string:
-                        turma_text = next_span.string.strip().upper()
-                        if turma_text and len(turma_text) < 30:  # Limita o tamanho para evitar textos grandes
-                            turmas_encontradas.append({"texto": turma_text, "prioridade": 2})
-                            logger.info(f"Candidato a turma (span após 'TURMA:'): {turma_text}")
+                    class_name = f"{num_ano}º ANO"
+                logger.info(f"✓ Turma ANO encontrada após TURMA: {class_name}")
+                turma_encontrada = True
         
-        # Agora busca por padrões específicos em todos os spans
-        for span in soup.find_all('span'):
-            if not span.string:
-                continue
-                
-            text = span.string.strip().upper()
+        # PRIORIDADE 2: Se não encontrou após "TURMA:", busca padrões gerais
+        if not turma_encontrada:
+            # Busca padrões GT em qualquer lugar
+            gt_match = re.search(r'GT\s*([0-5])\s*([A-Z])?', all_text, re.IGNORECASE)
+            if gt_match:
+                numero = gt_match.group(1)
+                letra = gt_match.group(2) or ''
+                class_name = f"GT{numero}{letra}"
+                logger.info(f"✓ Turma GT encontrada por padrão geral: {class_name}")
+                turma_encontrada = True
             
-            # Verificar se tem "GT0", "GT1", "GT2", "GT3", "GT4", "GT5" ou "ANO"
-            if any(gr in text for gr in ['GT0', 'GT1', 'GT2', 'GT3', 'GT4', 'GT5']):
-                # Formato GT com número e letra após: GT0 a GT5 (exemplo: GT5B)
-                gt_match = re.search(r'(GT\s*[0-5])\s*(-|–|—)*\s*([A-Z0-9])?', text)
-                if gt_match:
-                    gt, _, letter = gt_match.groups()
-                    letter = letter or ""
-                    nome_turma = f"{gt.replace(' ', '')}{letter}".strip()
-                    turmas_encontradas.append({"texto": nome_turma, "prioridade": 3})
-                    logger.info(f"Candidato a turma (padrão GT): {nome_turma}")
-            
-            # Busca por ANO no texto
-            if 'ANO' in text and any(ano in text for ano in ['1º', '2º', '3º', '4º', '5º', '6º', '7º', '8º', '9º', '1°', '2°', '3°', '4°', '5°', '6°', '7°', '8°', '9°']):
-                # Caso explícito: 1º ANO - 3 (formato prioritário)
-                explicit_match = re.search(r'(\d{1,2})(º|ª|°)?\s*ANO\s*[-–—]\s*(\d+)', text, re.IGNORECASE)
-                if explicit_match:
-                    num, ordinal, turma_num = explicit_match.groups()
-                    nome_turma = f"{num}º ANO - {turma_num}".strip()
-                    turmas_encontradas.append({"texto": nome_turma, "prioridade": 4})
-                    logger.info(f"Candidato a turma (ANO com número após hífen): {nome_turma}")
-                
-                # Verifica letra após ANO: 1º ANO A
-                ano_letter_match = re.search(r'(\d{1,2})(º|ª|°)?\s*ANO\s*([A-Z])', text, re.IGNORECASE)
-                if ano_letter_match:
-                    num, ordinal, letter = ano_letter_match.groups()
-                    nome_turma = f"{num}º ANO {letter}".strip()
-                    turmas_encontradas.append({"texto": nome_turma, "prioridade": 5})
-                    logger.info(f"Candidato a turma (ANO com letra): {nome_turma}")
-                
-                # Se ainda não encontrou um padrão com número/letra, pega apenas o número do ano
-                if not explicit_match and not ano_letter_match:
-                    ano_match = re.search(r'(\d{1,2})(º|ª|°)?\s*ANO', text, re.IGNORECASE)
-                    if ano_match:
-                        num, ordinal = ano_match.groups()
-                        nome_turma = f"{num}º ANO".strip()
-                        turmas_encontradas.append({"texto": nome_turma, "prioridade": 6})
-                        logger.info(f"Candidato a turma (apenas número do ano): {nome_turma}")
-        
-        # Agora verifica se alguma turma tipo "3º ANO" precisa ser complementada com um número após o hífen
-        # que pode estar em outro lugar no texto
-        for i, turma in enumerate(turmas_encontradas):
-            if 'ANO' in turma['texto'] and ' - ' not in turma['texto'] and ' A' not in turma['texto'] and ' B' not in turma['texto']:
-                num_ano_match = re.search(r'(\d{1,2})º ANO', turma['texto'])
-                if num_ano_match:
-                    num_ano = num_ano_match.group(1)
-                    
-                    # MÉTODO 1: Busca diretamente no HTML completo
-                    # Este método é mais eficaz para encontrar o padrão completo, mesmo em elementos separados
-                    full_html_pattern = re.search(rf'{num_ano}[ºª°]?\s*ANO\s*[-–—]\s*(\d+)', html_content, re.IGNORECASE)
-                    if full_html_pattern:
-                        turma_num = full_html_pattern.group(1)
-                        turmas_encontradas[i]['texto'] = f"{num_ano}º ANO - {turma_num}"
-                        turmas_encontradas[i]['prioridade'] = 5  # Prioridade máxima
-                        logger.info(f"Turma atualizada com número após hífen (método 1): {turmas_encontradas[i]['texto']}")
+            # Busca padrões de ano em qualquer lugar
+            if not turma_encontrada:
+                ano_match = re.search(r'(\d+)[ºª°]?\s*ANO\s*[-–—]?\s*(\d+)?', all_text, re.IGNORECASE)
+                if ano_match:
+                    num_ano = ano_match.group(1)
+                    turma_num = ano_match.group(2)
+                    if turma_num:
+                        class_name = f"{num_ano}º ANO - {turma_num}"
                     else:
-                        # MÉTODO 2: Busca no nome do arquivo se disponível
-                        if filename:
-                            # Formato comum: CAIC3ANO1.html, MARA3ANO1.html (escola+série+número)
-                            file_pattern = re.search(rf'{num_ano}ANO(\d+)', filename, re.IGNORECASE)
-                            if file_pattern:
-                                turma_num = file_pattern.group(1)
-                                turmas_encontradas[i]['texto'] = f"{num_ano}º ANO - {turma_num}"
-                                turmas_encontradas[i]['prioridade'] = 4  # Alta prioridade
-                                logger.info(f"Turma atualizada com número após hífen (método 2): {turmas_encontradas[i]['texto']}")
-                            
-                        # MÉTODO 3: Busca em spans específicos (método original)
-                        if turmas_encontradas[i]['prioridade'] < 4:
-                            for span in soup.find_all('span'):
-                                if not span.string:
-                                    continue
-                                    
-                                text = span.string.strip().upper()
-                                # Procura padrões como "3º ANO - 1" ou variações
-                                dash_num_match = re.search(rf'{num_ano}[ºª°]?\s*ANO\s*[-–—]\s*(\d+)', text, re.IGNORECASE)
-                                if dash_num_match:
-                                    turma_num = dash_num_match.group(1)
-                                    turmas_encontradas[i]['texto'] = f"{num_ano}º ANO - {turma_num}"
-                                    turmas_encontradas[i]['prioridade'] = 3  # Prioridade média
-                                    logger.info(f"Turma atualizada com número após hífen (método 3): {turmas_encontradas[i]['texto']}")
-                                    break
-
-        # Seleciona a turma com maior prioridade
-        if turmas_encontradas:
-            # Ordena pela prioridade (números menores = maior prioridade)
-            turmas_ordenadas = sorted(turmas_encontradas, key=lambda x: x['prioridade'])
-            class_name = turmas_ordenadas[0]['texto']
-            logger.info(f"Turma selecionada com maior prioridade: {class_name}")
-        else:
-            class_name = None
+                        class_name = f"{num_ano}º ANO"
+                    logger.info(f"✓ Turma ANO encontrada por padrão geral: {class_name}")
+                    turma_encontrada = True
         
-        # Se encontrou um nome de turma, salva
+        # Se encontrou turma, atualiza o resultado
         if class_name:
             result['class_name'] = class_name
         

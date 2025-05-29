@@ -590,20 +590,20 @@
     .analise-container {
         padding: 15px;
     }
-    
+
     .file-upload-container,
     .rules-section {
         max-width: 700px;
     }
-    
+
     .summary-cards {
         gap: 12px;
     }
-    
+
     .summary-card {
         min-width: 110px;
     }
-    
+
     .btn-action {
         padding: 8px 12px;
     }
@@ -615,41 +615,41 @@
     .rules-section {
         max-width: 650px;
     }
-    
+
     .upload-droparea {
         padding: 25px;
     }
-    
+
     .summary-cards {
         flex-wrap: wrap;
     }
-    
+
     .summary-card {
         min-width: 180px;
         flex: 0 0 calc(50% - 10px);
         max-width: calc(50% - 10px);
     }
-    
+
     .filters-container {
         padding: 12px;
     }
-    
+
     .filters {
         gap: 12px;
     }
-    
+
     .filter-group {
         min-width: 130px;
     }
-    
+
     #results-table {
         font-size: 0.85rem;
     }
-    
+
     #results-table th, #results-table td {
         padding: 8px;
     }
-    
+
     .monthly-details {
         max-width: 300px;
     }
@@ -661,44 +661,44 @@
         font-size: 1.4rem;
         margin-bottom: 1.25rem;
     }
-    
+
     .upload-droparea {
         padding: 20px;
     }
-    
+
     .summary-cards {
         flex-direction: column;
         align-items: center;
         gap: 10px;
     }
-    
+
     .summary-card {
         width: 100%;
         max-width: 100%;
         min-width: 100%;
     }
-    
+
     .filters {
         flex-direction: column;
     }
-    
+
     .filter-group {
         width: 100%;
     }
-    
+
     .export-buttons {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .rules-summary {
         padding: 10px 15px;
     }
-    
+
     .rules-content {
         padding: 15px;
     }
-    
+
     .monthly-details {
         max-width: 250px;
     }
@@ -709,75 +709,75 @@
     .analise-container {
         padding: 10px;
     }
-    
+
     .analise-container h3 {
         font-size: 1.25rem;
         margin-bottom: 1rem;
     }
-    
+
     .upload-section,
     .analysis-results-section {
         margin-bottom: 1.5rem;
     }
-    
+
     .upload-droparea {
         padding: 15px;
         font-size: 0.9rem;
     }
-    
+
     .summary-number {
         font-size: 1.75rem;
     }
-    
+
     .summary-label {
         font-size: 0.85rem;
     }
-    
+
     .filters-container h4,
     .results-summary h4,
     .export-section h4 {
         font-size: 1.1rem;
         margin-bottom: 0.75rem;
     }
-    
+
     .filters-container {
         padding: 10px;
         margin-bottom: 1.5rem;
     }
-    
+
     .filter-group label {
         font-size: 0.85rem;
     }
-    
+
     .btn-action {
         font-size: 0.85rem;
         padding: 10px;
         justify-content: center;
     }
-    
+
     #results-table {
         font-size: 0.8rem;
     }
-    
+
     #results-table th, #results-table td {
         padding: 6px;
     }
-    
+
     .status-badge {
         font-size: 0.75rem;
         padding: 3px 6px;
     }
-    
+
     .month-absence {
         font-size: 0.75rem;
         padding: 2px 5px;
         margin: 1px;
     }
-    
+
     .monthly-details {
         max-width: 200px;
     }
-    
+
     .rules-content {
         font-size: 0.85rem;
         padding: 12px;
