@@ -803,6 +803,12 @@ async function loadSavedFiles() {
             const files = data.files || [];
             updateSavedFilesTable(files);
 
+            // Mostrar/ocultar botão "Limpar Arquivos" baseado na existência de arquivos
+            const clearBtn = document.getElementById('clear-analyzed-files-btn');
+            if (clearBtn) {
+                clearBtn.style.display = files.length > 0 ? 'flex' : 'none';
+            }
+
             // Carrega automaticamente todos os arquivos, se existirem
             if (files.length > 0) {
                 await loadAllAnalyzedFiles(files);
@@ -1120,6 +1126,12 @@ function setupEventListeners() {
 
     // Botões de ação
     document.getElementById('export-excel').addEventListener('click', () => exportData('excel'));
+    
+    // Botão limpar arquivos analisados
+    const clearAnalyzedBtn = document.getElementById('clear-analyzed-files-btn');
+    if (clearAnalyzedBtn) {
+        clearAnalyzedBtn.addEventListener('click', clearAnalyzedFiles);
+    }
 
     // Toggle de detalhes mensais
     const toggleDetails = document.getElementById('toggle-details');
@@ -1194,4 +1206,48 @@ function sortTable(th) {
 
     // Atualizar a tabela com os resultados ordenados
     updateResultTable(sortedResults);
+}
+
+// Função para limpar todos os arquivos analisados
+async function clearAnalyzedFiles() {
+    try {
+        // Confirmar com o usuário
+        const confirmed = await new Promise((resolve) => {
+            window.modal.confirm(
+                'Confirmação',
+                'Tem certeza que deseja limpar todos os arquivos processados? Esta ação não pode ser desfeita.',
+                () => resolve(true),
+                () => resolve(false)
+            );
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        // Chamar a API para limpar os arquivos
+        const response = await fetch('/api/clear_analyzed_files', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Mostrar mensagem de sucesso
+            window.modal.alert('Sucesso', 'Todos os arquivos foram limpos com sucesso!', 'success');
+            
+            // Recarregar a página para atualizar a interface
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showError(result.error || 'Erro ao limpar arquivos');
+        }
+    } catch (error) {
+        console.error('Erro ao limpar arquivos:', error);
+        showError('Erro ao limpar arquivos: ' + error.message);
+    }
 }

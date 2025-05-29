@@ -1,4 +1,5 @@
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """
 PAESTRO - Sistema de Gestão de Chamadas Escolares
@@ -910,11 +911,34 @@ def download_analysis_file():
         buffer = io.BytesIO()
         
         if format_type == 'csv':
+            # Extrair nome da escola para o arquivo CSV também
+            escolas = set()
+            for aluno in data['data']:
+                escola = aluno.get('escola') or aluno.get('school_name') or aluno.get('unidade') or 'Desconhecida'
+                escolas.add(escola)
+            
+            primeira_escola = list(escolas)[0] if escolas else 'Desconhecida'
+            # Limpar o nome da escola para usar no arquivo (remover caracteres especiais e acentos)
+            import unicodedata
+            nome_escola_limpo = primeira_escola
+            # Remove acentos
+            nome_escola_limpo = unicodedata.normalize('NFD', nome_escola_limpo)
+            nome_escola_limpo = ''.join(char for char in nome_escola_limpo if unicodedata.category(char) != 'Mn')
+            # Remove caracteres especiais e substitui espaços por underscore
+            nome_escola_limpo = re.sub(r'[^\w\s-]', '', nome_escola_limpo).replace(' ', '_')
+            # Remove underscores múltiplos
+            nome_escola_limpo = re.sub(r'_+', '_', nome_escola_limpo).strip('_')
+            
+            # Configuração do fuso horário de Brasília
+            import pytz
+            tz_brasil = pytz.timezone('America/Sao_Paulo')
+            data_dd_mm = datetime.now(tz_brasil).strftime('%d-%m')
+            
             # Criar DataFrame e exportar para CSV
             df = pd.DataFrame(data['data'])
             df.to_csv(buffer, index=False, encoding='utf-8-sig')
             mime_type = 'text/csv'
-            filename = f"analise_frequencia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            filename = f"Analise_Frequencia_{nome_escola_limpo}_{data_dd_mm}.csv"
         else:
             # Uso do openpyxl para criar um Excel formatado conforme especificação
             from openpyxl import Workbook
@@ -947,6 +971,19 @@ def download_analysis_file():
             
             escola_str = ", ".join(escolas) if len(escolas) <= 3 else f"{len(escolas)} escolas"
             data_hora = data_hora_brasil  # Usa o horário de Brasília
+            
+            # Para o nome do arquivo, usar apenas a primeira escola se houver múltiplas
+            primeira_escola = list(escolas)[0] if escolas else 'Desconhecida'
+            # Limpar o nome da escola para usar no arquivo (remover caracteres especiais e acentos)
+            import unicodedata
+            nome_escola_limpo = primeira_escola
+            # Remove acentos
+            nome_escola_limpo = unicodedata.normalize('NFD', nome_escola_limpo)
+            nome_escola_limpo = ''.join(char for char in nome_escola_limpo if unicodedata.category(char) != 'Mn')
+            # Remove caracteres especiais e substitui espaços por underscore
+            nome_escola_limpo = re.sub(r'[^\w\s-]', '', nome_escola_limpo).replace(' ', '_')
+            # Remove underscores múltiplos
+            nome_escola_limpo = re.sub(r'_+', '_', nome_escola_limpo).strip('_')
             
             ws['A1'] = f"Escola(s): {escola_str}"
             ws['A1'].font = title_font
@@ -1062,8 +1099,9 @@ def download_analysis_file():
             
             wb.save(buffer)
             mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            # Usa o horário de Brasília também para o nome do arquivo
-            filename = f"analise_frequencia_{datetime.now(tz_brasil).strftime('%Y%m%d_%H%M%S')}.xlsx"
+            # Padrão de nome: Analise_Frequencia_NOME_DA_ESCOLA_DD-MM
+            data_dd_mm = datetime.now(tz_brasil).strftime('%d-%m')
+            filename = f"Analise_Frequencia_{nome_escola_limpo}_{data_dd_mm}.xlsx"
             
         buffer.seek(0)
         return send_file(
@@ -1886,6 +1924,30 @@ def export_attendance():
 # Registrando os endpoints do Drive
 app.route('/api/get_drive_folders', methods=['GET'])(get_drive_folders)
 app.route('/api/export_excel_drive', methods=['POST'])(lambda: export_attendance_drive(app_data))
+
+@app.route('/api/clear_analyzed_files', methods=['POST'])
+def clear_analyzed_files():
+    """
+    Limpa todos os arquivos analisados da sessão do usuário.
+    """
+    try:
+        # Inicializa o storage se não existir
+        if 'analyzed_files' not in session:
+            session['analyzed_files'] = []
+        
+        # Limpa a lista de arquivos analisados
+        session['analyzed_files'] = []
+        session.modified = True
+        
+        return jsonify({
+            'success': True,
+            'message': 'Arquivos analisados limpos com sucesso'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
 
 if __name__ == '__main__':
     # Adicionar o diretório atual ao path do sistema para encontrar os módulos corretamente
