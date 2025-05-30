@@ -1,19 +1,16 @@
-/* 
-PAESTRO - Tema Global 
-Este arquivo define o esquema de cores e variáveis CSS globais para a aplicação
-*/
+
 
 :root {
   /* Cores principais */
-  --primary-color: #0a192f; /* Azul escuro */
-  --primary-light: #172a45; /* Azul médio */
-  --primary-lighter: #303c55; /* Azul claro */
-  --primary-dark: #020c1b; /* Azul muito escuro */
+  --primary-color: #0a192f; 
+  --primary-light: #172a45; 
+  --primary-lighter: #303c55; 
+  --primary-dark: #020c1b; 
   
   /* Cores secundárias */
-  --secondary-color: #64ffda; /* Verde menta */
-  --secondary-dark: #4ca692; /* Verde menta escuro */
-  --secondary-light: #a8ffe3; /* Verde menta claro */
+  --secondary-color: #64ffda; 
+  --secondary-dark: #4ca692; 
+  --secondary-light: #a8ffe3; 
   
   /* Cores neutras */
   --neutral-50: #f8fafc;
@@ -28,16 +25,16 @@ Este arquivo define o esquema de cores e variáveis CSS globais para a aplicaç�
   --neutral-900: #0f172a;
   
   /* Cores de estado */
-  --success-color: #10b981; /* Verde */
-  --warning-color: #f59e0b; /* Laranja */
-  --error-color: #ef4444;   /* Vermelho */
-  --info-color: #3b82f6;    /* Azul */
+  --success-color: #10b981; 
+  --warning-color: #f59e0b; 
+  --error-color: #ef4444;   
+  --info-color: #3b82f6;   
   
   /* Cores específicas para status */
   --faltoso-color: var(--error-color);
   --monitorar-color: var(--warning-color);
   --regular-color: var(--success-color);
-  --muitas-fj-color: #8b5cf6; /* Roxo */
+  --muitas-fj-color: #8b5cf6; 
   
   /* Cores de fundo */
   --bg-color: #ffffff;

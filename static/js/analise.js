@@ -1161,8 +1161,17 @@ function setupEventListeners() {
         fetch('/api/get_current_user')
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.username) {
-                    document.getElementById('nome-usuario').textContent = data.username;
+                if (data.success) {
+                    const username = data.username || '';
+                    const periodo = data.periodo || '';
+                    
+                    document.getElementById('nome-usuario').textContent = username;
+                    
+                    // Atualizar o período no cabeçalho
+                    const periodoElement = document.getElementById('periodo-usuario');
+                    if (periodoElement) {
+                        periodoElement.textContent = periodo;
+                    }
                 }
             })
             .catch(error => console.error('Erro ao obter usuário:', error));

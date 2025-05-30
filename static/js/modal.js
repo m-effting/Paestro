@@ -1,4 +1,4 @@
-// Modal System
+
 class Modal {
     constructor() {
         this.modalOverlay = document.createElement('div');

@@ -19,12 +19,20 @@
 <body>
     <div class="header-wrapper">
         <header>
-            <div class="logo-container">
+            <div class="header-left">
+                <span id="data-atual"></span>
+                <span id="periodo-usuario"></span>
+            </div>
+            <div class="header-center">
                 <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
             </div>
-            <div class="header-info">
-                <span id="data-atual"></span>
-                <span id="nome-usuario"></span>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span id="nome-usuario"></span>
+                </div>
             </div>
         </header>
     </div>

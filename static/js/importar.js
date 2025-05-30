@@ -27,12 +27,25 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 const username = data.username || sessionStorage.getItem('paestro_usuario_temp') || '';
+                const periodo = data.periodo || sessionStorage.getItem('paestro_periodo_temp') || '';
+                
                 nomeUsuarioElement.textContent = `${username}`;
+                
+                // Atualizar o período no cabeçalho
+                const periodoElement = document.getElementById('periodo-usuario');
+                if (periodoElement) {
+                    periodoElement.textContent = periodo;
+                }
             }
         })
         .catch(error => {
             console.error('Erro ao obter usuário:', error);
             nomeUsuarioElement.textContent = sessionStorage.getItem('paestro_usuario_temp') || '';
+            
+            const periodoElement = document.getElementById('periodo-usuario');
+            if (periodoElement) {
+                periodoElement.textContent = sessionStorage.getItem('paestro_periodo_temp') || '';
+            }
         });
 
     // Prevenir comportamentos padrão para drag and drop

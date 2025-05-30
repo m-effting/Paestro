@@ -174,7 +174,16 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
           const response = await fetch('/api/get_current_user');
           const data = await response.json();
-          nomeUsuarioElement.textContent = data.username || 'Usuário não identificado';
+          const username = data.username || 'Usuário não identificado';
+          const periodo = data.periodo || '';
+          
+          nomeUsuarioElement.textContent = username;
+          
+          // Atualizar o período no cabeçalho
+          const periodoElement = document.getElementById('periodo-usuario');
+          if (periodoElement) {
+              periodoElement.textContent = periodo;
+          }
       } catch (error) {
           console.error('Erro ao carregar usuário:', error);
       }

@@ -39,9 +39,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         nomeUsuarioElement,
     } = DOM.init();
 
-    // Adicionar o botão de anotações ao cache DOM
+    // Adicionar os botões da sub-navegação e anotações ao cache DOM
     DOM.elements.anotacoesBtn = document.getElementById('anotacoes-btn');
-    const { anotacoesBtn } = DOM.elements;
+    DOM.elements.importarBtn = document.getElementById('importar-btn');
+    DOM.elements.exportarBtn = document.getElementById('exportar-btn');
+    const { anotacoesBtn, importarBtn, exportarBtn } = DOM.elements;
+    
+    // Debug: verificar se os elementos foram encontrados
+    console.log('Importar button found:', importarBtn);
+    console.log('Exportar button found:', exportarBtn);
 
     // Conjunto para armazenar turmas salvas localmente
     let savedClasses = new Set();
@@ -100,12 +106,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             .then(data => {
                 if (data.success) {
                     const username = data.username || sessionStorage.getItem('paestro_usuario_temp') || '';
+                    const periodo = data.periodo || sessionStorage.getItem('paestro_periodo_temp') || '';
+                    
                     nomeUsuarioElement.textContent = username;
+                    
+                    // Atualizar o período no cabeçalho
+                    const periodoElement = document.getElementById('periodo-usuario');
+                    if (periodoElement) {
+                        periodoElement.textContent = periodo;
+                    }
                 }
             })
             .catch(error => {
                 console.error('Erro ao obter usuário:', error);
                 nomeUsuarioElement.textContent = sessionStorage.getItem('paestro_usuario_temp') || '';
+                
+                const periodoElement = document.getElementById('periodo-usuario');
+                if (periodoElement) {
+                    periodoElement.textContent = sessionStorage.getItem('paestro_periodo_temp') || '';
+                }
             });
     }
 
@@ -316,6 +335,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                 option.textContent = isSaved ? textoOriginal + ' ✓' : textoOriginal;
             }
         });
+
+        // Atualizar estado do botão exportar na sub-navegação
+        const hasAnySavedClass = savedClasses.size > 0;
+        if (exportarBtn) {
+            exportarBtn.disabled = !hasAnySavedClass;
+        }
 
         // Força o redesenho do select com timeout duplo para mobile
         turmaSelect.style.display = 'none';
@@ -727,8 +752,24 @@ async function adicionarAluno() {
         turmaSelect.addEventListener('change', () => carregarAlunos(escolaSelect.value, turmaSelect.value));
         addAlunoBtn.addEventListener('click', adicionarAluno);
         salvarChamadaBtn.addEventListener('click', salvarChamada);
-        exportarChamadaBtn.addEventListener('click', exportarParaExcel);
         anotacoesBtn.addEventListener('click', abrirModalAnotacoes);
+        
+        // Listeners para sub-navegação
+        if (importarBtn) {
+            importarBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Botão importar clicado');
+                window.location.href = '/importar';
+            });
+        } else {
+            console.error('Botão importar não foi encontrado no DOM');
+        }
+        
+        if (exportarBtn) {
+            exportarBtn.addEventListener('click', exportarParaExcel);
+        } else {
+            console.error('Botão exportar não foi encontrado no DOM');
+        }
     }
 
 });

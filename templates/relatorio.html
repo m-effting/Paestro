@@ -19,12 +19,20 @@
 <body>
     <div class="header-wrapper">
         <header>
-            <div class="logo-container">
+            <div class="header-left">
+                <span id="data-atual"></span>
+                <span id="periodo-usuario"></span>
+            </div>
+            <div class="header-center">
                 <img src="{{ url_for('static', filename='images/logo_paestro.png') }}" alt="Logo PAESTRO" class="logo">
             </div>
-            <div class="header-info">
-                <span id="data-atual"></span>
-                <span id="nome-usuario"></span>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span id="nome-usuario"></span>
+                </div>
             </div>
         </header>
     </div>
@@ -37,9 +45,7 @@
             <a href="/chamada" class="nav-link">
                 <i class="fas fa-clipboard-check"></i> Chamada
             </a>
-            <a href="/importar" class="nav-link">
-                <i class="fas fa-file-import"></i> Importar
-            </a>
+
             <a href="/analise" class="nav-link">
                 <i class="fas fa-chart-bar"></i> Análise
             </a>
