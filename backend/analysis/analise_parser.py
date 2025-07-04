@@ -107,14 +107,14 @@ def get_school_info(html_content, filename=None):
                             if len(texto) > 10:  # Evita textos muito curtos
                                 result['unit_name'] = texto.strip()
                                 escola_encontrada = True
-                                logger.info(f"✓ Escola encontrada no cabeçalho: {result['unit_name']}")
+                                logger.info(f"[OK] Escola encontrada no cabeçalho: {result['unit_name']}")
                                 break
                 if escola_encontrada:
                     break
         
         # Se não encontrou no cabeçalho, mantém como "Não identificada"
         if not escola_encontrada:
-            logger.info("✓ Escola não identificada - nenhum prefixo encontrado no cabeçalho HTML")
+            logger.info("[OK] Escola não identificada - nenhum prefixo encontrado no cabeçalho HTML")
                 
     except Exception as e:
         logger.warning(f"Erro ao buscar escola no HTML: {e}")
@@ -134,7 +134,7 @@ def get_school_info(html_content, filename=None):
             numero = gt_match.group(1)
             letra = gt_match.group(2) or ''
             result['class_name'] = f"GT{numero}{letra}"
-            logger.info(f"✓ Turma GT detectada do arquivo: {result['class_name']}")
+            logger.info(f"[OK] Turma GT detectada do arquivo: {result['class_name']}")
         
         # Padrão Ano + número (ex: 3ANO1, 8ANO1)  
         elif re.search(r'\d+ANO\d*', clean_filename.upper()):
@@ -146,7 +146,7 @@ def get_school_info(html_content, filename=None):
                     result['class_name'] = f"{ano}º ANO - {turma}"
                 else:
                     result['class_name'] = f"{ano}º ANO"
-                logger.info(f"✓ Turma ANO detectada do arquivo: {result['class_name']}")
+                logger.info(f"[OK] Turma ANO detectada do arquivo: {result['class_name']}")
     
     # ESTRATÉGIA 2: Busca "TURMA:" no HTML (para casos não detectados pelo arquivo)
     if result['class_name'] == 'Não identificada' and html_content:
@@ -182,7 +182,7 @@ def get_school_info(html_content, filename=None):
     if result['class_name'] == 'Não identificada' and filename:
         clean_filename = filename.split('/')[-1].replace('.html', '').replace('.HTML', '')
         result['class_name'] = clean_filename
-        logger.info(f"✓ Turma usando nome do arquivo como fallback: {result['class_name']}")
+        logger.info(f"[OK] Turma usando nome do arquivo como fallback: {result['class_name']}")
     
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -228,7 +228,7 @@ def get_school_info(html_content, filename=None):
         turma_gt_match = re.search(r'TURMA:\s*(GT\s*[0-5]\s*[A-Z]?)', all_text, re.IGNORECASE)
         if turma_gt_match:
             class_name = turma_gt_match.group(1).strip().replace(' ', '')
-            logger.info(f"✓ Turma GT encontrada após TURMA: {class_name}")
+            logger.info(f"[OK] Turma GT encontrada após TURMA: {class_name}")
             turma_encontrada = True
         
         # Se não encontrou GT, procura "TURMA:" seguido de XºANO - Y (fundamental)
@@ -241,7 +241,7 @@ def get_school_info(html_content, filename=None):
                     class_name = f"{num_ano}º ANO - {turma_num}"
                 else:
                     class_name = f"{num_ano}º ANO"
-                logger.info(f"✓ Turma ANO encontrada após TURMA: {class_name}")
+                logger.info(f"[OK] Turma ANO encontrada após TURMA: {class_name}")
                 turma_encontrada = True
         
         # PRIORIDADE 2: Se não encontrou após "TURMA:", busca padrões gerais
@@ -252,7 +252,7 @@ def get_school_info(html_content, filename=None):
                 numero = gt_match.group(1)
                 letra = gt_match.group(2) or ''
                 class_name = f"GT{numero}{letra}"
-                logger.info(f"✓ Turma GT encontrada por padrão geral: {class_name}")
+                logger.info(f"[OK] Turma GT encontrada por padrão geral: {class_name}")
                 turma_encontrada = True
             
             # Busca padrões de ano em qualquer lugar
@@ -265,7 +265,7 @@ def get_school_info(html_content, filename=None):
                         class_name = f"{num_ano}º ANO - {turma_num}"
                     else:
                         class_name = f"{num_ano}º ANO"
-                    logger.info(f"✓ Turma ANO encontrada por padrão geral: {class_name}")
+                    logger.info(f"[OK] Turma ANO encontrada por padrão geral: {class_name}")
                     turma_encontrada = True
         
         # Se encontrou turma, atualiza o resultado
