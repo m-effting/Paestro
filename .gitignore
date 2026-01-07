@@ -8,16 +8,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Sessões do Flask (Sua pasta atual)
+# Sessões do Flask 
 session_data/
 
 # Logs
 *.log
 attendance_parser.log
 
-# Credenciais e Segredos (Segurança!)
-credentials.json
-backend/credentials.json
+# Credenciais e Segredos 
 .env
 
 # Arquivos do Sistema

@@ -114,7 +114,7 @@ app.config['SESSION_FILE_THRESHOLD'] = 500  # Número máximo de arquivos antes 
 # Inicializa o armazenamento de sessão
 Session(app)
 
-SENHA_CORRETA = "ProjetoPaestro@2025"
+SENHA_CORRETA = os.environ.get("APP_PASSWORD", "sem_senha_configurada")
 
 
 # Endpoint para obter anotações de uma escola
