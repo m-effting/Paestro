@@ -1,39 +1,55 @@
 import os
 import io
+import json
 import logging
 from flask import request, jsonify
 from .excel_exporter import export_to_excel, get_excel_filename
 
 # Variável para controlar se temos Google Drive habilitado
 DRIVE_ENABLED = False
+drive_service = None
 
-# Tentar carregar bibliotecas do Google Drive
+# Tentar carregar bibliotecas do Google Drive e Autenticar via Render Secrets
 try:
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseUpload
     
-    # Configuração do Google Drive utilizando Service Account
-    SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "credentials.json")
+    # Tenta pegar as credenciais da Variável de Ambiente do Render
+    json_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
     
-    # Só habilita se o arquivo de credenciais existir
-    if os.path.exists(SERVICE_ACCOUNT_FILE):
-        DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file']
+    if json_creds:
+        DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive']
         try:
-            credentials = service_account.Credentials.from_service_account_file(
-                SERVICE_ACCOUNT_FILE, scopes=DRIVE_SCOPES
+            # Converte a string do Render de volta para JSON
+            creds_dict = json.loads(json_creds)
+            
+            credentials = service_account.Credentials.from_service_account_info(
+                creds_dict, scopes=DRIVE_SCOPES
             )
             drive_service = build("drive", "v3", credentials=credentials)
             DRIVE_ENABLED = True
-            print("Google Drive foi habilitado com sucesso!")
+            print("Google Drive conectado via Variáveis de Ambiente!")
         except Exception as e:
-            print(f"Erro ao carregar credenciais do Google Drive: {str(e)}")
+            print(f"Erro ao autenticar com as credenciais do ambiente: {str(e)}")
     else:
-        print("Arquivo de credenciais do Google Drive não encontrado.")
+        # Fallback para teste local (se o arquivo existir)
+        SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "credentials.json")
+        if os.path.exists(SERVICE_ACCOUNT_FILE):
+            print("Usando arquivo local credentials.json (Modo Desenvolvimento)")
+            credentials = service_account.Credentials.from_service_account_file(
+                SERVICE_ACCOUNT_FILE, scopes=['https://www.googleapis.com/auth/drive']
+            )
+            drive_service = build("drive", "v3", credentials=credentials)
+            DRIVE_ENABLED = True
+        else:
+            print("Nenhuma credencial do Google Drive encontrada (Env ou Arquivo).")
 
 except ImportError:
-    print("Módulos do Google Drive não estão disponíveis.")
-    pass  # Continua sem a funcionalidade do Drive
+    print("Módulos do Google Drive não estão instalados.")
+    pass
+except Exception as e:
+    print(f"Erro geral no Drive: {str(e)}")
 
 # Mapa de pastas do Google Drive
 FOLDER_MAP = {

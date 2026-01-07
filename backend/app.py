@@ -1951,9 +1951,8 @@ if __name__ == '__main__':
     # Adicionar o diretório atual ao path do sistema para encontrar os módulos corretamente
     sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
     
-    print(f"Template folder: {app.template_folder}")
-    print(f"Static folder: {app.static_folder}")
-    print(f"Templates existentes: {os.listdir(app.template_folder)}")
+    # O Render define a porta automaticamente na variável de ambiente PORT
+    port = int(os.environ.get("PORT", 5000))
     
-    # Iniciar o servidor na porta 5000, acessível por qualquer IP
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Debug deve ser False em produção
+    app.run(host='0.0.0.0', port=port, debug=False)
