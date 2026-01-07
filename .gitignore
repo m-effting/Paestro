@@ -1,0 +1,27 @@
+# Ambiente Virtual
+venv/
+.venv/
+env/
+
+# Python (Arquivos temporários)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sessões do Flask (Sua pasta atual)
+session_data/
+
+# Logs
+*.log
+attendance_parser.log
+
+# Credenciais e Segredos (Segurança!)
+credentials.json
+backend/credentials.json
+.env
+
+# Arquivos do Sistema
+.DS_Store
+Thumbs.db
+
+# ativar venv: .\venv\Scripts\activate
