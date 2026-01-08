@@ -1,59 +1,63 @@
-Paestro - Sistema de Gestão e Busca Ativa Educacional
-O Paestro é um ecossistema de ferramentas desenvolvido para otimizar o monitoramento escolar e a Busca Ativa.
+# Paestro - Sistema de Gestão e Busca Ativa Educacional
 
-Funcionalidades Principais
+O Paestro é um ecossistema de ferramentas desenvolvido para otimizar o monitoramento escolar e a Busca Ativa, utilizando como base os dados exportados do sistema EducarWeb.
 
- 1.Modulo de Chamada (Visitas) Este módulo é utilizado para realizar o controle de presença presencial durante as visitas às unidades escolares.
+## Funcionalidades Principais
 
- -Importação: Realiza o parseamento de arquivos HTML (listas de alunos) exportados do EducarWeb.
- -Operação: Gera uma interface interativa para marcação de presença, faltas e registo de observações.
- -Destino: Exporta a planilha formatada (.xlsx) diretamente para a pasta da unidade correspondente no Google Drive via API.
+**Módulo de Chamada (Visitas)**
+Este módulo é utilizado para realizar o controlo de presença presencial durante as visitas às unidades escolares.
+- Importação: Realiza o parseamento de arquivos HTML (listas de alunos) exportados do EducarWeb.
+- Operação: Gera uma interface interativa para marcação de presença e registo de observações via Tablet ou PC.
+- Destino: Exporta a planilha formatada (.xlsx) diretamente para a pasta da unidade no Google Drive via Conta de Serviço (Robô).
 
- 2.Modulo de Analise (Busca Ativa) Este módulo é focado na inteligência de dados para identificar alunos com infrequência crítica.
+**Módulo de Análise (Busca Ativa)**
+Este módulo identifica alunos com infrequência crítica através de dados do sistema.
+- Entrada: Processa arquivos brutos de registos de chamadas do EducarWeb.
+- Inteligência: O backend (attendance_analyser.py) filtra alunos que atingiram níveis de falta que exigem atenção.
+- Saída: Gera uma lista consolidada com estatísticas detalhadas de presença.
 
- -Entrada: Processa arquivos brutos de registos de chamadas extraídos do sistema escolar.
- -Inteligência: O backend (attendance_analyser.py) executa regras de cruzamento para filtrar alunos que atingiram níveis de falta que exigem atenção.
- -Saída: Gera uma lista consolidada com os alunos em atenção e estatísticas detalhadas de presença.
+**Módulo de Relatório (Consolidado)**
+Este módulo unifica as informações recolhidas em campo com os dados do sistema.
+- Operação: Recebe os arquivos de Chamada e de Análise gerados pelo próprio aplicativo.
+- Resultado: Cria um relatório final cruzando a visita presencial com os dados oficiais do sistema.
 
- 3.Modulo de Relatorio (Consolidado) Este módulo unifica as informações recolhidas em campo com os dados do sistema.
+## Guia de Configuração (Service Account)
 
- -Operação: Recebe os arquivos de Chamada e de Análise gerados pelo próprio aplicativo.
- -Resultado: Cria um relatório final cruzando a realidade verificada na visita presencial com os dados oficiais do sistema, gerando um documento unificado.
+Para que o sistema funcione em servidores (Render) e Tablets sem exigir login manual, utilizamos uma Conta de Serviço do Google.
 
--Guia de Configuracao para Novas Maquinas-
-Siga este passo a passo para configurar o ambiente de forma correta e segura.
+**Passo 1: Preparação do Google Drive**
+- Abra o arquivo .env e copie o e-mail que está no campo client_email (ex: paestro@...iam.gserviceaccount.com).
+- Vá ao Google Drive da Central de Matrículas.
+- Clique com o botão direito na pasta raiz do projeto (ex: Projeto Paestro).
+- Selecione Compartilhar.
+- Cole o e-mail do robô e dê permissão de EDITOR.
+- Sem isso, o sistema dará erro de cota ou permissão negada.
 
- Preparacao Inicial
+**Passo 2: Configuração do Arquivo .env**
+Crie um arquivo chamado .env na raiz do projeto. Este arquivo deve conter a chave JSON completa da Service Account em uma única linha:
+- GOOGLE_CREDENTIALS_JSON={"type": "service_account", "project_id": "...", ...}
+- APP_PASSWORD=
 
- -Clone o repositório ou copie a pasta do projeto para o novo computador.
- -Certifique-se de que o e-mail do usuário da nova máquina foi adicionado como "Usuário de Teste" no Google Cloud Console do projeto.
+**Passo 3: Arquivos Ignorados (.gitignore)**
+Para segurança, certifique-se de que estes arquivos nunca subam para o GitHub:
+- venv
+- .env
+- __pycache__
+- *.py[cod]
+- session_data/
+- *.log
+- token.pickle (não mais utilizado nesta versão, mas mantenha ignorado por segurança)
 
-Configuracao de Seguranca
+## Execução do Sistema
 
- -Crie um arquivo texto chamado .env na raiz do projeto.
- -Cole a credencial JSON no formato: GOOGLE_CREDENTIALS_JSON={"installed":{...}} e APP_PASSWORD=(senha)
- -Crie um arquivo .gitignore na raiz do projeto.
- -Cole: venv
-        .env
-        pycache/
-        *.py[cod]
-        *$py.class
-        session_data/
-        *.log
-        attendance_parser.log
-        token.pickle
+- Localmente: Execute o arquivo setup_and_run.bat.
+- Web/Tablet: Acesse a URL do deploy (Render). O sistema já estará autenticado automaticamente pelo servidor.
 
+## Informações Técnicas
 
-Execucao do Sistema
+- Backend: Flask (backend/app.py).
+- Autenticação: Google Service Account (Server-side).
+- Integração Drive: IDs configurados em FOLDER_MAP no arquivo backend/drive_exporter.py.
 
- -Execute o arquivo setup_and_run.bat. Este script criará o ambiente virtual e instalará as dependências automaticamente.
- -No primeiro uso da função de exportação, o navegador abrirá uma aba para login.
- -Realize o login com a conta da Central de Matrículas.
- -Na tela de aviso do Google, clique em "Configurações Avançadas" e depois em "Acessar Paestro (não seguro)".
-
-Informacoes Tecnicas
-
- -Backend: Flask (backend/app.py).
- -Processamento: Pandas e BeautifulSoup.
- -Integracao Drive: Mapeamento de pastas configurado em FOLDER_MAP dentro de backend/drive_exporter.py.
- -Logs: Em caso de falha no processamento de arquivos, consulte o arquivo attendance_parser.log.
+---
+Este documento serve como guia oficial para operação e manutenção do sistema Paestro.
