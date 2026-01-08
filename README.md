@@ -25,16 +25,24 @@ Siga este passo a passo para configurar o ambiente de forma correta e segura.
 
  Preparacao Inicial
 
- -Instale o Python 3.10 ou superior e marque a opção "Add Python to PATH" durante a instalação.
  -Clone o repositório ou copie a pasta do projeto para o novo computador.
  -Certifique-se de que o e-mail do usuário da nova máquina foi adicionado como "Usuário de Teste" no Google Cloud Console do projeto.
 
 Configuracao de Seguranca
 
- -O arquivo .env e o arquivo token.pickle nunca devem ser enviados para o GitHub (já configurados no .gitignore).
  -Crie um arquivo texto chamado .env na raiz do projeto.
- -Cole a credencial JSON no formato: GOOGLE_CREDENTIALS_JSON={"installed":{...}}
- -Importante: O conteúdo do JSON deve ser mantido em segredo e compartilhado apenas com os responsáveis pela execução do projeto.
+ -Cole a credencial JSON no formato: GOOGLE_CREDENTIALS_JSON={"installed":{...}} e APP_PASSWORD=(senha)
+ -Crie um arquivo .gitignore na raiz do projeto.
+ -Cole: venv
+        .env
+        pycache/
+        *.py[cod]
+        *$py.class
+        session_data/
+        *.log
+        attendance_parser.log
+        token.pickle
+
 
 Execucao do Sistema
 
