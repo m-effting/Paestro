@@ -17,6 +17,7 @@ attendance_parser.log
 
 # Credenciais e Segredos 
 .env
+token.pickle
 
 # Arquivos do Sistema
 .DS_Store

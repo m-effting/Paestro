@@ -2,56 +2,26 @@ import os
 import io
 import json
 import logging
+import pickle
 from flask import request, jsonify
-from .excel_exporter import export_to_excel, get_excel_filename
 
 # Variável para controlar se temos Google Drive habilitado
 DRIVE_ENABLED = False
 drive_service = None
 
-# Tentar carregar bibliotecas do Google Drive e Autenticar via Render Secrets
+# Tentar carregar bibliotecas do Google Drive
 try:
-    from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaIoBaseUpload
-    
-    # Tenta pegar as credenciais da Variável de Ambiente do Render
-    json_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
-    
-    if json_creds:
-        DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive']
-        try:
-            # Converte a string do Render de volta para JSON
-            creds_dict = json.loads(json_creds)
-            
-            credentials = service_account.Credentials.from_service_account_info(
-                creds_dict, scopes=DRIVE_SCOPES
-            )
-            drive_service = build("drive", "v3", credentials=credentials)
-            DRIVE_ENABLED = True
-            print("Google Drive conectado via Variáveis de Ambiente!")
-        except Exception as e:
-            print(f"Erro ao autenticar com as credenciais do ambiente: {str(e)}")
-    else:
-        # Fallback para teste local (se o arquivo existir)
-        SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "credentials.json")
-        if os.path.exists(SERVICE_ACCOUNT_FILE):
-            print("Usando arquivo local credentials.json (Modo Desenvolvimento)")
-            credentials = service_account.Credentials.from_service_account_file(
-                SERVICE_ACCOUNT_FILE, scopes=['https://www.googleapis.com/auth/drive']
-            )
-            drive_service = build("drive", "v3", credentials=credentials)
-            DRIVE_ENABLED = True
-        else:
-            print("Nenhuma credencial do Google Drive encontrada (Env ou Arquivo).")
-
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from google.auth.transport.requests import Request
+    from .excel_exporter import export_to_excel, get_excel_filename
 except ImportError:
     print("Módulos do Google Drive não estão instalados.")
-    pass
-except Exception as e:
-    print(f"Erro geral no Drive: {str(e)}")
 
-# Mapa de pastas do Google Drive
+# ==============================================================================
+# MAPA DE PASTAS (Sua lista completa atualizada)
+# ==============================================================================
 FOLDER_MAP = {
     "ASSOCIAÇÃO JOÃO PAULO II": "1lceON-33pkAk-AN_K0a1-9-yXvk9uwqR",
     "CAIC - PROF FEBRONIO TANCREDO DE OLIVEIRA": "1CBew0EaMYRk1BD1yXwD2zeFgouj19Uv4",
@@ -132,9 +102,49 @@ FOLDER_MAP = {
     "GE TEREZINHA MARIA ESPÍNDOLA MARTINS": "1qOpWETmx8J0Q3R6QCfbKmTWGDpDfyCCB"
 }
 
+def get_drive_service():
+    """Retorna o serviço do Drive, fazendo login via navegador se necessário."""
+    global DRIVE_ENABLED, drive_service
+    if drive_service:
+        return drive_service
+
+    try:
+        creds = None
+        SCOPES = ['https://www.googleapis.com/auth/drive.file']
+        
+        if os.path.exists('token.pickle'):
+            with open('token.pickle', 'rb') as token:
+                creds = pickle.load(token)
+        
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                json_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+                if not json_creds:
+                    return None
+                
+                client_config = json.loads(json_creds)
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                creds = flow.run_local_server(port=0)
+            
+            with open('token.pickle', 'wb') as token:
+                pickle.dump(creds, token)
+
+        drive_service = build('drive', 'v3', credentials=creds)
+        DRIVE_ENABLED = True
+        return drive_service
+    except Exception as e:
+        print(f"Erro ao conectar no Drive: {str(e)}")
+        return None
+
+# Tentar inicializar
+get_drive_service()
+
 def upload_excel_to_drive(excel_data, file_name, folder_id=None):
-    """Faz upload de um arquivo Excel para o Google Drive se o Drive estiver habilitado."""
-    if not DRIVE_ENABLED:
+    """Faz upload de um arquivo Excel para o Google Drive."""
+    service = get_drive_service()
+    if not service:
         return "drive-not-available"
         
     try:
@@ -148,7 +158,13 @@ def upload_excel_to_drive(excel_data, file_name, folder_id=None):
             resumable=True
         )
 
-        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        file = service.files().create(
+            body=file_metadata, 
+            media_body=media, 
+            fields='id',
+            supportsAllDrives=True
+        ).execute()
+
         return file.get('id')
     except Exception as e:
         logging.error(f"Erro ao fazer upload para o Drive: {str(e)}")
@@ -157,11 +173,7 @@ def upload_excel_to_drive(excel_data, file_name, folder_id=None):
 def get_drive_folders():
     """Retorna a lista de pastas disponíveis no Google Drive."""
     if not DRIVE_ENABLED:
-        return jsonify({
-            'success': False, 
-            'error': 'Google Drive não está habilitado nesta instalação.',
-            'folders': []
-        })
+        return jsonify({'success': False, 'error': 'Drive não habilitado.', 'folders': []})
     
     try:
         folder_list = [{'id': v, 'name': k} for k, v in FOLDER_MAP.items()]
@@ -170,43 +182,33 @@ def get_drive_folders():
         return jsonify({'success': False, 'error': str(e)})
 
 def export_attendance_drive(app_data):
-    """Faz upload de um arquivo Excel para o Google Drive se o Drive estiver habilitado."""
-    if not DRIVE_ENABLED:
-        return jsonify({
-            'success': False, 
-            'error': 'Google Drive não está habilitado nesta instalação.',
-            'alternate_message': 'Você pode fazer download do arquivo manualmente pela opção de exportação.'
-        }), 400
+    """Lógica principal de exportação para o Drive."""
+    service = get_drive_service()
+    if not service:
+        return jsonify({'success': False, 'error': 'Drive não habilitado.'}), 400
         
     try:
-        # Obtém dados da requisição
         data = request.json
-        if not data:
-            return jsonify({'success': False, 'error': 'Nenhum dado fornecido na requisição'}), 400
-
         folder_id = data.get('folder_id')
         escola_selecionada = data.get('escola')
         auto_clear = data.get('auto_clear', False)
 
-        # Validação explícita de folder_id
-        if not folder_id or not folder_id.strip():
-            return jsonify({'success': False, 'error': 'Nenhum folder_id válido fornecido'}), 400
+        if not folder_id:
+            return jsonify({'success': False, 'error': 'Nenhum folder_id fornecido'}), 400
 
-        # Verifica se há turmas salvas
         if 'saved_classes' not in app_data or not app_data['saved_classes']:
-            return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'}), 400
+            return jsonify({'success': False, 'error': 'Nenhuma turma salva'}), 400
 
-        # Define as turmas salvas a serem usadas
+        # Prepara turmas
         if escola_selecionada:
-            if escola_selecionada not in app_data['saved_classes'] or not app_data['saved_classes'][escola_selecionada]:
-                return jsonify({'success': False, 'error': 'Nenhuma turma salva para a escola selecionada'}), 400
-            turmas_salvas = app_data['saved_classes'][escola_selecionada]
+            turmas_salvas = app_data['saved_classes'].get(escola_selecionada, [])
         else:
             turmas_salvas = set().union(*app_data['saved_classes'].values())
-            if not turmas_salvas:
-                return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportação'}), 400
 
-        # Prepara os dados para exportação
+        if not turmas_salvas:
+            return jsonify({'success': False, 'error': 'Nada para exportar'}), 400
+
+        # Organiza dados para o Excel
         classes_to_export = {}
         attendance_to_export = {}
         observations_to_export = {}
@@ -214,67 +216,32 @@ def export_attendance_drive(app_data):
         for turma in turmas_salvas:
             for escola, turmas in app_data['schools'].items():
                 if turma in turmas:
-                    if escola_selecionada and escola != escola_selecionada:
-                        continue
+                    if escola_selecionada and escola != escola_selecionada: continue
                     classes_to_export[turma] = app_data['schools'][escola][turma]
                     attendance_to_export[turma] = app_data['attendance_status'].get(turma, {})
                     observations_to_export[turma] = app_data['observations'].get(turma, {})
-                    break
 
-        # Verifica se há turmas válidas para exportar
-        if not classes_to_export:
-            return jsonify({'success': False, 'error': 'Nenhuma turma válida encontrada para exportação'}), 400
-
-        # Obtém período e usuário
         periodo = data.get('periodo') or app_data.get('periodo', 'Não informado')
         current_user = app_data.get('current_user', 'indefinido')
 
-        # Gera o arquivo Excel
         output = export_to_excel(
-            classes_to_export,
-            attendance_to_export,
-            observations_to_export,
+            classes_to_export, attendance_to_export, observations_to_export,
             app_data.get('html_content', {}).get(escola_selecionada) if escola_selecionada else None,
-            current_user,
-            periodo,
-            escola_selecionada or "Todas as Escolas"
+            current_user, periodo, escola_selecionada or "Todas as Escolas"
         )
 
-        # Faz o upload para o Google Drive
-        excel_data = output.getvalue()
-        file_name = get_excel_filename(escola_selecionada or "Todas as Escolas", periodo, current_user)
-        drive_file_id = upload_excel_to_drive(excel_data, file_name, folder_id)
+        drive_file_id = upload_excel_to_drive(output.getvalue(), 
+                                            get_excel_filename(escola_selecionada or "Todas as Escolas", periodo, current_user), 
+                                            folder_id)
         
-        if drive_file_id == "drive-not-available":
-            return jsonify({
-                'success': False, 
-                'error': 'Google Drive não está habilitado nesta instalação.',
-                'alternate_message': 'Você pode fazer download do arquivo manualmente pela opção de exportação.'
-            }), 400
+        if drive_file_id and drive_file_id != "drive-not-available":
+            if auto_clear:
+                if escola_selecionada: app_data['saved_classes'][escola_selecionada].clear()
+                else: app_data['saved_classes'].clear()
+            return jsonify({'success': True, 'drive_file_id': drive_file_id}), 200
         
-        if not drive_file_id:
-            return jsonify({
-                'success': False, 
-                'error': 'Não foi possível fazer upload para o Google Drive.',
-                'alternate_message': 'Tente exportar o arquivo manualmente.'
-            }), 500
-
-        # Realiza limpeza
-        if auto_clear:
-            if escola_selecionada and escola_selecionada in app_data['saved_classes']:
-                app_data['saved_classes'][escola_selecionada].clear()
-            else:
-                app_data['saved_classes'].clear()
-            for turma in classes_to_export:
-                app_data['attendance_status'].pop(turma, None)
-                app_data['observations'].pop(turma, None)
-
-        # Retorna resposta de sucesso
-        return jsonify({
-            'success': True,
-            'drive_file_id': drive_file_id
-        }), 200
+        return jsonify({'success': False, 'error': 'Falha no upload'}), 500
 
     except Exception as e:
-        logging.error(f"Erro ao exportar para o Drive: {str(e)}")
+        logging.error(f"Erro ao exportar: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
