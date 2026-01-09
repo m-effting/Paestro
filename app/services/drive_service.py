@@ -101,8 +101,8 @@ def get_drive_folders():
             'success': False, 
             'error': 'Google Drive não está habilitado nesta instalação.',
             'folders': []
-        })
-    
+        }) 
+   
     try:
         # Pega o mapa de pastas direto da configuração global do app
         folder_map = current_app.config.get('FOLDER_MAP', {})
