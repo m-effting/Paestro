@@ -4,6 +4,12 @@ import json
 import logging
 from flask import request, jsonify
 from .excel_exporter import export_to_excel, get_excel_filename
+from dotenv import load_dotenv 
+
+
+# Carrega as variáveis do arquivo .env
+load_dotenv()
+
 
 # Variável para controlar se temos Google Drive habilitado
 DRIVE_ENABLED = False
@@ -11,7 +17,6 @@ drive_service = None
 
 # ==============================================================================
 # CONFIGURAÇÃO DE AUTENTICAÇÃO (SERVICE ACCOUNT - MODO WEB)
-# Isso permite que o app funcione no Render, Tablet e Celular sem abrir navegador
 # ==============================================================================
 try:
     from google.oauth2 import service_account
@@ -50,7 +55,6 @@ except Exception as e:
 
 # ==============================================================================
 # MAPA DE PASTAS DAS ESCOLAS
-# IMPORTANTE: Se você criou pastas novas, atualize os IDs abaixo!
 # ==============================================================================
 FOLDER_MAP = {
     "ASSOCIAÇÃO JOÃO PAULO II": "1lceON-33pkAk-AN_K0a1-9-yXvk9uwqR",

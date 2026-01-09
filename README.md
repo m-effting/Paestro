@@ -26,9 +26,9 @@ Este módulo unifica as informações recolhidas em campo com os dados do sistem
 Para que o sistema funcione em servidores (Render) e Tablets sem exigir login manual, utilizamos uma Conta de Serviço do Google.
 
 **Passo 1: Configuração do Arquivo .env**
-Crie um arquivo chamado `.env` na raiz do projeto. Este arquivo deve conter as seguintes variáveis (uma por linha):
-- `GOOGLE_CREDENTIALS_JSON={"type": "service_account", ...}` 
-  *(Cole aqui o JSON completo do robô em uma única linha, sem quebras)*
+Crie um arquivo chamado `.env` na raiz do projeto. Este arquivo deve conter as seguintes variáveis:
+- `GOOGLE_CREDENTIALS_JSON=credentials.json` 
+  *(Aponta para o arquivo físico no seu computador)*
 - `APP_PASSWORD=`
   *(Senha de login)*
 
@@ -40,10 +40,11 @@ Para segurança, certifique-se de que estes arquivos nunca subam para o GitHub:
 - *.py[cod]
 - session_data/
 - *.log
+- credentials.json
 
 ## Execução do Sistema
 
-- Localmente: Execute o arquivo setup_and_run.bat.
+- Localmente: Execute o arquivo setup_and_run.bat(.\setup_an_run.bat).
 - Web/Tablet: Acesse a URL do deploy (Render). O sistema já estará autenticado automaticamente pelo servidor.
 
 ## Informações Técnicas

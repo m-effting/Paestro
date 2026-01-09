@@ -3,8 +3,6 @@ echo ======================================================
 echo   PAESTRO - AUTOMACAO DE AMBIENTE E EXECUCAO
 echo ======================================================
 
-===== RODAR: .\setup_and_run.bat =====
-
 :: 1. Verifica se a pasta venv existe. Se nao existir, cria.
 if not exist venv python -m venv venv
 
