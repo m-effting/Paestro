@@ -1,30 +1,23 @@
 @echo off
-echo ======================================================
-echo   PAESTRO - AUTOMACAO DE AMBIENTE E EXECUCAO
-echo ======================================================
+:: Script de automação para configuração e execução do ambiente Paestro
 
-:: 1. Verifica se a pasta venv existe. Se nao existir, cria.
-if not exist venv python -m venv venv
-
-:: 2. Atualiza dependencias
-echo [1/2] Atualizando componentes do ambiente...
-venv\Scripts\python.exe -m pip install --upgrade pip
-venv\Scripts\python.exe -m pip install -r requirements.txt
-venv\Scripts\python.exe -m pip install gunicorn
-
-:: 3. Carrega a senha do arquivo .env (Cofre Local)
-echo [2/2] Iniciando o Paestro...
-if exist .env (
-    echo [OK] Carregando senha do arquivo .env local.
-    for /f "usebackq delims=" %%x in (".env") do set "%%x"
-) else (
-    echo [AVISO] Arquivo .env nao encontrado. Usando configuracao padrao.
+if not exist venv (
+    echo [INFO] Criando ambiente virtual Python...
+    python -m venv venv
 )
 
-echo Acesso local: http://127.0.0.1:5000
-echo Pressione Ctrl+C para encerrar.
+echo [INFO] Ativando ambiente virtual...
+call venv\Scripts\activate
 
-:: 4. Roda o app com a senha carregada na memoria
-venv\Scripts\python.exe -m backend.app
+echo [INFO] Verificando e instalando dependencias...
+:: Garante a instalação do gerenciador de variáveis de ambiente
+pip install python-dotenv
+pip install -r requirements.txt
+
+echo [INFO] Iniciando servidor Flask...
+start "" "http://127.0.0.1:5000"
+
+:: Executa o ponto de entrada principal na raiz
+python run.py
 
 pause

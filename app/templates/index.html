@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
-    <link rel="icon" type="image/png" sizes="128x128"  href="/css/favicon12.png"> 
+    <link rel="icon" href="{{ url_for('static', filename='css/favicon12.png') }}" type="image/png"> 
     <meta name="msapplication-TileColor" content="#ffffff"> 
     <meta name="theme-color" content="#ffffff">
 </head>
@@ -59,7 +58,7 @@
         </footer>
     </div>
 
-    <script src="/static/js/modal.js"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 </body>
 </html>

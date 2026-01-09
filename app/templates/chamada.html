@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chamada.css') }}">
-    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
-    <link rel="icon" type="image/png" sizes="128x128"  href="/css/favicon12.png"> 
+    <link rel="icon" href="{{ url_for('static', filename='css/favicon12.png') }}" type="image/png"> 
     <meta name="msapplication-TileColor" content="#ffffff"> 
     <meta name="theme-color" content="#ffffff">
 </head>
@@ -45,18 +44,15 @@
             <a href="/chamada" class="nav-link active">
                 <i class="fas fa-clipboard-check"></i> Chamada
             </a>
-
             <a href="/analise" class="nav-link">
                 <i class="fas fa-chart-bar"></i> Análise
             </a>
-
             <a href="/relatorio" class="nav-link">
                 <i class="fas fa-file-contract"></i> Relatório
             </a>
         </div>
     </nav>
 
-    <!-- Sub-navegação específica da tela de chamada -->
     <div class="sub-nav-container">
         <div class="sub-nav-links">
             <button class="sub-nav-link" id="importar-btn">
@@ -69,39 +65,38 @@
     </div>
 
     <main>
-        <main>
-            <div class="chamada-container">
-                <h3>Chamada</h3>
+        <div class="chamada-container">
+            <h3>Chamada</h3>
 
-                <div class="filtros-container">
-                    <div class="filtros">
-                        <div class="form-group">
-                            <label for="escola-select">Escola</label>
-                            <select id="escola-select">
-                                <option value="">Selecione a escola</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="turma-select">Turma</label>
-                            <select id="turma-select">
-                                <option value="">Selecione a turma</option>
-                            </select>
-                        </div>
+            <div class="filtros-container">
+                <div class="filtros">
+                    <div class="form-group">
+                        <label for="escola-select">Escola</label>
+                        <select id="escola-select">
+                            <option value="">Selecione a escola</option>
+                        </select>
                     </div>
-                    <div class="filter-buttons">
-                        <button id="add-aluno-btn" class="btn-action">
-                            <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
-                                <path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-                            </svg>
-                            Adicionar Aluno
-                        </button>
-                        <button id="anotacoes-btn" class="btn-circle" title="Anotações da Unidade">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="white">
-                                <path d="M19 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6l-1-4zm-1 2v16H6V4h12zm-4 2H8v2h6V6zm0 4H8v2h6v-2zm0 4H8v2h6v-2z"/>
-                            </svg>
-                        </button>
+                    <div class="form-group">
+                        <label for="turma-select">Turma</label>
+                        <select id="turma-select">
+                            <option value="">Selecione a turma</option>
+                        </select>
                     </div>
                 </div>
+                <div class="filter-buttons">
+                    <button id="add-aluno-btn" class="btn-action">
+                        <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                        </svg>
+                        Adicionar Aluno
+                    </button>
+                    <button id="anotacoes-btn" class="btn-circle" title="Anotações da Unidade">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="white">
+                            <path d="M19 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6l-1-4zm-1 2v16H6V4h12zm-4 2H8v2h6V6zm0 4H8v2h6v-2zm0 4H8v2h6v-2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
             <div class="tabela-container">
                 <table id="alunos-table">
@@ -113,8 +108,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Alunos serão inseridos aqui via JavaScript -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
 
@@ -130,10 +124,10 @@
     </main>
 
     <footer>
-        <p>Secretaria de Educação © 2025</p>
+        <p>Secretaria de Educação © {{ now.year }}</p>
     </footer>
 
-    <script src="/static/js/modal.js"></script>
-    <script src="/static/js/chamada.js"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chamada.js') }}"></script>
 </body>
 </html>

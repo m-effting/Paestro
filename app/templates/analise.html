@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/analise.css') }}">
-    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
-    <link rel="icon" type="image/png" sizes="128x128" href="/css/favicon12.png"> 
+    <link rel="icon" href="{{ url_for('static', filename='css/favicon12.png') }}" type="image/png"> 
     <meta name="msapplication-TileColor" content="#ffffff"> 
     <meta name="theme-color" content="#ffffff">
 </head>
@@ -45,11 +44,9 @@
             <a href="/chamada" class="nav-link">
                 <i class="fas fa-clipboard-check"></i> Chamada
             </a>
-
             <a href="/analise" class="nav-link active">
                 <i class="fas fa-chart-bar"></i> Análise
             </a>
-
             <a href="/relatorio" class="nav-link">
                 <i class="fas fa-file-contract"></i> Relatório
             </a>
@@ -60,7 +57,6 @@
         <div class="analise-container">
             <h3>Análise de Faltas</h3>
             
-            <!-- Formulário de upload -->
             <div class="upload-section">
                 <div class="file-upload-container">
                     <form id="upload-form" enctype="multipart/form-data">
@@ -72,7 +68,7 @@
                             <input type="file" id="file-input" name="file" multiple accept=".html,.htm" hidden />
                         </div>
                         <div class="selected-files" id="selected-files"></div>
-                        <!-- Barra de progresso para processamento dinâmico -->
+                        
                         <div class="progress-container" id="progress-container" style="display: none;">
                             <div class="progress-bar" id="progress-bar">
                                 <div class="progress-fill" id="progress-fill"></div>
@@ -97,7 +93,6 @@
                 </div>
             </div>
             
-            <!-- Arquivos Salvos -->
             <div class="saved-files-section">
                 <h4>Arquivos Processados</h4>
                 <div class="saved-files-container" id="saved-files-container">
@@ -111,9 +106,7 @@
                                 <th width="50"></th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <!-- Os arquivos processados serão carregados aqui via JavaScript -->
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                     <div id="no-saved-files" style="text-align: center; padding: 20px; display: none;">
                         <p>Nenhum arquivo processado.</p>
@@ -129,7 +122,6 @@
                 </div>
             </div>
             
-            <!-- Seção de resultados da análise -->
             <div class="analysis-results-section" style="display:none;">
                 <div class="results-summary">
                     <h4>Resumo da Análise</h4>
@@ -206,7 +198,6 @@
                             <tr>
                                 <th data-sort="school_name">Escola <span class="sort-icon">&#8597;</span></th>
                                 <th data-sort="class_name">Turma <span class="sort-icon">&#8597;</span></th>
-
                                 <th data-sort="student_name">Aluno <span class="sort-icon">&#8597;</span></th>
                                 <th data-sort="status" class="sortable">Status <span class="sort-icon">&#8597;</span></th>
                                 <th data-sort="attendance_percentage" class="numeric">% Presença <span class="sort-icon">&#8597;</span></th>
@@ -217,8 +208,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Os resultados serão inseridos via JavaScript -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
                 
@@ -235,9 +225,6 @@
                 </div>
             </div>
             
-            <!-- Logs foram removidos conforme solicitação -->
-            
-            <!-- Seção de regras (agora como dropdown) -->
             <div class="rules-section">
                 <details class="rules-details">
                     <summary class="rules-summary">Regras de Classificação</summary>
@@ -272,15 +259,15 @@
     </main>
 
     <footer>
-        <p>Secretaria de Educação © 2025</p>
+        <p>Secretaria de Educação © {{ now.year }}</p>
     </footer>
 
-    <script src="/static/js/modal.js"></script>
-    <script src="/static/js/analise.js"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/analise.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            setupEventListeners();
-            setupDragAndDrop();
+            if (typeof setupEventListeners === 'function') setupEventListeners();
+            if (typeof setupDragAndDrop === 'function') setupDragAndDrop();
         });
     </script>
 </body>

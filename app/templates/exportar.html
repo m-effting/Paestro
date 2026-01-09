@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/exportar.css') }}">
-    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
-    <link rel="icon" type="image/png" sizes="128x128"  href="/css/favicon12.png"> 
+    <link rel="icon" href="{{ url_for('static', filename='css/favicon12.png') }}" type="image/png"> 
     <meta name="msapplication-TileColor" content="#ffffff"> 
     <meta name="theme-color" content="#ffffff">
 </head>
@@ -43,7 +42,6 @@
             <a href="/chamada" class="nav-link">
                 <i class="fas fa-clipboard-check"></i> Chamada
             </a>
-
             <a href="/analise" class="nav-link">
                 <i class="fas fa-chart-bar"></i> Análise
             </a>
@@ -56,21 +54,17 @@
         </div>
     </nav>
 
-
     <main>
         <div class="export-container">
             <h3>Exportar Chamadas</h3>
 
-            <!-- Loading Indicator -->
             <div id="loading-indicator" style="display: none; position: fixed; top: 20px; right: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-
-
+                <i class="fas fa-spinner fa-spin"></i> Processando...
             </div>
 
             <div class="export-options">
                 <h4 class="section-title">Salvar chamada no Google Drive</h4>
                 <div class="form-group">
-                    <!-- Custom select-like component -->
                     <div class="custom-select-wrapper">
                         <div class="custom-select">
                             <input type="text" class="custom-select-input" placeholder="Buscar pasta..." autocomplete="off">
@@ -78,7 +72,6 @@
                             <span class="custom-select-arrow">▼</span>
                         </div>
                         <div class="custom-select-dropdown" style="display: none;"></div>
-                        <!-- Hidden select to store the actual value -->
                         <select id="pasta-drive" class="presenca-select" style="display: none;"></select>
                     </div>
                 </div>
@@ -104,10 +97,10 @@
     </main>
 
     <footer>
-        <p>Secretaria de Educação © 2025</p>
+        <p>Secretaria de Educação © {{ now.year }}</p>
     </footer>
 
-    <script src="/static/js/modal.js"></script>
-    <script src="/static/js/exportar.js"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/exportar.js') }}"></script>
 </body>
 </html>

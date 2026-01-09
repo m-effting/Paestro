@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAESTRO - Importar Estudantes Matriculados</title>
+    <title>PAESTRO - Importar</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/importar.css') }}">
-    <link rel="icon" href="static/css/favicon12.png" type="image/png"> 
-    <link rel="icon" type="image/png" sizes="128x128"  href="/css/favicon12.png"> 
+    <link rel="icon" href="{{ url_for('static', filename='css/favicon12.png') }}" type="image/png"> 
     <meta name="msapplication-TileColor" content="#ffffff"> 
     <meta name="theme-color" content="#ffffff">
 </head>
@@ -51,20 +50,17 @@
             <a href="/analise" class="nav-link">
                 <i class="fas fa-chart-bar"></i> Análise
             </a>
-
             <a href="/relatorio" class="nav-link">
                 <i class="fas fa-file-contract"></i> Relatório
             </a>
         </div>
     </nav>
 
-
     <main>
         <div class="container">
             <h3>Importar Estudantes Matriculados para Chamada</h3>
             
             <div class="unified-import-section">
-                
                 <div class="drop-zone" id="drop-area">
                     <div class="drop-zone-inner">
                         <div class="drop-zone-icon">
@@ -104,16 +100,16 @@
             <div class="imported-files-section">
                 <h4>Arquivos Importados</h4>
                 <ul id="imported-files-list" class="imported-files-list">
-                    <!-- Lista de arquivos será inserida aqui dinamicamente -->
-                </ul>
+                    </ul>
             </div>
+        </div>
     </main>
 
     <footer>
-        <p>Secretaria de Educação © 2025</p>
+        <p>Secretaria de Educação © {{ now.year }}</p>
     </footer>
 
-    <script src="/static/js/modal.js"></script>
-    <script src="/static/js/importar.js"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/importar.js') }}"></script>
 </body>
 </html>
