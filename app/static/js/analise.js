@@ -485,131 +485,72 @@ function toggleMonthDetails() {
 }
 
 function updateResultTable(results) {
+    console.log("Atualizando tabela com", results.length, "resultados");
     const tableBody = document.querySelector('#results-table tbody');
     tableBody.innerHTML = '';
 
-    if (results.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center;">Nenhum resultado encontrado com os filtros atuais.</td></tr>`;
+    if (!results || results.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center;">Nenhum resultado encontrado.</td></tr>`;
         return;
     }
 
     results.forEach(item => {
         const row = document.createElement('tr');
 
-        // Normalizar nomes de campos para compatibilidade
-        const schoolName = item.school_name || item.escola || item.unidade || 'N/A';
+        // Normalização de dados (garante que não quebra se faltar campo)
+        const schoolName = item.school_name || item.escola || 'N/A';
         const className = item.class_name || item.turma || 'N/A';
-        const educationType = item.education_type || item.tipo_ensino || 'N/A';
         const studentName = item.student_name || item.aluno || 'N/A';
-        const status = item.status || 'Regular';
-        const classification = item.classification || item.classificacao || 'N/A';
-
-        // Garantir que valores zero sejam exibidos como "0" e não como "N/A"
-        const attendancePercentage = item.attendance_percentage !== undefined ? item.attendance_percentage : 
-                                   (item.percentual_presenca !== undefined ? item.percentual_presenca : 0);
-        const absenceTotal = item.F !== undefined ? item.F : 
-                           (item.absence_total !== undefined ? item.absence_total : 
-                           (item.total_faltas !== undefined ? item.total_faltas : 0));
-        const justifiedTotal = item.FJ !== undefined ? item.FJ : 
-                             (item.justified_total !== undefined ? item.justified_total : 
-                             (item.total_fj !== undefined ? item.total_fj : 0));
-        const presenceTotal = item.P !== undefined ? item.P : 
-                            (item.presence_total !== undefined ? item.presence_total : 
-                            (item.total_presencas !== undefined ? item.total_presencas : 0));
-
-        // Obter dados de faltas por mês (prioridade: faltas_por_mes > faltas_por_mes_texto > monthly_absences)
-        let monthlyAbsences = {};
-
-        // Se temos o objeto de faltas por mês estruturado, usar ele
-        if (item.faltas_por_mes && typeof item.faltas_por_mes === 'object') {
-            monthlyAbsences = item.faltas_por_mes;
-        }
-        // Se temos a string formatada, fazer o parsing
-        else if (item.faltas_por_mes_texto && typeof item.faltas_por_mes_texto === 'string') {
-            const faltasTexto = item.faltas_por_mes_texto;
-            faltasTexto.split(',').forEach(par => {
-                const [mes, faltas] = par.trim().split(':');
-                if (mes && faltas) {
-                    monthlyAbsences[mes.trim()] = parseInt(faltas.trim(), 10) || 0;
-                }
-            });
-        }
-        // Fallback para monthly_absences
-        else if (item.monthly_absences && typeof item.monthly_absences === 'object') {
-            monthlyAbsences = item.monthly_absences;
+        
+        // Tratamento do Status (pode ser array ou string)
+        let statusHtml = '';
+        if (Array.isArray(item.status)) {
+            statusHtml = createStatusBadge(item.status); // Função auxiliar existente
+        } else {
+            statusHtml = createStatusBadge([item.status || 'Regular']);
         }
 
-        // Verificar se há alguma falta em algum mês
-        const hasMonthlyAbsences = Object.values(monthlyAbsences).some(count => count > 0);
+        // Dados numéricos
+        const percPresenca = item.percentual_presenca !== undefined ? item.percentual_presenca : 0;
+        const totalF = item.F !== undefined ? item.F : 0;
+        const totalFJ = item.FJ !== undefined ? item.FJ : 0;
+        const totalP = item.P !== undefined ? item.P : 0;
 
-        // Construir a célula para as faltas mensais apenas se houver faltas
-        let monthlyAbsencesCell = '';
-
-        if (hasMonthlyAbsences) {
-            monthlyAbsencesCell = Object.entries(monthlyAbsences)
+        // Faltas Mensais (Tratamento robusto)
+        let monthlyHtml = '';
+        if (item.faltas_por_mes_texto) {
+            // Se já vier formatado do backend
+            monthlyHtml = item.faltas_por_mes_texto;
+        } else if (item.faltas_por_mes && typeof item.faltas_por_mes === 'object') {
+            // Se vier como objeto {1: 2, 2: 0}
+            monthlyHtml = Object.entries(item.faltas_por_mes)
+                .filter(([_, count]) => count > 0)
                 .map(([month, count]) => {
-                    // Converter número do mês para abreviação
-                    const mesesAbrev = {
-                        '1': 'Jan', '2': 'Fev', '3': 'Mar', '4': 'Abr', 
-                        '5': 'Mai', '6': 'Jun', '7': 'Jul', '8': 'Ago',
-                        '9': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez',
-                        // Suporte para nomes de meses que já vêm por extenso
-                        'Jan': 'Jan', 'Fev': 'Fev', 'Mar': 'Mar', 'Abr': 'Abr',
-                        'Mai': 'Mai', 'Jun': 'Jun', 'Jul': 'Jul', 'Ago': 'Ago',
-                        'Set': 'Set', 'Out': 'Out', 'Nov': 'Nov', 'Dez': 'Dez'
-                    };
-
-                    // Converter mês para nome abreviado
-                    const mesDisplay = mesesAbrev[month] || month;
-
-                    // Determinar o limite de faltas com base no tipo de educação
-                    let limiteMonitoria, limiteFaltoso;
-
-                    if (educationType === 'fundamental' || educationType === 'infantil_obrigatorio') {
-                        limiteMonitoria = 7;
-                        limiteFaltoso = 10;
-                    } else {
-                        limiteMonitoria = 10;
-                        limiteFaltoso = 13;
-                    }
-
-                    // Aplicar classe CSS com base no número de faltas
-                    let cssClass = 'month-absence';
-                    if (count >= limiteFaltoso) {
-                        cssClass = 'month-absence high-absence';
-                    } else if (count >= limiteMonitoria) {
-                        cssClass = 'month-absence medium-absence';
-                    }
-
-                    return `<span class="${cssClass}">${mesDisplay}: ${count}</span>`;
-                })
-                .join(' ');
+                    // Mapeia número do mês para nome
+                    const monthNames = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                    const monthName = monthNames[parseInt(month)] || month;
+                    
+                    // Estilo de alerta
+                    let styleClass = 'month-absence';
+                    if (count >= 10) styleClass += ' high-absence';
+                    else if (count >= 7) styleClass += ' medium-absence';
+                    
+                    return `<span class="${styleClass}">${monthName}: ${count}</span>`;
+                }).join(' ');
         }
-
-        // Garantir que os valores dos totais nunca são 'N/A'
-        let presenceTotalDisplay = presenceTotal === 'N/A' ? '0' : presenceTotal;
-        let absenceTotalDisplay = absenceTotal === 'N/A' ? '0' : absenceTotal;
-        let justifiedTotalDisplay = justifiedTotal === 'N/A' ? '0' : justifiedTotal;
-
-        // Converter para números para cálculos
-        const presenceNum = parseInt(presenceTotalDisplay) || 0;
-        const absenceNum = parseInt(absenceTotalDisplay) || 0;
-        const justifiedNum = parseInt(justifiedTotalDisplay) || 0;
-
-        // Calcular o total de dias e a porcentagem de presença
-        const totalDays = presenceNum + absenceNum + justifiedNum;
-        const calculatedPercentage = totalDays > 0 ? Math.round((presenceNum / totalDays) * 100) : 0;
+        
+        if (!monthlyHtml) monthlyHtml = '-';
 
         row.innerHTML = `
             <td>${schoolName}</td>
             <td>${className}</td>
             <td>${studentName}</td>
-            <td>${createStatusBadge(status)}</td>
-            <td class="numeric">${calculatedPercentage}%</td>
-            <td class="numeric">${presenceTotalDisplay}</td>
-            <td class="numeric">${absenceTotalDisplay}</td>
-            <td class="numeric">${justifiedTotalDisplay}</td>
-            <td class="monthly-details">${hasMonthlyAbsences ? monthlyAbsencesCell : 'N/A'}</td>
+            <td>${statusHtml}</td>
+            <td class="numeric">${percPresenca}%</td>
+            <td class="numeric">${totalP}</td>
+            <td class="numeric">${totalF}</td>
+            <td class="numeric">${totalFJ}</td>
+            <td class="monthly-details">${monthlyHtml}</td>
         `;
 
         tableBody.appendChild(row);

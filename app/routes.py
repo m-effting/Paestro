@@ -1,15 +1,17 @@
 import os
 import logging
 import json
+import uuid
+from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, send_file, current_app
 from werkzeug.utils import secure_filename
 
+# Serviços e Lógica
 from app.services import drive_service, excel_service
 from app.logic import analyzer_presenca as analyzer
 from app.logic import parser_chamada
 from app.logic import reporter
 from app.logic import data as data_manager
-from datetime import datetime
 
 # Criação do Blueprint
 main_bp = Blueprint('main', __name__)
@@ -27,41 +29,49 @@ logger = logging.getLogger(__name__)
 # ==============================================================================
 
 @main_bp.route('/')
-def index():
-    return render_template('index.html')
+def index(): return render_template('index.html')
 
 @main_bp.route('/importar')
-def importar():
-    return render_template('importar.html')
+def importar(): return render_template('importar.html')
 
 @main_bp.route('/chamada')
-def chamada():
-    return render_template('chamada.html')
+def chamada(): return render_template('chamada.html')
 
 @main_bp.route('/exportar')
-def exportar():
-    return render_template('exportar.html')
+def exportar(): return render_template('exportar.html')
 
 @main_bp.route('/analise')
-def analise():
-    return render_template('analise.html')
+def analise(): return render_template('analise.html')
 
 @main_bp.route('/relatorio')
-def relatorio():
-    return render_template('relatorio.html')
+def relatorio(): return render_template('relatorio.html')
 
 # ==============================================================================
 # 2. FUNÇÕES AUXILIARES
 # ==============================================================================
 
 def get_session_file():
-    """
-    Retorna o caminho do arquivo de dados COMPARTILHADO.
-    Todos os usuários leem/escrevem neste mesmo arquivo JSON.
-    """
     filename = "SHARED_VISIT_DATA.json"
     os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
     return os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+
+def limpar_dados_escola(app_data, escola):
+    """Deep Clean: Remove tudo de uma escola específica."""
+    if escola in app_data.get('saved_classes', {}):
+        del app_data['saved_classes'][escola]
+    
+    if 'unit_annotations' in app_data and escola in app_data['unit_annotations']:
+        del app_data['unit_annotations'][escola]
+    
+    turmas_da_escola = list(app_data.get('schools', {}).get(escola, {}).keys())
+    for turma in turmas_da_escola:
+        if turma in app_data.get('attendance_status', {}):
+            del app_data['attendance_status'][turma]
+        if turma in app_data.get('observations', {}):
+            del app_data['observations'][turma]
+
+    logger.info(f"Dados da escola {escola} foram totalmente limpos.")
+    return app_data
 
 # ==============================================================================
 # 3. API - LOGIN E USUÁRIO
@@ -69,22 +79,18 @@ def get_session_file():
 
 @main_bp.route('/api/login', methods=['POST'])
 def api_login():
-    """Registra o usuário atual."""
     data = request.json
     username = data.get('username')
     periodo = data.get('periodo')
     senha = data.get('senha')
 
-    # Validação simples de senha (definida no .env)
     correct_password = os.environ.get('APP_PASSWORD')
     if correct_password and senha != correct_password:
         return jsonify({'success': False, 'error': 'Senha incorreta'}), 401
 
-    # Salva na sessão do navegador
     session['username'] = username
     session['periodo'] = periodo
     
-    # Salva também no arquivo compartilhado para aparecer nos relatórios
     app_data = data_manager.load_data(get_session_file())
     app_data['current_user'] = username
     app_data['periodo'] = periodo
@@ -94,17 +100,10 @@ def api_login():
 
 @main_bp.route('/api/get_current_user', methods=['GET'])
 def get_current_user():
-    """Retorna o usuário logado."""
-    # Tenta pegar do arquivo compartilhado primeiro, fallback para sessão
     app_data = data_manager.load_data(get_session_file())
     username = app_data.get('current_user') or session.get('username')
     periodo = app_data.get('periodo') or session.get('periodo')
-    
-    return jsonify({
-        'success': True, 
-        'username': username, 
-        'periodo': periodo
-    })
+    return jsonify({'success': True, 'username': username, 'periodo': periodo})
 
 # ==============================================================================
 # 4. API - GERENCIAMENTO DE DADOS (ESCOLAS E TURMAS)
@@ -112,21 +111,18 @@ def get_current_user():
 
 @main_bp.route('/api/get_schools', methods=['GET'])
 def get_schools():
-    """Retorna lista de escolas carregadas."""
     app_data = data_manager.load_data(get_session_file())
     schools = sorted(list(app_data.get('schools', {}).keys()))
     return jsonify({'success': True, 'schools': schools})
 
 @main_bp.route('/api/get_school_classes', methods=['POST'])
 def get_school_classes():
-    """Retorna turmas de uma escola específica."""
     req = request.json
     school = req.get('school')
     app_data = data_manager.load_data(get_session_file())
     
     if school and school in app_data['schools']:
         classes = sorted(list(app_data['schools'][school].keys()))
-        # Retorna também quais já foram salvas
         saved = app_data.get('saved_classes', {}).get(school, [])
         return jsonify({'success': True, 'classes': classes, 'saved_classes': saved})
     
@@ -134,7 +130,6 @@ def get_school_classes():
 
 @main_bp.route('/api/get_class', methods=['POST'])
 def get_class():
-    """Retorna lista de alunos de uma turma."""
     req = request.json
     school = req.get('school')
     turma = req.get('class')
@@ -142,35 +137,25 @@ def get_class():
 
     if school in app_data['schools'] and turma in app_data['schools'][school]:
         lista_alunos = app_data['schools'][school][turma]
-        
-        # Reconstrói o estado atual (presenças e observações)
         alunos_formatados = []
         for nome in lista_alunos:
             status = app_data.get('attendance_status', {}).get(turma, {}).get(nome, 'P')
             obs = app_data.get('observations', {}).get(turma, {}).get(nome, '')
-            alunos_formatados.append({
-                'nome': nome,
-                'presenca': status,
-                'observacao': obs
-            })
-            
+            alunos_formatados.append({'nome': nome, 'presenca': status, 'observacao': obs})
         return jsonify({'success': True, 'alunos': alunos_formatados})
     
     return jsonify({'success': False, 'error': 'Turma não encontrada'})
 
 @main_bp.route('/api/get_saved_classes', methods=['GET'])
 def get_saved_classes():
-    """Retorna lista de todas as turmas salvas (para os checkmarks)."""
     app_data = data_manager.load_data(get_session_file())
     escola_filtro = request.args.get('escola')
-    
     all_saved = []
     saved_dict = app_data.get('saved_classes', {})
     
     if escola_filtro:
         all_saved = saved_dict.get(escola_filtro, [])
     else:
-        # Junta todas as listas de todas as escolas
         for lista in saved_dict.values():
             all_saved.extend(lista)
             
@@ -178,22 +163,18 @@ def get_saved_classes():
 
 @main_bp.route('/api/get_saved_classes_status', methods=['GET'])
 def get_saved_classes_status():
-    """Alias para get_saved_classes (usado no polling do JS)."""
     return get_saved_classes()
 
 # ==============================================================================
-# 5. API - UPLOAD E IMPORTAÇÃO
+# 5. API - UPLOAD E IMPORTAÇÃO (CHAMADA PRESENCIAL)
 # ==============================================================================
 
 @main_bp.route('/api/upload', methods=['POST'])
 def upload_file():
-    """Recebe arquivos HTML e processa."""
+    """Upload para a tela de Importar/Chamada."""
     if 'files[]' not in request.files and 'files' not in request.files:
-        # Tenta pegar 'file' único também (usado em alguns JS)
-        if 'file' in request.files:
-            files = [request.files['file']]
-        else:
-            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
+        if 'file' in request.files: files = [request.files['file']]
+        else: return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
     else:
         files = request.files.getlist('files[]') or request.files.getlist('files')
 
@@ -207,14 +188,12 @@ def upload_file():
         try:
             content = file.read().decode('utf-8', errors='ignore')
             
-            # Decide qual parser usar (Chamada ou Análise)
-            # Se for a página de importar (chamada.js/importar.js), usa parser_chamada
+            # Se veio da página de análise (referrer check simples)
             if 'analise' in request.referrer:
-                # Se veio da página de análise, usa o analyzer
                 result = analyzer.analyze_attendance_html(content, file.filename)
-                # (Lógica de salvar análise seria diferente, mas mantemos simples por enquanto)
+                # Nota: Lógica de salvar análise é tratada em /api/analyze, aqui é só fallback
             else:
-                # Padrão: Parser de Chamada
+                # Padrão: Parser de Chamada Presencial
                 result = parser_chamada.parse_chamada(content, file.filename)
                 if result and 'schools' in result:
                     data_manager.merge_data(current_data, result)
@@ -227,8 +206,6 @@ def upload_file():
             logger.error(f"Upload erro: {e}")
 
     data_manager.save_data(current_data, session_file)
-    
-    # Retorna estrutura esperada pelo JS
     schools_list = list(current_data.get('schools', {}).keys())
     return jsonify({
         'success': processed_count > 0,
@@ -239,27 +216,25 @@ def upload_file():
 
 @main_bp.route('/api/get_imported_files', methods=['GET'])
 def get_imported_files():
-    """Retorna lista de arquivos importados (simulado pelas escolas)."""
     app_data = data_manager.load_data(get_session_file())
     files = []
-    # Como não salvamos nomes de arquivos, retornamos as escolas como "arquivos"
     for escola in app_data.get('schools', {}):
         files.append({'name': f"Dados de {escola}"})
     return jsonify({'success': True, 'files': files})
 
 @main_bp.route('/api/delete_file', methods=['POST'])
 def delete_file():
-    """Apaga dados de uma escola (simulando apagar arquivo)."""
     filename = request.json.get('filename', '')
     escola_nome = filename.replace("Dados de ", "")
-    
     app_data = data_manager.load_data(get_session_file())
+    
     if escola_nome in app_data.get('schools', {}):
         del app_data['schools'][escola_nome]
-        # Remove também das turmas salvas
         if escola_nome in app_data.get('saved_classes', {}):
             del app_data['saved_classes'][escola_nome]
-        
+        if 'unit_annotations' in app_data and escola_nome in app_data['unit_annotations']:
+            del app_data['unit_annotations'][escola_nome]
+            
         data_manager.save_data(app_data, get_session_file())
         return jsonify({'success': True})
         
@@ -271,37 +246,39 @@ def delete_file():
 
 @main_bp.route('/api/save_attendance', methods=['POST'])
 def save_attendance():
-    """Salva a chamada e marca turma como concluída."""
     try:
         req = request.json
         escola = req.get('escola')
         turma = req.get('turma')
-        alunos_lista = req.get('alunos', []) # [{nome, presenca, observacao}]
+        alunos_lista = req.get('alunos', []) 
 
         app_data = data_manager.load_data(get_session_file())
 
-        # Inicializa estruturas
         if 'attendance_status' not in app_data: app_data['attendance_status'] = {}
         if 'observations' not in app_data: app_data['observations'] = {}
         if turma not in app_data['attendance_status']: app_data['attendance_status'][turma] = {}
         if turma not in app_data['observations']: app_data['observations'][turma] = {}
 
-        # Salva dados dos alunos
+        if escola not in app_data['schools']: app_data['schools'][escola] = {}
+        if turma not in app_data['schools'][escola]: app_data['schools'][escola][turma] = []
+        
+        current_students = set(app_data['schools'][escola][turma])
+
         for aluno in alunos_lista:
             nome = aluno.get('nome')
             app_data['attendance_status'][turma][nome] = aluno.get('presenca')
             app_data['observations'][turma][nome] = aluno.get('observacao')
+            
+            if nome not in current_students:
+                app_data['schools'][escola][turma].append(nome)
 
-        # Marca turma como salva
         if 'saved_classes' not in app_data: app_data['saved_classes'] = {}
         if escola not in app_data['saved_classes']: app_data['saved_classes'][escola] = []
-        
         if turma not in app_data['saved_classes'][escola]:
             app_data['saved_classes'][escola].append(turma)
 
         data_manager.save_data(app_data, get_session_file())
         return jsonify({'success': True})
-
     except Exception as e:
         logger.error(f"Erro save_attendance: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -318,8 +295,8 @@ def add_annotation():
     req = request.json
     escola = req.get('escola')
     nota = req.get('anotacao')
-    
     app_data = data_manager.load_data(get_session_file())
+    
     if 'unit_annotations' not in app_data: app_data['unit_annotations'] = {}
     if escola not in app_data['unit_annotations']: app_data['unit_annotations'][escola] = []
     
@@ -332,50 +309,13 @@ def delete_annotation():
     req = request.json
     escola = req.get('escola')
     nota = req.get('anotacao')
-    
     app_data = data_manager.load_data(get_session_file())
+    
     if escola in app_data.get('unit_annotations', {}):
         if nota in app_data['unit_annotations'][escola]:
             app_data['unit_annotations'][escola].remove(nota)
             data_manager.save_data(app_data, get_session_file())
     return jsonify({'success': True})
-
-# ==============================================================================
-# FUNÇÃO AUXILIAR DE LIMPEZA
-# ==============================================================================
-
-def limpar_dados_escola(app_data, escola):
-    """
-    Remove TODOS os dados de uma escola específica (Deep Clean).
-    """
-    # 1. Remove das turmas salvas (Check visual)
-    if escola in app_data.get('saved_classes', {}):
-        del app_data['saved_classes'][escola]
-    
-    # 2. Remove anotações da unidade (ESSENCIAL PARA O SEU PEDIDO)
-    if 'unit_annotations' in app_data and escola in app_data['unit_annotations']:
-        del app_data['unit_annotations'][escola]
-        logger.info(f"Anotações da escola {escola} removidas.")
-    
-    # 3. Remove status de presença e observações
-    # Itera sobre todas as turmas que possuem registro de presença
-    turmas_com_presenca = list(app_data.get('attendance_status', {}).keys())
-    
-    # Itera sobre todas as turmas da escola original (importada)
-    turmas_da_escola_original = list(app_data.get('schools', {}).get(escola, {}).keys())
-    
-    # Combina para garantir que pegamos tudo
-    todas_turmas_alvo = set(turmas_da_escola_original)
-    
-    # Adiciona turmas que podem ter sido criadas manualmente e pertencem a essa escola
-    for turma in todas_turmas_alvo:
-        if turma in app_data.get('attendance_status', {}):
-            del app_data['attendance_status'][turma]
-        if turma in app_data.get('observations', {}):
-            del app_data['observations'][turma]
-
-    logger.info(f"Dados da escola {escola} foram totalmente limpos.")
-    return app_data
 
 # ==============================================================================
 # 7. API - EXPORTAÇÃO (DRIVE E DOWNLOAD)
@@ -398,7 +338,7 @@ def export_excel_drive():
 
         turmas_salvas = app_data.get('saved_classes', {}).get(escola, [])
         if not turmas_salvas:
-            return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportar'}), 400
+            return jsonify({'success': False, 'error': 'Nenhuma turma salva'}), 400
 
         classes_exp = {}
         status_exp = {}
@@ -409,7 +349,6 @@ def export_excel_drive():
             status_exp[turma] = app_data['attendance_status'].get(turma, {})
             obs_exp[turma] = app_data['observations'].get(turma, {})
 
-        # Pega as anotações para passar ao Excel
         unit_notes = app_data.get('unit_annotations', {}).get(escola, [])
 
         excel_buffer = excel_service.export_to_excel(
@@ -418,7 +357,7 @@ def export_excel_drive():
             app_data.get('current_user'), 
             app_data.get('periodo'), 
             escola,
-            unit_annotations=unit_notes # <--- Passando anotações
+            unit_annotations=unit_notes 
         )
         
         filename = excel_service.get_excel_filename(escola, app_data.get('periodo'), app_data.get('current_user'))
@@ -439,10 +378,10 @@ def export_excel_drive():
 
 @main_bp.route('/api/export_excel', methods=['GET'])
 def export_excel_download():
+    """Rota para baixar a Chamada Presencial (chamada.html)."""
     try:
         escola = request.args.get('escola')
         auto_clear = request.args.get('auto_clear') == 'true'
-        
         session_file = get_session_file()
         app_data = data_manager.load_data(session_file)
         
@@ -458,7 +397,6 @@ def export_excel_download():
             status_exp[turma] = app_data['attendance_status'].get(turma, {})
             obs_exp[turma] = app_data['observations'].get(turma, {})
 
-        # Pega as anotações para passar ao Excel
         unit_notes = app_data.get('unit_annotations', {}).get(escola, [])
 
         excel_file = excel_service.export_to_excel(
@@ -467,7 +405,7 @@ def export_excel_download():
             app_data.get('current_user'), 
             app_data.get('periodo'), 
             escola,
-            unit_annotations=unit_notes # <--- Passando anotações
+            unit_annotations=unit_notes
         )
 
         filename = excel_service.get_excel_filename(escola, app_data.get('periodo'), app_data.get('current_user'))
@@ -488,26 +426,153 @@ def export_excel_download():
         return str(e), 500
 
 # ==============================================================================
-# 8. API - MÓDULO DE ANÁLISE (JS analise.js)
+# 8. API - MÓDULO DE ANÁLISE COMPLETO (JS analise.js)
 # ==============================================================================
 
 @main_bp.route('/api/analyze', methods=['POST'])
 def api_analyze():
-    # Rota usada pelo analise.js para upload
-    # Reutiliza a lógica de upload mas focada no analyzer
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'No file'}), 400
+    """Recebe arquivos de análise, processa e SALVA na sessão."""
+    if 'files[]' not in request.files and 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
     
-    file = request.files['file']
-    content = file.read().decode('utf-8', errors='ignore')
+    files = request.files.getlist('files[]') or request.files.getlist('file')
+    all_students_results = []
+    processed_count = 0
+    errors = []
+    school_name = "Escola Desconhecida"
     
-    result = analyzer.analyze_attendance_html(content, file.filename)
+    for file in files:
+        if not file or file.filename == '': continue
+        try:
+            content = file.read().decode('utf-8', errors='ignore')
+            result = analyzer.analyze_attendance_html(content, file.filename)
+            
+            if result and result.get('student_data'):
+                all_students_results.extend(result['student_data'])
+                processed_count += 1
+                
+                # Tenta pegar o nome da escola do primeiro arquivo válido
+                if school_name == "Escola Desconhecida" and result.get('school_data'):
+                    school_name = result['school_data'].get('school_name', school_name)
+            else:
+                errors.append(f"{file.filename}: Sem dados válidos.")
+                
+        except Exception as e:
+            errors.append(f"Erro em {file.filename}: {str(e)}")
+            logger.error(f"Erro analisando {file.filename}: {e}")
+            
+    # Aplica regras
+    final_data = analyzer.apply_classification_rules({'student_data': all_students_results})
     
-    # Se precisar salvar resultados da análise...
-    # Por enquanto retorna direto para o JS mostrar na tela
-    if result:
-        # Aplica regras
-        final_data = analyzer.apply_classification_rules(result)
-        return jsonify({'success': True, 'results': final_data, 'summary': {}})
-    else:
-        return jsonify({'success': False, 'error': 'Falha na análise'})
+    # --- SALVANDO NO ARQUIVO COMPARTILHADO ---
+    if processed_count > 0:
+        session_file = get_session_file()
+        app_data = data_manager.load_data(session_file)
+        
+        if 'analyzed_files' not in app_data:
+            app_data['analyzed_files'] = []
+            
+        analysis_batch = {
+            'id': str(uuid.uuid4()),
+            'date': datetime.now().isoformat(),
+            'school_name': school_name,
+            'student_count': len(final_data),
+            'results': final_data, 
+            'class_name': "Múltiplas Turmas" if len(files) > 1 else (final_data[0]['turma'] if final_data else "Geral")
+        }
+        
+        app_data['analyzed_files'].append(analysis_batch)
+        data_manager.save_data(app_data, session_file)
+    
+    summary = {
+        'total_students': len(final_data),
+        'total_files': len(files),
+        'processed_files': processed_count,
+        'errors': errors,
+        'total_absentees': len([s for s in final_data if 'Faltoso' in s['status']]),
+        'total_monitors': len([s for s in final_data if 'Monitorar Faltas' in s['status']])
+    }
+    
+    return jsonify({
+        'success': True, 
+        'results': final_data, 
+        'summary': summary
+    })
+
+@main_bp.route('/api/get_analyzed_files', methods=['GET'])
+def get_analyzed_files():
+    """Retorna lista de arquivos/lotes analisados salvos."""
+    app_data = data_manager.load_data(get_session_file())
+    files = app_data.get('analyzed_files', [])
+    
+    summary_files = []
+    for f in files:
+        summary_files.append({
+            'id': f.get('id'),
+            'date': f.get('date'),
+            'school_name': f.get('school_name'),
+            'class_name': f.get('class_name'),
+            'student_count': f.get('student_count')
+        })
+        
+    return jsonify({'success': True, 'files': summary_files})
+
+@main_bp.route('/api/get_analyzed_file_content/<file_id>', methods=['GET'])
+def get_analyzed_file_content(file_id):
+    """Retorna os resultados completos de um arquivo analisado específico."""
+    app_data = data_manager.load_data(get_session_file())
+    files = app_data.get('analyzed_files', [])
+    
+    for f in files:
+        if f.get('id') == file_id:
+            return jsonify({'success': True, 'results': f.get('results', [])})
+            
+    return jsonify({'success': False, 'error': 'Arquivo não encontrado'})
+
+@main_bp.route('/api/delete_analyzed_file/<file_id>', methods=['DELETE'])
+def delete_analyzed_file(file_id):
+    app_data = data_manager.load_data(get_session_file())
+    files = app_data.get('analyzed_files', [])
+    
+    original_count = len(files)
+    app_data['analyzed_files'] = [f for f in files if f.get('id') != file_id]
+    
+    if len(app_data['analyzed_files']) < original_count:
+        data_manager.save_data(app_data, get_session_file())
+        return jsonify({'success': True})
+        
+    return jsonify({'success': False, 'error': 'Arquivo não encontrado'})
+
+@main_bp.route('/api/clear_analyzed_files', methods=['POST'])
+def clear_analyzed_files():
+    app_data = data_manager.load_data(get_session_file())
+    app_data['analyzed_files'] = []
+    data_manager.save_data(app_data, get_session_file())
+    return jsonify({'success': True})
+
+# ==============================================================================
+# 9. API - DOWNLOAD ANÁLISE
+# ==============================================================================
+
+@main_bp.route('/api/download', methods=['POST'])
+def api_download_analysis():
+    """
+    Exporta a tabela de análise atual para Excel (formato do reporter.py).
+    Usado na página analise.html
+    """
+    try:
+        req_data = request.json
+        data_rows = req_data.get('data', [])
+        
+        # Chama a função do reporter que gera o Excel formatado corretamente
+        excel_buffer = reporter.generate_analysis_excel(data_rows)
+        
+        return send_file(
+            excel_buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'analise_frequencia_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+        )
+    except Exception as e:
+        logger.error(f"Erro export analise: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
