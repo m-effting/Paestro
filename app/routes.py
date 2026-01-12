@@ -346,26 +346,31 @@ def delete_annotation():
 
 def limpar_dados_escola(app_data, escola):
     """
-    Remove TODOS os dados de uma escola específica:
-    - Marcação de turmas salvas
-    - Status de presença dos alunos (F, P, FJ)
-    - Observações lançadas
+    Remove TODOS os dados de uma escola específica (Deep Clean).
     """
-    # 1. Remove das turmas salvas (o check visual)
+    # 1. Remove das turmas salvas (Check visual)
     if escola in app_data.get('saved_classes', {}):
         del app_data['saved_classes'][escola]
     
-    # 2. Remove status de presença (dados reais)
-    # attendance_status é { 'Turma A': { 'Aluno 1': 'P' } }
-    # Precisamos iterar para achar as turmas dessa escola
-    turmas_da_escola = list(app_data.get('schools', {}).get(escola, {}).keys())
+    # 2. Remove anotações da unidade (ESSENCIAL PARA O SEU PEDIDO)
+    if 'unit_annotations' in app_data and escola in app_data['unit_annotations']:
+        del app_data['unit_annotations'][escola]
+        logger.info(f"Anotações da escola {escola} removidas.")
     
-    for turma in turmas_da_escola:
-        # Remove presenças
+    # 3. Remove status de presença e observações
+    # Itera sobre todas as turmas que possuem registro de presença
+    turmas_com_presenca = list(app_data.get('attendance_status', {}).keys())
+    
+    # Itera sobre todas as turmas da escola original (importada)
+    turmas_da_escola_original = list(app_data.get('schools', {}).get(escola, {}).keys())
+    
+    # Combina para garantir que pegamos tudo
+    todas_turmas_alvo = set(turmas_da_escola_original)
+    
+    # Adiciona turmas que podem ter sido criadas manualmente e pertencem a essa escola
+    for turma in todas_turmas_alvo:
         if turma in app_data.get('attendance_status', {}):
             del app_data['attendance_status'][turma]
-        
-        # Remove observações
         if turma in app_data.get('observations', {}):
             del app_data['observations'][turma]
 
@@ -378,28 +383,20 @@ def limpar_dados_escola(app_data, escola):
 
 @main_bp.route('/api/get_drive_folders', methods=['GET'])
 def get_drive_folders_route():
-    """Retorna a lista de escolas configuradas no Drive."""
-    # Chama a função do arquivo drive_service.py
     return drive_service.get_drive_folders()
 
 @main_bp.route('/api/export_excel_drive', methods=['POST'])
 def export_excel_drive():
-    """
-    Gera o Excel, faz upload para o Google Drive e LIMPA os dados salvos após o sucesso.
-    """
     try:
-        # 1. Carrega dados da requisição e da sessão
         req_data = request.json
         escola = req_data.get('escola')
         folder_id = req_data.get('folder_id')
-        auto_clear = req_data.get('auto_clear') # Vem como True do Javascript
+        auto_clear = req_data.get('auto_clear')
         
         session_file = get_session_file()
         app_data = data_manager.load_data(session_file)
 
-        # 2. Prepara os dados para o Excel (Igual ao download manual)
         turmas_salvas = app_data.get('saved_classes', {}).get(escola, [])
-        
         if not turmas_salvas:
             return jsonify({'success': False, 'error': 'Nenhuma turma salva para exportar'}), 400
 
@@ -408,41 +405,30 @@ def export_excel_drive():
         obs_exp = {}
         
         for turma in turmas_salvas:
-            # Garante que a turma existe nos dados da escola
-            if turma in app_data['schools'].get(escola, {}):
-                classes_exp[turma] = app_data['schools'][escola][turma]
-                status_exp[turma] = app_data['attendance_status'].get(turma, {})
-                obs_exp[turma] = app_data['observations'].get(turma, {})
+            classes_exp[turma] = app_data['schools'].get(escola, {}).get(turma, [])
+            status_exp[turma] = app_data['attendance_status'].get(turma, {})
+            obs_exp[turma] = app_data['observations'].get(turma, {})
 
-        # 3. Gera o arquivo Excel em memória usando o excel_service
+        # Pega as anotações para passar ao Excel
+        unit_notes = app_data.get('unit_annotations', {}).get(escola, [])
+
         excel_buffer = excel_service.export_to_excel(
             classes_exp, status_exp, obs_exp, 
             None, 
             app_data.get('current_user'), 
             app_data.get('periodo'), 
-            escola
+            escola,
+            unit_annotations=unit_notes # <--- Passando anotações
         )
         
-        # Define o nome do arquivo
-        filename = excel_service.get_excel_filename(
-            escola, 
-            app_data.get('periodo'), 
-            app_data.get('current_user')
-        )
-
-        # 4. Faz o Upload para o Drive
-        # Pega os bytes do arquivo gerado
-        excel_bytes = excel_buffer.getvalue()
-        
-        file_id = drive_service.upload_excel_to_drive(excel_bytes, filename, folder_id)
+        filename = excel_service.get_excel_filename(escola, app_data.get('periodo'), app_data.get('current_user'))
+        file_id = drive_service.upload_excel_to_drive(excel_buffer.getvalue(), filename, folder_id)
         
         if not file_id:
-            return jsonify({'success': False, 'error': 'Falha ao fazer upload para o Drive (Verifique permissões)'}), 500
-
-        # 5. limpeza dos dados (Auto-Clear)
+            return jsonify({'success': False, 'error': 'Erro no upload'}), 500
 
         if auto_clear:
-            app_data = limpar_dados_escola(app_data, escola) # <--- CHAMA A NOVA FUNÇÃO
+            app_data = limpar_dados_escola(app_data, escola)
             data_manager.save_data(app_data, session_file)
 
         return jsonify({'success': True, 'drive_file_id': file_id})
@@ -453,56 +439,43 @@ def export_excel_drive():
 
 @main_bp.route('/api/export_excel', methods=['GET'])
 def export_excel_download():
-    """
-    Baixa o Excel diretamente e LIMPA TUDO (Deep Clean) se solicitado.
-    """
     try:
-        # 1. Captura parâmetros
         escola = request.args.get('escola')
         auto_clear = request.args.get('auto_clear') == 'true'
         
         session_file = get_session_file()
         app_data = data_manager.load_data(session_file)
         
-        # 2. Validação: Verifica se há algo para exportar
         turmas_salvas = app_data.get('saved_classes', {}).get(escola, [])
-        if not turmas_salvas:
-            return "Nenhuma turma salva para exportar nesta escola.", 400
+        if not turmas_salvas: return "Nenhuma turma salva para exportar", 400
 
-        # 3. Prepara os dados para o Excel
         classes_exp = {}
         status_exp = {}
         obs_exp = {}
         
         for turma in turmas_salvas:
-            # Garante que a turma existe na estrutura da escola
-            if turma in app_data['schools'].get(escola, {}):
-                classes_exp[turma] = app_data['schools'][escola][turma]
-                status_exp[turma] = app_data['attendance_status'].get(turma, {})
-                obs_exp[turma] = app_data['observations'].get(turma, {})
+            classes_exp[turma] = app_data['schools'].get(escola, {}).get(turma, [])
+            status_exp[turma] = app_data['attendance_status'].get(turma, {})
+            obs_exp[turma] = app_data['observations'].get(turma, {})
 
-        # 4. Gera o arquivo Excel em memória
+        # Pega as anotações para passar ao Excel
+        unit_notes = app_data.get('unit_annotations', {}).get(escola, [])
+
         excel_file = excel_service.export_to_excel(
             classes_exp, status_exp, obs_exp, 
             None, 
             app_data.get('current_user'), 
             app_data.get('periodo'), 
-            escola
+            escola,
+            unit_annotations=unit_notes # <--- Passando anotações
         )
 
-        filename = excel_service.get_excel_filename(
-            escola, 
-            app_data.get('periodo'), 
-            app_data.get('current_user')
-        )
+        filename = excel_service.get_excel_filename(escola, app_data.get('periodo'), app_data.get('current_user'))
 
-        # 5. LIMPEZA COMPLETA (Deep Clean) ANTES DE ENVIAR
-        # Importante fazer isso antes do return, pois o return encerra a função
         if auto_clear:
-            app_data = limpar_dados_escola(app_data, escola) # Chama a função auxiliar
+            app_data = limpar_dados_escola(app_data, escola)
             data_manager.save_data(app_data, session_file)
 
-        # 6. Envia o arquivo para o navegador
         return send_file(
             excel_file,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

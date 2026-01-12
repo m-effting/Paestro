@@ -1,5 +1,5 @@
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment
+from openpyxl.styles import Font, Alignment, PatternFill
 import io
 from datetime import datetime
 import pytz
@@ -12,29 +12,18 @@ logger = logging.getLogger(__name__)
 
 def normalize_school_name(name):
     """
-    Função auxiliar para normalizar nomes de escolas, removendo acentos e espaços extras.
-    Útil para comparar chaves de dicionário.
+    Função auxiliar para normalizar nomes de escolas.
     """
     if not name:
         return ""
-    # Remove acentos
     nfkd_form = unicodedata.normalize('NFKD', name)
     name_ascii = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
-    # Remove espaços extras e converte para maiúsculas
     return " ".join(name_ascii.upper().split())
 
-def export_to_excel(classes, attendance_status, observations, html_content=None, current_user=None, periodo=None, escola_nome=None):
+def export_to_excel(classes, attendance_status, observations, html_content=None, current_user=None, periodo=None, escola_nome=None, unit_annotations=None):
     """
     Gera um arquivo Excel com a lista de presença formatada.
-    
-    Args:
-        classes (dict): Dicionário {turma: [lista_alunos]}
-        attendance_status (dict): Dicionário de presenças
-        observations (dict): Dicionário de observações
-        html_content (str): Conteúdo HTML (opcional, mantido para compatibilidade)
-        current_user (str): Nome do usuário/dupla responsável
-        periodo (str): Período da chamada (Matutino/Vespertino)
-        escola_nome (str): Nome da unidade escolar
+    Suporta alunos adicionados manualmente e anotações da unidade.
     """
     wb = Workbook()
     ws = wb.active
@@ -43,7 +32,7 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
     br_tz = pytz.timezone('America/Sao_Paulo')
     current_time = datetime.now(br_tz).strftime('%d/%m/%Y %H:%M')
 
-    # Validação de valores padrão para evitar "None" no Excel
+    # Validação de valores padrão
     safe_escola = escola_nome.upper() if escola_nome else "NÃO INFORMADO"
     safe_user = current_user.upper() if current_user else "NÃO INFORMADO"
     safe_periodo = periodo.upper() if periodo else "NÃO INFORMADO"
@@ -62,20 +51,56 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
         ws[f'B{i}'] = value
         ws.merge_cells(f'B{i}:D{i}')
 
-    current_row = len(header_rows) + 2  # Pula uma linha após cabeçalho
+    current_row = len(header_rows) + 2 
 
-    # --- Seção de Anotações (Requer lógica de anotações no app_data) ---
-    # Nota: Se passar 'unit_annotations' via argumento no futuro, descomentar e adaptar aqui.
-    
-    if not classes:
+    # --- Seção de Anotações da Unidade ---
+    # Só renderiza se houver anotações
+    if unit_annotations and len(unit_annotations) > 0:
+        ws.merge_cells(f"A{current_row}:D{current_row}")
+        ws[f"A{current_row}"] = "ANOTAÇÕES GERAIS DA UNIDADE:"
+        ws[f"A{current_row}"].font = Font(bold=True, underline="single")
+        current_row += 1
+        
+        for note in unit_annotations:
+            ws.merge_cells(f"A{current_row}:D{current_row}")
+            ws[f"A{current_row}"] = f"• {note}"
+            ws[f"A{current_row}"].alignment = Alignment(wrap_text=True)
+            current_row += 1
+        
+        current_row += 1 # Espaço extra após anotações
+
+    # Identificar todas as turmas únicas (originais + onde houve lançamento manual)
+    all_turmas = set(classes.keys())
+    if attendance_status:
+        all_turmas.update(attendance_status.keys())
+    if observations:
+        all_turmas.update(observations.keys())
+
+    if not all_turmas:
         ws.merge_cells(f"A{current_row}:D{current_row}")
         ws[f"A{current_row}"] = "NENHUMA CHAMADA SALVA ENCONTRADA"
         ws[f"A{current_row}"].font = Font(italic=True, color="FF0000")
     else:
-        # Ordena as turmas alfabeticamente para o relatório ficar bonito
-        sorted_classes = sorted(classes.items())
+        # Ordena as turmas alfabeticamente
+        sorted_classes = sorted(list(all_turmas))
 
-        for turma, alunos in sorted_classes:
+        for turma in sorted_classes:
+            # Pega alunos da lista original (importada)
+            original_students = classes.get(turma, [])
+            
+            # Pega alunos que têm presença lançada (inclui manuais)
+            attendance_students = list(attendance_status.get(turma, {}).keys())
+            
+            # Pega alunos que têm observação lançada (inclui manuais)
+            obs_students = list(observations.get(turma, {}).keys())
+            
+            # Junta todos, remove duplicatas e ordena
+            all_students = sorted(list(set(original_students + attendance_students + obs_students)))
+            
+            # Se não tiver alunos (turma vazia), pula
+            if not all_students:
+                continue
+
             # Limpa o nome da turma para exibição
             turma_display = turma.split('(')[0].strip() if '(' in turma else turma
             
@@ -84,8 +109,7 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
             ws[f"A{current_row}"] = f"TURMA: {turma_display.upper()}"
             ws[f"A{current_row}"].font = Font(bold=True, size=12, color="FFFFFF")
             
-            # Estilo simples de fundo azul para o nome da turma
-            from openpyxl.styles import PatternFill
+            # Estilo simples de fundo azul
             blue_fill = PatternFill(start_color="0070C0", end_color="0070C0", fill_type="solid")
             ws[f"A{current_row}"].fill = blue_fill
             
@@ -98,17 +122,16 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
                 cell.value = header
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal='center')
-                # Fundo cinza claro para cabeçalho da tabela
                 cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
             
             current_row += 1
 
             # Lista de Alunos
-            for aluno in sorted(alunos): # Alunos em ordem alfabética
+            for aluno in all_students:
                 ws.cell(row=current_row, column=1).value = aluno
                 
-                # Status (P, F, J)
-                status = attendance_status.get(turma, {}).get(aluno, "P") # Padrão Presente
+                # Status (P, F, FJ) - Padrão "P" se não existir
+                status = attendance_status.get(turma, {}).get(aluno, "P") 
                 ws.cell(row=current_row, column=2).value = status
                 ws.cell(row=current_row, column=2).alignment = Alignment(horizontal='center')
                 
@@ -140,42 +163,24 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
 
 def get_excel_filename(escola_nome=None, periodo=None, current_user=None):
     """
-    Gera o nome do arquivo no formato padronizado: 
-    NOME_DA_UNIDADE_DIA-MÊS-ANO_PERIODO_NOME_DA_DUPLA.xlsx
+    Gera o nome do arquivo no formato padronizado.
     """
-
-    def sanitize(text, remove_hyphens=False):
+    def sanitize(text):
         if not text or not isinstance(text, str):
             return ""
-
-        # Remove símbolos específicos que dão erro em nomes de arquivo
-        symbols_to_remove = ['º', 'ª', '°', '¨', '´', '`', '^', '~']
-        for symbol in symbols_to_remove:
-            text = text.replace(symbol, '')
-
-        # Normaliza caracteres unicode (remove acentos: João -> Joao)
-        text = unicodedata.normalize('NFKD', text)
-        text = ''.join([c for c in text if not unicodedata.combining(c)])
-
-        # Padrão de caracteres permitidos (apenas letras, números e traços)
-        pattern = r'[^\w\s]' if remove_hyphens else r'[^\w\s-]'
+        text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('ASCII')
+        pattern = r'[^\w\s-]'
         text = re.sub(pattern, '', text)
-
-        # Substitui espaços e pontos por underline
         text = re.sub(r'[\s\-\.]+', '_', text.strip())
-        text = re.sub(r'_+', '_', text) # Remove underlines duplicados
-        text = text.strip('_')
+        text = re.sub(r'_+', '_', text)
+        return text.strip('_').upper()
 
-        return text.upper()
-
-    # Monta os componentes do nome
     components = [
-        sanitize(escola_nome, remove_hyphens=True) or "UNIDADE_NAO_INFORMADA",
+        sanitize(escola_nome) or "UNIDADE_NAO_INFORMADA",
         datetime.now().strftime('%d-%m-%Y'),
         sanitize(periodo) or "PERIODO_NAO_INFORMADO",
         sanitize(current_user) or "DUPLA_NAO_INFORMADA"
     ]
-
-    # Junta tudo com _, limita a 100 caracteres e adiciona extensão
+    
     filename = "_".join(filter(None, components)) + ".xlsx"
     return filename[:100]

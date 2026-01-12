@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 def normalize_school_name(name):
     """
     Normaliza nomes de escolas (remove acentos, minúsculas).
-    Útil para chaves de dicionário consistentes.
     """
     if not name:
         return ""
