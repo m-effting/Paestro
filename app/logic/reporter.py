@@ -11,9 +11,9 @@ def generate_consolidated_report(chamada_files, analise_files):
     # Função legada para compatibilidade, se necessário
     pass
 
-def generate_analysis_excel(data_rows):
+def generate_analysis_excel(data_rows, show_monthly_details=True): 
     """
-    Gera Excel bonitão no estilo do CSV de exemplo.
+    Gera Excel no estilo do CSV de exemplo.
     FILTRA ALUNOS "REGULAR" (mostra apenas os que precisam de atenção).
     - Cabeçalho com Escola/Data
     - Agrupado por Turma
@@ -66,10 +66,15 @@ def generate_analysis_excel(data_rows):
         
     sorted_turmas = sorted(dados_por_turma.keys())
     
+    # Definição Dinâmica de Cabeçalhos
     headers = [
-        "Aluno", "Status", "% Presença", "Total P", "Total F", "Total FJ", 
-        "F por mês", "Nºs de contato", "Data do contato", "Motivo das faltas"
+        "Aluno", "Status", "% Presença", "Total P", "Total F", "Total FJ"
     ]
+    
+    if show_monthly_details:
+        headers.append("F por mês")
+        
+    headers.extend(["Nºs de contato", "Data do contato", "Motivo das faltas"])
     
     # Estilos
     header_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
@@ -81,10 +86,11 @@ def generate_analysis_excel(data_rows):
         ws.cell(row=current_row, column=1, value=f"Turma: {turma}")
         ws.cell(row=current_row, column=1).font = Font(bold=True)
         ws.cell(row=current_row, column=1).fill = turma_fill
+        # Mescla até o final das colunas dinâmicas
         ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=len(headers))
         current_row += 1
         
-        # Cabeçalhos
+        # Cabeçalhos das Colunas
         for col_idx, h in enumerate(headers, 1):
             cell = ws.cell(row=current_row, column=col_idx, value=h)
             cell.font = Font(bold=True)
@@ -105,27 +111,40 @@ def generate_analysis_excel(data_rows):
             status_val = aluno.get('status', [])
             if isinstance(status_val, list): status_val = ", ".join(status_val)
             
+            # Monta lista de valores baseada na opção show_monthly_details
             vals = [
                 aluno.get('aluno', ''),
                 status_val,
                 f"{aluno.get('percentual_presenca', 0)}%",
                 aluno.get('P', 0),
                 aluno.get('F', 0),
-                aluno.get('FJ', 0),
-                f_mes or "N/A",
-                "", "", "" # Colunas vazias
+                aluno.get('FJ', 0)
             ]
+            
+            if show_monthly_details:
+                vals.append(f_mes or "N/A")
+                
+            vals.extend(["", "", ""]) # Colunas vazias para contato
             
             for col_idx, val in enumerate(vals, 1):
                 cell = ws.cell(row=current_row, column=col_idx, value=val)
                 cell.border = border
-                if col_idx > 2 and col_idx < 7: cell.alignment = Alignment(horizontal='center')
+                # Centraliza colunas numéricas (índices 3 a 6)
+                if col_idx > 2 and col_idx < 7: 
+                    cell.alignment = Alignment(horizontal='center')
             
             current_row += 1
         current_row += 1 # Espaço entre turmas
         
-    # Largura das colunas
-    widths = [40, 20, 12, 8, 8, 8, 35, 20, 20, 40]
+    # Largura das colunas (Ajuste dinâmico)
+    # Padrão: Aluno, Status, %, P, F, FJ
+    widths = [40, 20, 12, 8, 8, 8]
+    
+    if show_monthly_details:
+        widths.append(35) # Largura para F por mês
+        
+    widths.extend([20, 20, 40]) # Contato, Data, Motivo
+    
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
         

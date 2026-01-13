@@ -588,6 +588,9 @@ async function exportData(format = 'excel') {
         const statusFilter = document.getElementById('status-filter').value;
         const educationFilter = document.getElementById('education-filter').value;
 
+        const showDetailsCheckbox = document.getElementById('toggle-details');
+        const showMonthlyDetails = showDetailsCheckbox ? showDetailsCheckbox.checked : true;
+
         let dataToExport = window.results || [];
         console.log(`Exportando ${dataToExport.length} registros`);
 
@@ -648,7 +651,7 @@ async function exportData(format = 'excel') {
             return;
         }
 
-        // Criar formulário para submissão usando o método POST com tipo aplicação/json
+        // Criar formulário para submissão
         const response = await fetch('/api/download', {
             method: 'POST',
             headers: {
@@ -656,10 +659,11 @@ async function exportData(format = 'excel') {
             },
             body: JSON.stringify({
                 data: dataToExport,
-                format: format
+                format: format,
+                show_monthly_details: showMonthlyDetails // <--- Enviando a opção aqui
             })
         });
-
+        
         // Se a resposta não for ok (status 200-299), lançar erro
         if (!response.ok) {
             const contentType = response.headers.get('content-type');

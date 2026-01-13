@@ -572,9 +572,11 @@ def api_download_analysis():
     try:
         req_data = request.json
         data_rows = req_data.get('data', [])
+
+        show_monthly_details = req_data.get('show_monthly_details', True)
         
-        # Chama a função do reporter que gera o Excel formatado corretamente
-        excel_buffer = reporter.generate_analysis_excel(data_rows)
+        # Passar a opção para o gerador de Excel
+        excel_buffer = reporter.generate_analysis_excel(data_rows, show_monthly_details=show_monthly_details)
         
         # Determinar o nome do arquivo
         data_str = datetime.now().strftime("%d-%m-%y")
