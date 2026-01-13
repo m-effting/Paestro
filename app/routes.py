@@ -1,12 +1,13 @@
 import os
 import logging
+import unicodedata
+import re
 import json
 import uuid
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, send_file, current_app
 from werkzeug.utils import secure_filename
 
-# Serviços e Lógica
 from app.services import drive_service, excel_service
 from app.logic import analyzer_presenca as analyzer
 from app.logic import parser_chamada
@@ -439,21 +440,23 @@ def api_analyze():
     all_students_results = []
     processed_count = 0
     errors = []
+    
+    # Variável para guardar o nome da escola do lote
     school_name = "Escola Desconhecida"
     
     for file in files:
         if not file or file.filename == '': continue
         try:
             content = file.read().decode('utf-8', errors='ignore')
+            # Chama o analyzer
             result = analyzer.analyze_attendance_html(content, file.filename)
             
             if result and result.get('student_data'):
                 all_students_results.extend(result['student_data'])
                 processed_count += 1
                 
-                # Tenta pegar o nome da escola do primeiro arquivo válido
                 if school_name == "Escola Desconhecida" and result.get('school_data'):
-                    school_name = result['school_data'].get('school_name', school_name)
+                    school_name = result['school_data'].get('unit_name', school_name)
             else:
                 errors.append(f"{file.filename}: Sem dados válidos.")
                 
@@ -461,7 +464,7 @@ def api_analyze():
             errors.append(f"Erro em {file.filename}: {str(e)}")
             logger.error(f"Erro analisando {file.filename}: {e}")
             
-    # Aplica regras
+    # Aplica regras de classificação
     final_data = analyzer.apply_classification_rules({'student_data': all_students_results})
     
     # --- SALVANDO NO ARQUIVO COMPARTILHADO ---
@@ -472,13 +475,18 @@ def api_analyze():
         if 'analyzed_files' not in app_data:
             app_data['analyzed_files'] = []
             
+        # Determina o nome da turma para o lote
+        turma_nome = "Múltiplas Turmas"
+        if len(files) == 1 and final_data:
+            turma_nome = final_data[0].get('turma', 'Geral')
+            
         analysis_batch = {
             'id': str(uuid.uuid4()),
             'date': datetime.now().isoformat(),
             'school_name': school_name,
             'student_count': len(final_data),
             'results': final_data, 
-            'class_name': "Múltiplas Turmas" if len(files) > 1 else (final_data[0]['turma'] if final_data else "Geral")
+            'class_name': turma_nome
         }
         
         app_data['analyzed_files'].append(analysis_batch)
@@ -559,6 +567,7 @@ def api_download_analysis():
     """
     Exporta a tabela de análise atual para Excel (formato do reporter.py).
     Usado na página analise.html
+    Nome do arquivo: analise_frequencia_[nome_escola]_dd-mm-aa.xlsx
     """
     try:
         req_data = request.json
@@ -567,11 +576,36 @@ def api_download_analysis():
         # Chama a função do reporter que gera o Excel formatado corretamente
         excel_buffer = reporter.generate_analysis_excel(data_rows)
         
+        # Determinar o nome do arquivo
+        data_str = datetime.now().strftime("%d-%m-%y")
+        
+        # Extrair nomes únicos das escolas nos dados
+        escolas = list(set([row.get('escola', 'Escola Desconhecida') for row in data_rows]))
+        # Remove nulos ou vazios
+        escolas = [e for e in escolas if e and e != 'Escola Desconhecida' and e != 'Não identificada']
+        
+        if len(escolas) == 1:
+            raw_name = escolas[0]
+            
+            # 1. Normaliza unicode
+            normalized = unicodedata.normalize('NFKD', raw_name).encode('ASCII', 'ignore').decode('utf-8')
+            
+            # 2. Substitui tudo que não for letra ou número por underscore
+            nome_escola = re.sub(r'[^a-zA-Z0-9]', '_', normalized)
+            
+            # 3. Remove underscores duplicados 
+            nome_escola = re.sub(r'_+', '_', nome_escola).strip('_')
+            
+            filename = f'analise_frequencia_{nome_escola}_{data_str}.xlsx'
+        else:
+            # Múltiplas escolas ou desconhecida
+            filename = f'analise_frequencia_{data_str}.xlsx'
+        
         return send_file(
             excel_buffer,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name=f'analise_frequencia_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+            download_name=filename
         )
     except Exception as e:
         logger.error(f"Erro export analise: {e}")

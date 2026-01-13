@@ -374,8 +374,8 @@ function updateSummary(summary) {
 }
 
 function setupFilters(results) {
-    // Extrair escolas únicas
-    const schools = [...new Set(results.map(item => item.school_name || item.escola))];
+    // Extrair escolas únicas - Normalizando para evitar duplicatas por espaços/case
+    const schools = [...new Set(results.map(item => (item.school_name || item.escola || 'N/A').trim()))].sort();
     const schoolFilter = document.getElementById('school-filter');
     schoolFilter.innerHTML = '<option value="todos">Todas</option>';
     schools.forEach(school => {
@@ -383,7 +383,7 @@ function setupFilters(results) {
     });
 
     // Extrair turmas únicas
-    const classes = [...new Set(results.map(item => item.class_name || item.turma))];
+    const classes = [...new Set(results.map(item => (item.class_name || item.turma || 'N/A').trim()))].sort();
     const classFilter = document.getElementById('class-filter');
     classFilter.innerHTML = '<option value="todos">Todas</option>';
     classes.forEach(className => {
@@ -404,73 +404,56 @@ function applyFilters() {
     const statusFilter = document.getElementById('status-filter').value;
     const educationFilter = document.getElementById('education-filter').value;
 
-    let filteredResults = window.results.filter(item => {
-        const schoolMatch = schoolFilter === 'todos' || (item.school_name || item.escola || item.unidade) === schoolFilter;
-        const classMatch = classFilter === 'todos' || (item.class_name || item.turma) === classFilter;
+    console.log("Aplicando filtros:", { schoolFilter, classFilter, statusFilter, educationFilter });
 
-        // Verificar status - verificar de forma mais robusta
+    let filteredResults = window.results.filter(item => {
+        // Normalização dos valores do item para comparação
+        const itemSchool = (item.school_name || item.escola || item.unidade || 'N/A').trim();
+        const itemClass = (item.class_name || item.turma || 'N/A').trim();
+        
+        const schoolMatch = schoolFilter === 'todos' || itemSchool === schoolFilter;
+        const classMatch = classFilter === 'todos' || itemClass === classFilter;
+
+        // Verificar status
         let statusMatch = statusFilter === 'todos';
         if (statusFilter !== 'todos') {
-            // 1. Verifica se status é um array
-            if (Array.isArray(item.status)) {
-                statusMatch = item.status.includes(statusFilter);
-            } 
-            // 2. Verifica se situacao é um array
-            else if (Array.isArray(item.situacao)) {
-                statusMatch = item.situacao.includes(statusFilter);
-            } 
-            // 3. Verifica se status é uma string
-            else if (typeof item.status === 'string') {
-                statusMatch = item.status.includes(statusFilter);
-            } 
-            // 4. Verifica se situacao é uma string
-            else if (typeof item.situacao === 'string') {
-                statusMatch = item.situacao.includes(statusFilter);
-            } 
-            // 5. Verifica outras propriedades
-            else if (item.classificacao) {
-                statusMatch = String(item.classificacao).includes(statusFilter);
-            }
-            // 6. Caso não encontre, verifica outros formatos (fallback)
-            else {
-                statusMatch = String(item.status || item.situacao || '').includes(statusFilter);
-            }
+            // Normalizar status do item para array de strings
+            let itemStatus = [];
+            if (Array.isArray(item.status)) itemStatus = item.status;
+            else if (Array.isArray(item.situacao)) itemStatus = item.situacao;
+            else if (typeof item.status === 'string') itemStatus = item.status.split(',').map(s=>s.trim());
+            else if (typeof item.situacao === 'string') itemStatus = item.situacao.split(',').map(s=>s.trim());
+            else if (item.classificacao) itemStatus = String(item.classificacao).split(',').map(s=>s.trim());
+            else itemStatus = [String(item.status || item.situacao || '')];
+
+            statusMatch = itemStatus.some(s => s.includes(statusFilter));
         }
 
-        // Verificar tipo de ensino com base no nome da turma
+        // Verificar tipo de ensino
         let educationMatch = true;
-
         if (educationFilter !== 'todos') {
-            const className = (item.class_name || item.turma || '').toUpperCase();
+            const classNameUpper = itemClass.toUpperCase();
+            
+            // Definição clara de Obrigatório vs Não Obrigatório baseada na Turma
+            // GT0-GT3: Não Obrigatório
+            // GT4-GT5, 1º-9º Ano: Obrigatório
+            const isNaoObrigatorio = /GT\s*[0-3]/.test(classNameUpper);
+            const isObrigatorio = /GT\s*[4-5]/.test(classNameUpper) || /[1-9][º°]?\s*ANO/.test(classNameUpper);
 
             if (educationFilter === 'obrigatorio') {
-                // Ensino obrigatório: GT4, GT5 e 1º ao 9º ano
-                educationMatch = className.includes('GT4') || 
-                                 className.includes('GT5') || 
-                                 className.includes('GT 4') || 
-                                 className.includes('GT 5') || 
-                                 /[1-9]º/.test(className) || 
-                                 /[1-9] ANO/.test(className);
+                educationMatch = isObrigatorio;
             } else if (educationFilter === 'nao_obrigatorio') {
-                // Ensino não obrigatório: GT0 a GT3
-                educationMatch = className.includes('GT0') || 
-                                 className.includes('GT1') || 
-                                 className.includes('GT2') || 
-                                 className.includes('GT3') || 
-                                 className.includes('GT 0') || 
-                                 className.includes('GT 1') || 
-                                 className.includes('GT 2') || 
-                                 className.includes('GT 3');
+                educationMatch = isNaoObrigatorio;
             }
         }
 
         return schoolMatch && classMatch && statusMatch && educationMatch;
     });
 
-    // Atualizar o resumo baseado nos resultados filtrados usando a mesma função que calcula o resumo geral
-    const filteredSummary = calculateCombinedSummary(filteredResults);
+    console.log(`Filtrado: ${window.results.length} -> ${filteredResults.length}`);
 
     // Atualizar o resumo e a tabela
+    const filteredSummary = calculateCombinedSummary(filteredResults);
     updateSummary(filteredSummary);
     updateResultTable(filteredResults);
 }
