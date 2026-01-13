@@ -713,8 +713,6 @@ async function exportData(format = 'excel') {
     }
 }
 
-// As funções toggleLogs, fetchLogs e toggleRules foram removidas
-// pois a seção de logs foi removida e a seção de regras agora usa <details>/<summary>
 
 // Funções para gerenciar os arquivos salvos
 async function loadSavedFiles() {
@@ -747,7 +745,7 @@ async function loadSavedFiles() {
     }
 }
 
-// Nova função para carregar todos os arquivos analisados automaticamente
+// Carregar todos os arquivos analisados automaticamente
 async function loadAllAnalyzedFiles(files) {
     try {
         // Limpa os resultados combinados
@@ -868,8 +866,6 @@ async function handleCheckboxChange(event) {
         setLoading(false);
     }
 }
-
-// Função combineSelectedFiles foi removida pois todos os arquivos agora são carregados automaticamente
 
 // Array global para armazenar todos os resultados combinados
 window.combinedResults = [];

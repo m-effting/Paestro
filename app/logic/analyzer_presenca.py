@@ -50,7 +50,7 @@ def determine_education_type(class_name):
         result["obrigatorio"] = True
         return result
     
-    result["nivel"] = "infantil"
+    result["nivel"] = "infantil" # Default
     result["obrigatorio"] = False
     return result
 
@@ -63,48 +63,111 @@ def apply_classification_rules(data_wrapper):
     
     for student in students:
         status = []
+        
+        # Dados do aluno
+        edu_type = student.get('education_type', 'infantil')
         is_compulsory = student.get('is_compulsory', False)
         
-        limit_faltoso = 10 if is_compulsory else 12
-        limit_monitor = 7 if is_compulsory else 10
-        
+        # Totais
+        try:
+            total_p = int(student.get('P', 0))
+            total_f = int(student.get('F', 0))
+            total_fj = int(student.get('FJ', 0))
+            total_presenca_real = total_p + total_f 
+            total_geral = total_p + total_f + total_fj  
+            
+            if total_geral > 0:
+                perc_presenca_calc = (total_p / total_geral) * 100 # Presença real
+                perc_just_calc = (total_fj / total_geral) * 100
+            else:
+                perc_presenca_calc = 100.0
+                perc_just_calc = 0.0
+                
+        except:
+            perc_presenca_calc = 100.0
+            perc_just_calc = 0.0
+
+        # Faltas Mensais (para Infantil)
         monthly = student.get('faltas_por_mes', {})
-        max_monthly = 0
+        max_monthly_faltas = 0
         if monthly and isinstance(monthly, dict):
             valores = [v for v in monthly.values() if isinstance(v, (int, float))]
-            max_monthly = max(valores) if valores else 0
-            
-        try:
-            perc_presenca = float(student.get('percentual_presenca', 0))
-        except: perc_presenca = 0
-            
-        try:
-            perc_just = float(student.get('percentual_justificado', 0))
-        except: perc_just = 0
+            max_monthly_faltas = max(valores) if valores else 0
+
+        # --- APLICAÇÃO DAS REGRAS ---
         
-        if max_monthly >= limit_faltoso or (perc_presenca < 60 and perc_presenca > 0):
+        is_faltoso = False
+        is_monitorar_faltas = False
+        
+        # 1. Regras por Nível de Ensino (Infantil vs Fundamental)
+        
+        if edu_type == 'fundamental':
+            # Fundamental (1º ao 9º)
+            # Faltoso: menos de 60% de presença
+            if perc_presenca_calc < 60.0:
+                is_faltoso = True
+            # Monitorar Faltas: de 60% a 70% de presença
+            elif 60.0 <= perc_presenca_calc < 70.0:
+                is_monitorar_faltas = True
+                
+        else: # Infantil
+            # Regras baseadas em faltas mensais consecutivas/máximas
+            
+            limit_faltoso_mensal = 100 # Valor alto inicial
+            limit_monitor_mensal = 100
+            
+            if is_compulsory: # GT4, GT5
+                limit_monitor_mensal = 7
+                limit_faltoso_mensal = 10
+            else: # GT0-GT3
+                limit_monitor_mensal = 10
+                limit_faltoso_mensal = 12
+            
+            # Checagem Mensal
+            if max_monthly_faltas >= limit_faltoso_mensal:
+                is_faltoso = True
+            elif max_monthly_faltas >= limit_monitor_mensal:
+                is_monitorar_faltas = True
+            
+            # Regra de Fallback por Percentual (também se aplica ao Infantil)
+            if not is_faltoso and not is_monitorar_faltas:
+                if perc_presenca_calc < 60.0:
+                    is_faltoso = True
+                elif 60.0 <= perc_presenca_calc < 70.0:
+                    is_monitorar_faltas = True
+
+        # Aplica Status de Faltas
+        if is_faltoso:
             status.append("Faltoso")
-        elif max_monthly >= limit_monitor or (perc_presenca < 75 and perc_presenca > 0):
+        elif is_monitorar_faltas:
             status.append("Monitorar Faltas")
-            
-        if perc_just >= 60:
+
+        # 2. Regras de Faltas Justificadas (FJ) - Comuns a todos
+        # Monitorar FJs: fjs compondo de 45% a 60% da presença total
+        # Muitas FJs: fjs compondo mais de 60% da presença total
+        
+        if perc_just_calc > 60.0:
             status.append("Muitas FJs")
-        elif perc_just >= 45:
+        elif 45.0 <= perc_just_calc <= 60.0:
             status.append("Monitorar FJs")
-            
+
+        # Status Regular
         if not status:
             status.append("Regular")
             
+        # Atualiza o objeto student
         student['status'] = status
         student['classificacao'] = ", ".join(status)
         student['situacao'] = status 
+        # Atualiza percentuais calculados para consistência
+        student['percentual_presenca'] = round(perc_presenca_calc, 1)
+        student['percentual_justificado'] = round(perc_just_calc, 1)
         
         classified.append(student)
         
     return classified
-
 # ==============================================================================
-# PARSER HTML (LÓGICA RESTAURADA E CORRIGIDA)
+# PARSER HTML 
 # ==============================================================================
 
 def get_school_info(html_content, filename=None):
@@ -374,29 +437,17 @@ def analyze_attendance_html(html_content, filename=None):
             
             # 4. Cálculo de percentuais e fallback para totais zerados (Infantil apenas)
             total_calc = totals['P'] + totals['F'] + totals['FJ']
-            
-            # Se totais zerados no Infantil, tenta usar a contagem mensal como "F"
             if total_calc == 0 and edu_info['nivel'] == 'infantil' and attendance['faltas_por_mes']:
                 manual_f = sum(attendance['faltas_por_mes'].values())
                 if manual_f > 0:
                     totals['F'] = manual_f
                     total_calc = manual_f # Assume que são todas faltas se não temos P ou FJ
             
-            perc_p = 0
-            if total_calc > 0:
-                perc_p = round((totals['P'] / total_calc * 100), 1)
-            
-            total_faltas = totals['F'] + totals['FJ']
-            perc_j = 0
-            if total_faltas > 0:
-                perc_j = round((totals['FJ'] / total_faltas * 100), 1)
-            
             student_data_list.append({
                 'aluno': name, 'name': name,
                 'turma': info['class_name'], 'escola': info['unit_name'],
                 'P': totals['P'], 'F': totals['F'], 'FJ': totals['FJ'],
-                'percentual_presenca': perc_p,
-                'percentual_justificado': perc_j,
+                # Percentuais serão calculados no apply_classification_rules
                 'faltas_por_mes': attendance['faltas_por_mes'],
                 'faltas_por_mes_texto': attendance['faltas_por_mes_texto'],
                 'education_type': edu_info['nivel'],
