@@ -441,14 +441,12 @@ def api_analyze():
     processed_count = 0
     errors = []
     
-    # Variável para guardar o nome da escola do lote
     school_name = "Escola Desconhecida"
     
     for file in files:
         if not file or file.filename == '': continue
         try:
             content = file.read().decode('utf-8', errors='ignore')
-            # Chama o analyzer
             result = analyzer.analyze_attendance_html(content, file.filename)
             
             if result and result.get('student_data'):
@@ -475,7 +473,6 @@ def api_analyze():
         if 'analyzed_files' not in app_data:
             app_data['analyzed_files'] = []
             
-        # Determina o nome da turma para o lote
         turma_nome = "Múltiplas Turmas"
         if len(files) == 1 and final_data:
             turma_nome = final_data[0].get('turma', 'Geral')
@@ -575,32 +572,21 @@ def api_download_analysis():
 
         show_monthly_details = req_data.get('show_monthly_details', True)
         
-        # Passar a opção para o gerador de Excel
         excel_buffer = reporter.generate_analysis_excel(data_rows, show_monthly_details=show_monthly_details)
         
-        # Determinar o nome do arquivo
         data_str = datetime.now().strftime("%d-%m-%y")
         
-        # Extrair nomes únicos das escolas nos dados
         escolas = list(set([row.get('escola', 'Escola Desconhecida') for row in data_rows]))
-        # Remove nulos ou vazios
         escolas = [e for e in escolas if e and e != 'Escola Desconhecida' and e != 'Não identificada']
         
         if len(escolas) == 1:
             raw_name = escolas[0]
-            
-            # 1. Normaliza unicode
             normalized = unicodedata.normalize('NFKD', raw_name).encode('ASCII', 'ignore').decode('utf-8')
-            
-            # 2. Substitui tudo que não for letra ou número por underscore
             nome_escola = re.sub(r'[^a-zA-Z0-9]', '_', normalized)
-            
-            # 3. Remove underscores duplicados 
             nome_escola = re.sub(r'_+', '_', nome_escola).strip('_')
             
             filename = f'analise_frequencia_{nome_escola}_{data_str}.xlsx'
         else:
-            # Múltiplas escolas ou desconhecida
             filename = f'analise_frequencia_{data_str}.xlsx'
         
         return send_file(

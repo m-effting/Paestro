@@ -11,7 +11,6 @@ from .excel_service import export_to_excel, get_excel_filename
 # Carrega as variáveis do arquivo .env
 load_dotenv()
 
-# Configuração de Logger
 logger = logging.getLogger(__name__)
 
 # Variável para controlar se temos Google Drive habilitado
