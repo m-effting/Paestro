@@ -1,380 +1,206 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Função para mostrar modal (necessária para o sistema)
-    function showModal(title, message) {
-        alert(title + ': ' + message);
-    }
-    
-    // Torna a função showModal disponível globalmente
-    window.showModal = showModal;
-    
-    // Elementos UI
+    // --- Elementos UI ---
     const dropArea = document.getElementById('upload-droparea');
     const fileInput = document.getElementById('file-input');
-    const selectedFiles = document.getElementById('selected-files');
+    const selectedFilesContainer = document.getElementById('selected-files');
     const uploadBtn = document.getElementById('upload-btn');
+    const fileControls = document.getElementById('file-controls');
+    const fileCountLabel = document.getElementById('file-count');
     const progressContainer = document.getElementById('progress-container');
     const progressFill = document.getElementById('progress-fill');
     const progressText = document.getElementById('progress-text');
     const progressPercentage = document.getElementById('progress-percentage');
-    const reportPreviewSection = document.getElementById('report-preview-section');
     
-    // Evitando erro ao acessar um elemento que pode não existir
-    const filesTable = document.getElementById('files-table');
-    const filesTableBody = filesTable ? filesTable.getElementsByTagName('tbody')[0] : null;
-    
-    // Informação do usuário
+    // Lista para acumular arquivos (Objeto File)
+    let accumulatedFiles = [];
+
+    // --- Inicialização ---
     fetchUserInfo();
-    
-    // Eventos para Drag and Drop
+
+    // --- Eventos Drag and Drop ---
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropArea.addEventListener(eventName, preventDefaults, false);
     });
-    
+
     function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     ['dragenter', 'dragover'].forEach(eventName => {
-        dropArea.addEventListener(eventName, highlight, false);
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
     });
-    
+
     ['dragleave', 'drop'].forEach(eventName => {
-        dropArea.addEventListener(eventName, unhighlight, false);
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
     });
-    
-    function highlight() {
-        dropArea.classList.add('highlight');
-    }
-    
-    function unhighlight() {
-        dropArea.classList.remove('highlight');
-    }
-    
+
     dropArea.addEventListener('drop', handleDrop, false);
-    
+
     function handleDrop(e) {
         const dt = e.dataTransfer;
         const files = dt.files;
-        
-        console.log(`Drag and drop detectado - Total de arquivos arrastados: ${files.length}`);
-        
-        // Lista todos os arquivos arrastados
-        for(let i = 0; i < files.length; i++) {
-            console.log(`Arquivo arrastado ${i+1}: ${files[i].name}`);
-        }
-        
-        // Para drag and drop, NÃO limpa a lista - permite acumular arquivos
-        // selectedFilesList = []; // Removido para permitir acúmulo
-        // const filesContainer = document.getElementById('selected-files');
-        // filesContainer.innerHTML = ''; // Removido para permitir acúmulo
-        
         handleFiles(files);
     }
-    
+
+    // --- Evento Input File ---
     fileInput.addEventListener('change', function() {
-        console.log(`Input change detectado - Total de arquivos selecionados: ${this.files.length}`);
-        
-        // Lista todos os arquivos selecionados
-        for(let i = 0; i < this.files.length; i++) {
-            console.log(`Arquivo ${i+1}: ${this.files[i].name}`);
-        }
-        
-        // Limpa a lista apenas se for uma nova seleção (não acumular)
-        selectedFilesList = [];
-        const filesContainer = document.getElementById('selected-files');
-        filesContainer.innerHTML = '';
-        
         handleFiles(this.files);
+        this.value = ''; // Reset para permitir selecionar o mesmo arquivo
     });
-    
-    // Gerenciamento dos arquivos selecionados
-    let selectedFilesList = [];
-    
+
+    // --- Gerenciamento de Arquivos ---
     function handleFiles(files) {
-        console.log(`Processando ${files.length} arquivos selecionados`);
-        
-        // Filtra apenas arquivos Excel
-        console.log(`Lista atual ANTES de processar: ${selectedFilesList.map(f => f.name).join(', ')}`);
-        
         Array.from(files).forEach(file => {
-            console.log(`Processando arquivo: ${file.name}`);
             if (file.name.match(/\.xlsx|\.xls$/i)) {
-                const jaExiste = selectedFilesList.some(f => f.name === file.name);
-                console.log(`Arquivo ${file.name} já existe? ${jaExiste}`);
-                
-                if (!jaExiste) {
-                    selectedFilesList.push(file);
-                    displayFile(file);
-                    console.log(`Arquivo adicionado: ${file.name}`);
-                    console.log(`Lista atual APÓS adicionar: ${selectedFilesList.map(f => f.name).join(', ')}`);
-                } else {
-                    console.log(`Arquivo já existe na lista: ${file.name}`);
+                const exists = accumulatedFiles.some(f => f.name === file.name);
+                if (!exists) {
+                    accumulatedFiles.push(file);
+                    addFileToDisplay(file);
                 }
-            } else {
-                console.log(`Arquivo ignorado (não é Excel): ${file.name}`);
             }
         });
-        
-        console.log(`Total de arquivos na lista: ${selectedFilesList.length}`);
-        
-        // Habilita o botão de processar se tiver arquivos
-        uploadBtn.disabled = selectedFilesList.length === 0;
-        
-        // Atualiza a interface
-        updateFileControls();
+        updateUIState();
     }
-    
-    function displayFile(file) {
+
+    function addFileToDisplay(file) {
         const fileDiv = document.createElement('div');
         fileDiv.className = 'file-item';
+        
+        // Ícone diferente para provável arquivo de análise
+        let iconClass = 'fa-file-excel';
+        if (!file.name.match(/\d{2}-\d{2}-\d{4}/) && !file.name.match(/\d{2}-\d{2}-\d{2}/)) {
+            iconClass = 'fa-chart-pie'; 
+        }
+
         fileDiv.innerHTML = `
-            <span class="file-name">${file.name}</span>
-            <button type="button" class="remove-file" data-filename="${file.name}">&times;</button>
+            <div class="file-info">
+                <i class="fas ${iconClass}"></i>
+                <span class="file-name">${file.name}</span>
+            </div>
+            <button type="button" class="remove-file" aria-label="Remover">&times;</button>
         `;
-        selectedFiles.appendChild(fileDiv);
-        
-        // Adiciona evento para remover o arquivo
+
         fileDiv.querySelector('.remove-file').addEventListener('click', function() {
-            const filename = this.getAttribute('data-filename');
-            selectedFilesList = selectedFilesList.filter(f => f.name !== filename);
+            accumulatedFiles = accumulatedFiles.filter(f => f.name !== file.name);
             fileDiv.remove();
-            uploadBtn.disabled = selectedFilesList.length === 0;
-            updateFileControls();
+            updateUIState();
         });
+
+        selectedFilesContainer.appendChild(fileDiv);
     }
-    
-    // Botão para gerar relatório consolidado diretamente
+
+    function updateUIState() {
+        if (accumulatedFiles.length > 0) {
+            fileControls.style.display = 'flex';
+            fileCountLabel.textContent = `${accumulatedFiles.length} arquivo(s)`;
+            uploadBtn.disabled = false;
+        } else {
+            fileControls.style.display = 'none';
+            uploadBtn.disabled = true;
+        }
+    }
+
+    window.limparTodosArquivos = function() {
+        accumulatedFiles = [];
+        selectedFilesContainer.innerHTML = '';
+        updateUIState();
+    };
+
+    const clearBtn = document.getElementById('clear-files-btn');
+    if(clearBtn) clearBtn.addEventListener('click', window.limparTodosArquivos);
+
+    // --- Envio e Geração ---
     uploadBtn.addEventListener('click', function() {
-        if (selectedFilesList.length === 0) return;
-        
-        // Prepara e envia os arquivos
-        const formData = new FormData();
-        selectedFilesList.forEach(file => {
-            formData.append('files', file);
-        });
-        
-        // Mostrar barra de progresso
+        if (accumulatedFiles.length === 0) return;
+
         progressContainer.style.display = 'block';
-        progressFill.style.width = '0%';
-        progressText.textContent = 'Processando arquivos...';
-        progressPercentage.textContent = '0%';
-        
-        // Animação simples para a barra de progresso
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-            if (progress < 70) {
-                progress += 5;
-                progressFill.style.width = progress + '%';
-                progressPercentage.textContent = progress + '%';
-            }
-        }, 200);
-        
-        // Primeiro processa os arquivos
+        uploadBtn.disabled = true;
+        updateProgress(10, 'Enviando arquivos...');
+
+        const formData = new FormData();
+        accumulatedFiles.forEach(file => {
+            formData.append('files[]', file);
+        });
+
         fetch('/process_report_files', {
             method: 'POST',
             body: formData
         })
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Erro ao processar arquivos');
-            }
+            if (!response.ok) throw new Error('Erro no upload dos arquivos');
             return response.json();
         })
         .then(data => {
-            console.log('Arquivos processados com sucesso:', data);
+            if (!data.success) throw new Error(data.error || 'Erro no processamento');
             
-            // Atualiza progresso para geração do relatório
-            progressFill.style.width = '80%';
-            progressText.textContent = 'Gerando relatório consolidado...';
-            progressPercentage.textContent = '80%';
+            updateProgress(50, 'Arquivos recebidos. Consolidando dados...');
             
-            // Agora gera o relatório consolidado
             return fetch('/generate_consolidated_report', {
-                method: 'POST'
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    file_paths: data.file_paths,
+                    user_id: data.user_id
+                })
             });
         })
         .then(response => {
-            clearInterval(progressInterval);
-            
-            if (!response.ok) {
-                throw new Error('Erro ao gerar o relatório');
-            }
+            if (!response.ok) throw new Error('Erro na geração do relatório');
             return response.json();
         })
         .then(data => {
-            // Completa a barra de progresso
-            progressFill.style.width = '100%';
-            progressText.textContent = 'Relatório gerado com sucesso!';
-            progressPercentage.textContent = '100%';
+            if (!data.success) throw new Error(data.error || "Erro desconhecido ao gerar relatório");
+
+            updateProgress(100, 'Concluído!');
+            console.log("Download URL:", data.download_url);
             
-            // Inicia o download automaticamente
-            if (data.success) {
-                setTimeout(() => {
-                    window.location.href = '/download_report';
-                    showModal('Sucesso', 'Relatório consolidado gerado e baixado com sucesso!');
-                    
-                    // Limpa a interface após alguns segundos
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        progressFill.style.backgroundColor = '#28a745';
-                    }, 3000);
-                }, 1000);
-            }
-        })
-        .catch(error => {
-            clearInterval(progressInterval);
-            console.error('Erro:', error);
-            
-            // Atualiza a barra de progresso para indicar erro
-            progressFill.style.width = '100%';
-            progressFill.style.backgroundColor = '#f44336';
-            progressText.textContent = 'Erro no processamento';
-            progressPercentage.textContent = '';
-            
-            // Mostra mensagem de erro
-            showModal('Erro', 'Ocorreu um erro ao processar os arquivos ou gerar o relatório. Verifique se são arquivos Excel válidos gerados pelo PAESTRO.');
-        });
-    });
-    
-    // Mostra a seção de geração do relatório
-    function updateReportPreview(data) {
-        // Atualiza as informações do relatório
-        const reportFilesList = document.getElementById('report-files-list');
-        
-        if (data && data.files && Array.isArray(data.files) && reportFilesList) {
-            // Limpa a lista de arquivos existente
-            while (reportFilesList.firstChild) {
-                reportFilesList.removeChild(reportFilesList.firstChild);
-            }
-            
-            // Adiciona cada arquivo à lista
-            data.files.forEach(file => {
-                const fileItem = document.createElement('li');
-                fileItem.textContent = file.nome || file;
-                reportFilesList.appendChild(fileItem);
-            });
-            
-            // Exibe o número total de arquivos
-            const fileCountElement = document.getElementById('fileCount');
-            if (fileCountElement) {
-                fileCountElement.textContent = data.files.length || 0;
-            }
-        }
-        
-        // Mostra a seção de prévia do relatório
-        if (reportPreviewSection) {
-            reportPreviewSection.style.display = 'block';
-        }
-    }
-    
-    // Botão para gerar o relatório final
-    generateBtn.addEventListener('click', function() {
-        fetch('/generate_consolidated_report', {
-            method: 'POST'
-        })
-        .then(response => {
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                return response.json();
-            } else {
-                throw new Error('Resposta inesperada do servidor');
-            }
-        })
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            if (data.success && data.download_url) {
-                // Força o download abrindo diretamente a URL
+            if (data.download_url) {
+                // Inicia download
                 window.location.href = data.download_url;
-                
-                // Mostra mensagem de sucesso
-                setTimeout(() => {
-                    showModal('Sucesso', 'Relatório consolidado gerado com sucesso! O download foi iniciado.');
-                }, 500);
+                showModal('Sucesso', 'Relatório gerado! O download deve começar automaticamente.');
             } else {
-                throw new Error('Erro inesperado na resposta do servidor');
+                throw new Error("URL de download não recebida.");
             }
+
+            // Limpeza após sucesso
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                updateProgress(0, '');
+                window.limparTodosArquivos();
+            }, 3000);
         })
         .catch(error => {
-            console.error('Erro:', error);
-            showModal('Erro', error.message || 'Ocorreu um erro ao gerar o relatório consolidado.');
+            console.error("Erro Relatório:", error);
+            progressContainer.style.display = 'none';
+            uploadBtn.disabled = false;
+            showModal('Erro', error.message || 'Falha ao processar relatório.');
         });
     });
-    
-    // Função para buscar informações do usuário
+
+    function updateProgress(percent, text) {
+        progressFill.style.width = percent + '%';
+        progressPercentage.textContent = percent + '%';
+        if (text) progressText.textContent = text;
+    }
+
     function fetchUserInfo() {
         fetch('/api/get_current_user')
-        .then(response => response.json())
-        .then(data => {
-            if (data.authenticated) {
-                document.getElementById('username').textContent = data.user.nome || '-';
-                document.getElementById('periodo').textContent = data.user.periodo || '-';
-            }
-        })
-        .catch(error => console.error('Erro ao buscar informações do usuário:', error));
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const nameEl = document.getElementById('nome-usuario');
+                    const periodEl = document.getElementById('periodo-usuario');
+                    if(nameEl) nameEl.textContent = data.username || 'Visitante';
+                    if(periodEl) periodEl.textContent = data.periodo || '';
+                }
+            })
+            .catch(console.error);
     }
-    
-    // Função para atualizar os controles de arquivos
-    function updateFileControls() {
-        const fileControls = document.getElementById('file-controls');
-        const fileCount = document.getElementById('file-count');
-        
-        if (selectedFilesList.length > 0) {
-            fileControls.style.display = 'block';
-            fileCount.textContent = `${selectedFilesList.length} arquivo(s) selecionado(s)`;
-        } else {
-            fileControls.style.display = 'none';
-        }
+
+    if (!window.showModal) {
+        window.showModal = function(title, msg) {
+            alert(`${title}: ${msg}`);
+        };
     }
-    
-    // Função para limpar todos os arquivos - disponível globalmente
-    window.limparTodosArquivos = function() {
-        console.log('Limpando todos os arquivos...');
-        
-        // Reseta a lista de arquivos
-        selectedFilesList = [];
-        
-        // Limpa a interface visual
-        const selectedFilesContainer = document.getElementById('selected-files');
-        if (selectedFilesContainer) {
-            selectedFilesContainer.innerHTML = '';
-            console.log('Container de arquivos limpo');
-        }
-        
-        // Desabilita o botão de upload
-        const uploadButton = document.getElementById('upload-btn');
-        if (uploadButton) {
-            uploadButton.disabled = true;
-            console.log('Botão de upload desabilitado');
-        }
-        
-        // Limpa o input de arquivo
-        const fileInput = document.getElementById('file-input');
-        if (fileInput) {
-            fileInput.value = '';
-            console.log('Input de arquivo limpo');
-        }
-        
-        // Atualiza os controles de arquivo
-        const fileControls = document.getElementById('file-controls');
-        if (fileControls) {
-            fileControls.style.display = 'none';
-            console.log('Controles de arquivo ocultados');
-        }
-        
-        console.log('✓ Todos os arquivos foram limpos com sucesso!');
-        alert('Arquivos removidos com sucesso!');
-    };
-    
-    // Event delegation para o botão limpar arquivos
-    document.addEventListener('click', function(e) {
-        if (e.target && (e.target.id === 'clear-files-btn' || e.target.closest('#clear-files-btn'))) {
-            e.preventDefault();
-            console.log('Botão limpar arquivos clicado');
-            clearAllFiles();
-        }
-    });
 });

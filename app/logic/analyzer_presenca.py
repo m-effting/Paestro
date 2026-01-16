@@ -2,6 +2,7 @@ import re
 import logging
 from bs4 import BeautifulSoup
 from collections import defaultdict
+from datetime import datetime
 
 # Configuração de Logger
 logger = logging.getLogger(__name__)
@@ -355,10 +356,14 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
     """
     Conta faltas e identifica meses ativos.
     Considera células mescladas (colspan) para alinhar datas com colunas.
+    Determina o período individual do aluno (primeira e última célula não vazia).
     """
     faltas_por_mes = defaultdict(int)
     active_months = set()
     daily_tracker_f = defaultdict(int) 
+    
+    # Lista de datas onde o aluno efetivamente possui registro (., F, FJ, etc)
+    student_active_dates = []
     
     student_elements = soup.find_all(string=lambda t: t and student_name in str(t))
     
@@ -378,24 +383,20 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
         # Mapeia índice VISUAL da coluna -> (dia, mês)
         date_map = {}
         
-        # ALTERAÇÃO: Busca até o topo da tabela (-1), removendo o limite de 10 linhas
+        # Busca o cabeçalho de datas acima da linha do aluno
         for i in range(student_row_idx - 1, -1, -1):
             row = rows[i]
             cells = row.find_all(['td', 'th'])
             found_date_in_row = False
-            
-            # Rastreia o índice da coluna como se a tabela fosse "desdobrada"
             current_visual_idx = 0
             
             for cell in cells:
-                # Obtém largura da célula
                 try:
                     colspan = int(cell.get('colspan', 1))
                 except:
                     colspan = 1
                 
                 txt = cell.get_text().strip()
-                
                 match = re.search(r'(\d{1,2})\s*/\s*(\d{1,2})', txt)
                 
                 if match:
@@ -403,13 +404,11 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
                         day = int(match.group(1))
                         month = int(match.group(2))
                         if 1 <= month <= 12:
-                            # Mapeia TODAS as colunas cobertas por este colspan para esta data
                             for offset in range(colspan):
                                 date_map[current_visual_idx + offset] = (day, month)
                             found_date_in_row = True
                     except: pass
                 
-                # Avança o índice visual
                 current_visual_idx += colspan
             
             if found_date_in_row:
@@ -417,7 +416,6 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
         
         if date_map:
             cells = current_row.find_all('td')
-            # Itera células do aluno rastreando o índice visual real
             current_visual_idx = 0
             
             for cell in cells:
@@ -426,13 +424,16 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
                 except: 
                     cell_colspan = 1
                 
-                # Processa apenas se mapeamos uma data para este índice
                 if current_visual_idx in date_map:
                     content = cell.get_text().strip().upper()
                     
-                    if content: 
+                    # Verifica se a célula não está vazia (registros válidos: ., P, F, FJ, etc)
+                    if content and content != "": 
                         day, month = date_map[current_visual_idx]
                         active_months.add(month)
+                        
+                        # Armazena a data para calcular o período individual posterior
+                        student_active_dates.append(datetime(2025, month, day)) # Ano fixo para ordenação
                         
                         if content == 'F':
                             if is_fundamental:
@@ -449,10 +450,19 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
                 faltas_por_mes[month] += 1
 
     txt = " ".join([f"{get_month_name(m)}:{c}" for m, c in sorted(faltas_por_mes.items()) if c > 0])
+    
+    # Cálculo do período individual do aluno
+    periodo_str = ""
+    if student_active_dates:
+        start_date = min(student_active_dates).strftime("%d/%m")
+        end_date = max(student_active_dates).strftime("%d/%m")
+        periodo_str = f"({start_date} - {end_date})"
+
     return {
         'faltas_por_mes': dict(faltas_por_mes), 
         'faltas_por_mes_texto': txt,
-        'active_months': active_months
+        'active_months': active_months,
+        'periodo': periodo_str
     }
 
 def analyze_attendance_html(html_content, filename=None):
@@ -462,7 +472,6 @@ def analyze_attendance_html(html_content, filename=None):
         students = get_student_list(soup)
         edu_info = determine_education_type(info['class_name'])
         
-        # Flag para lógica de contagem
         is_fundamental = (edu_info['nivel'] == 'fundamental')
         
         student_data_list = []
@@ -470,8 +479,6 @@ def analyze_attendance_html(html_content, filename=None):
         
         for name in students:
             totals = find_totals_in_html(soup, name)
-            
-            # Passa is_fundamental para o processador
             attendance = process_student_attendance(soup, name, is_fundamental=is_fundamental)
             
             global_active_months.update(attendance['active_months'])
@@ -489,7 +496,8 @@ def analyze_attendance_html(html_content, filename=None):
                 'faltas_por_mes': attendance['faltas_por_mes'],
                 'faltas_por_mes_texto': attendance['faltas_por_mes_texto'],
                 'education_type': edu_info['nivel'],
-                'is_compulsory': edu_info['obrigatorio']
+                'is_compulsory': edu_info['obrigatorio'],
+                'periodo': attendance['periodo'] # Período individual detectado
             })
             
         return {

@@ -4,26 +4,30 @@ import unicodedata
 import re
 import json
 import uuid
+import shutil
+import tempfile
 from datetime import datetime
-from flask import Blueprint, render_template, request, jsonify, session, send_file, current_app
+from flask import Blueprint, render_template, request, jsonify, session, send_file, current_app, url_for
 from werkzeug.utils import secure_filename
 
+# Importa serviços e lógicas
 from app.services import drive_service, excel_service
 from app.logic import analyzer_presenca as analyzer
 from app.logic import parser_chamada
 from app.logic import reporter
 from app.logic import data as data_manager
+from app.logic import consolidated  # Certifique-se que este arquivo existe em app/logic/
 
 # Criação do Blueprint
 main_bp = Blueprint('main', __name__)
+
+# Configuração de Logger
+logger = logging.getLogger(__name__)
 
 @main_bp.context_processor
 def inject_now():
     """Injeta a variável 'now' em todos os templates."""
     return {'now': datetime.now()}
-
-# Configuração de Logger
-logger = logging.getLogger(__name__)
 
 # ==============================================================================
 # 1. ROTAS DE NAVEGAÇÃO (PÁGINAS)
@@ -192,7 +196,6 @@ def upload_file():
             # Se veio da página de análise (referrer check simples)
             if 'analise' in request.referrer:
                 result = analyzer.analyze_attendance_html(content, file.filename)
-                # Nota: Lógica de salvar análise é tratada em /api/analyze, aqui é só fallback
             else:
                 # Padrão: Parser de Chamada Presencial
                 result = parser_chamada.parse_chamada(content, file.filename)
@@ -563,18 +566,14 @@ def clear_analyzed_files():
 def api_download_analysis():
     """
     Exporta a tabela de análise atual para Excel (formato do reporter.py).
-    Usado na página analise.html
-    Nome do arquivo: analise_frequencia_[nome_escola]_dd-mm-aa.xlsx
     """
     try:
         req_data = request.json
         data_rows = req_data.get('data', [])
 
         show_monthly_details = req_data.get('show_monthly_details', True)
-        # CAPTURA O NOVO PARÂMETRO DA REQUISIÇÃO
         include_situation_tab = req_data.get('include_situation_tab', False)
         
-        # PASSA O PARÂMETRO PARA A FUNÇÃO DO REPORTER
         excel_buffer = reporter.generate_analysis_excel(
             data_rows, 
             show_monthly_details=show_monthly_details,
@@ -605,3 +604,73 @@ def api_download_analysis():
     except Exception as e:
         logger.error(f"Erro export analise: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+# ==============================================================================
+# 10. ROTAS DO RELATÓRIO CONSOLIDADO 
+# ==============================================================================
+
+@main_bp.route('/process_report_files', methods=['POST'])
+def process_report_files():
+    if 'files[]' not in request.files:
+        return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
+    
+    files = request.files.getlist('files[]')
+    batch_id = str(uuid.uuid4())
+    temp_dir = os.path.join(tempfile.gettempdir(), 'paestro_consolidado', batch_id)
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    saved_paths = []
+    try:
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(temp_dir, filename)
+                file.save(file_path)
+                saved_paths.append(file_path)
+        return jsonify({'success': True, 'file_paths': saved_paths, 'user_id': batch_id})
+    except Exception as e:
+        logger.error(f"Erro process files: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/generate_consolidated_report', methods=['POST'])
+def generate_consolidated_report():
+    try:
+        req = request.json
+        file_paths = req.get('file_paths', [])
+        batch_id = req.get('user_id')
+        
+        if not file_paths: return jsonify({'success': False, 'error': 'Lista vazia'}), 400
+
+        # Chama a lógica no consolidated.py
+        excel_buffer = consolidated.process_consolidated_report(file_paths)
+        
+        output_filename = f"Relatorio_Consolidado_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+        output_dir = os.path.join(tempfile.gettempdir(), 'paestro_output', batch_id)
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, output_filename)
+        
+        with open(output_path, 'wb') as f:
+            f.write(excel_buffer.getvalue())
+            
+        return jsonify({
+            'success': True,
+            'download_url': url_for('main.download_consolidated', batch_id=batch_id, filename=output_filename)
+        })
+    except Exception as e:
+        logger.error(f"Erro generation: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f"Erro interno: {str(e)}"}), 500
+
+@main_bp.route('/download_consolidated/<batch_id>/<filename>')
+def download_consolidated(batch_id, filename):
+    try:
+        directory = os.path.join(tempfile.gettempdir(), 'paestro_output', batch_id)
+        return send_file(
+            os.path.join(directory, filename),
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        return f"Erro download: {e}", 404

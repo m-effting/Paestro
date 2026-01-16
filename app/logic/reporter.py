@@ -160,14 +160,12 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
         # Alunos
         alunos = sorted(dados_por_turma[turma], key=lambda x: x.get('aluno', ''))
         for aluno in alunos:
-            # Guarda info para a segunda aba, SE ELA FOR SOLICITADA
             if include_situation_tab:
                 flat_student_list_for_situation.append({
                     'turma': turma,
                     'aluno': aluno.get('aluno', '')
                 })
 
-            # --- Lógica RichText para Faltas por Mês ---
             rich_monthly_text = "N/A"
             current_text_len = 3 
             
@@ -214,10 +212,20 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
             status_list = aluno.get('status', [])
             status_str = ", ".join(status_list) if isinstance(status_list, list) else str(status_list)
             
+            # Formatação do texto da porcentagem com o período individual
+            percent_val = aluno.get('percentual_presenca', 0)
+            percent_display = f"{percent_val}%"
+            
+            # Adiciona o período apenas se o aluno não for "Regular"
+            if status_str.upper() != "REGULAR":
+                periodo_aluno = aluno.get('periodo', '')
+                if periodo_aluno:
+                    percent_display = f"{percent_display} {periodo_aluno}"
+
             vals = [
                 aluno.get('aluno', ''),
                 status_str,
-                f"{aluno.get('percentual_presenca', 0)}%",
+                percent_display,
                 f"{aluno.get('percentual_justificado', 0)}%",
                 aluno.get('P', 0),
                 aluno.get('F', 0),
@@ -259,7 +267,7 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
         current_row += 2
         
     # Ajuste Larguras Aba 1
-    widths = [40, 30, 12, 12, 8, 8, 8]
+    widths = [40, 30, 25, 12, 8, 8, 8]
     if show_monthly_details:
         widths.append(max_month_col_width * 1.2)
     widths.extend([20, 20, 40])
@@ -270,7 +278,6 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
     if include_situation_tab:
         ws_sit = wb.create_sheet("Situação Alunos")
         
-        # Cabeçalhos
         sit_headers = ["Turma", "Aluno", "Situação", "Apoia"]
         ws_sit.append(sit_headers)
         
@@ -281,7 +288,6 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
             cell.border = border
             cell.alignment = Alignment(horizontal='center')
 
-        # Configuração dos Dropdowns
         dv_situacao = DataValidation(type="list", formula1='"Ativo,Transferido,Desistente,Infrequente"', allow_blank=False)
         dv_situacao.error ='Selecione uma opção válida da lista'
         dv_situacao.errorTitle = 'Entrada Inválida'
@@ -292,9 +298,8 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
         dv_apoia.errorTitle = 'Entrada Inválida'
         ws_sit.add_data_validation(dv_apoia)
 
-        # Preenchimento dos Dados
         for item in flat_student_list_for_situation:
-            ws_sit.append([item['turma'], item['aluno'], "Ativo", "Não"]) # Valores padrão
+            ws_sit.append([item['turma'], item['aluno'], "Ativo", "Não"])
             
             row_num = ws_sit.max_row
             for col_num in range(1, 5):
@@ -305,29 +310,24 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
 
         last_row = ws_sit.max_row
 
-        # Formatação Condicional
         fill_grey = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid')
         fill_yellow = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
         fill_green = PatternFill(start_color='92D050', end_color='92D050', fill_type='solid')
         fill_blue = PatternFill(start_color='00B0F0', end_color='00B0F0', fill_type='solid')
 
-        # Situação
         ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Ativo"'], fill=fill_grey))
         ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Transferido"'], fill=fill_yellow))
         ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Desistente"'], fill=fill_green))
         ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Infrequente"'], fill=fill_green))
 
-        # Apoia
         ws_sit.conditional_formatting.add(f'D2:D{last_row}', CellIsRule(operator='equal', formula=['"Sim"'], fill=fill_blue))
         ws_sit.conditional_formatting.add(f'D2:D{last_row}', CellIsRule(operator='equal', formula=['"Não"'], fill=fill_grey))
 
-        # Larguras
         ws_sit.column_dimensions['A'].width = 25
         ws_sit.column_dimensions['B'].width = 40
         ws_sit.column_dimensions['C'].width = 20
         ws_sit.column_dimensions['D'].width = 15
 
-        # Tabela de Contagem Geral
         summary_start_row = last_row + 3
         
         ws_sit.cell(row=summary_start_row, column=2, value="CONTAGEM GERAL").font = Font(bold=True)
