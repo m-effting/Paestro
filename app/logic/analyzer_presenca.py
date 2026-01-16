@@ -93,7 +93,7 @@ def apply_classification_rules(data_wrapper):
         edu_type = student.get('education_type', 'infantil')
         is_compulsory = student.get('is_compulsory', False)
         
-        # Totais
+        # Totais (Parsing inalterado)
         try:
             total_p = int(student.get('P', 0))
             total_f = int(student.get('F', 0))
@@ -130,15 +130,14 @@ def apply_classification_rules(data_wrapper):
         elif 60.0 <= perc_presenca_calc < 75.0:
             is_monitorar_faltas = True
             
-        # 2. REGRA DE PROTEÇÃO ("Poucas Presenças Totais")
+        # 2. REGRA DE PROTEÇÃO ("Poucas Presenças")
         # Se total < 30, não pode ser Faltoso. 
         if total_oportunidades < MIN_TOTAL_PRESENCES:
             if is_faltoso:
                 is_faltoso = False
         
-        # 3. REGRAS DE CONTAGEM MENSAL (Fallback)
-        # Aplicar APENAS se o aluno ainda estiver Regular (nem Faltoso, nem Monitorar)
-        if not is_faltoso and not is_monitorar_faltas:
+        # 3. REGRAS DE CONTAGEM MENSAL (Fallback & Upgrade)
+        if not is_faltoso:
             
             monthly = student.get('faltas_por_mes', {})
             max_relevant_faults = 0
@@ -155,7 +154,7 @@ def apply_classification_rules(data_wrapper):
             # Aplica limiares baseados no tipo de ensino
             if is_compulsory: # GT4, GT5 e Fundamental
                 if max_relevant_faults >= 10:
-                    is_faltoso = True
+                    is_faltoso = True # Vira faltoso mesmo se era monitorar
                 elif max_relevant_faults >= 7:
                     is_monitorar_faltas = True
             else: # GT0-GT3 (Não obrigatório)
@@ -379,7 +378,7 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
         # Mapeia índice VISUAL da coluna -> (dia, mês)
         date_map = {}
         
-        # Busca até o topo da tabela (-1)
+        # ALTERAÇÃO: Busca até o topo da tabela (-1), removendo o limite de 10 linhas
         for i in range(student_row_idx - 1, -1, -1):
             row = rows[i]
             cells = row.find_all(['td', 'th'])
@@ -413,7 +412,6 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
                 # Avança o índice visual
                 current_visual_idx += colspan
             
-            # Se encontrou uma linha com datas, para de subir. 
             if found_date_in_row:
                 break
         
@@ -477,7 +475,7 @@ def analyze_attendance_html(html_content, filename=None):
             attendance = process_student_attendance(soup, name, is_fundamental=is_fundamental)
             
             global_active_months.update(attendance['active_months'])
-             
+
             total_calc = totals['P'] + totals['F'] + totals['FJ']
             if total_calc == 0 and edu_info['nivel'] == 'infantil' and attendance['faltas_por_mes']:
                 manual_f = sum(attendance['faltas_por_mes'].values())
