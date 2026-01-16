@@ -2,6 +2,7 @@ import json
 import os
 import logging
 import unicodedata
+import copy
 
 # Configuração de Logger
 logger = logging.getLogger(__name__)
@@ -18,18 +19,17 @@ def normalize_school_name(name):
 def load_data(filepath):
     """
     Carrega os dados a partir do arquivo JSON compartilhado.
-    Se o arquivo não existir ou estiver corrompido, retorna uma estrutura vazia padrão.
     """
     default_structure = {
-        'schools': {},           # Estrutura: {NomeEscola: {Turma: [Alunos]}}
-        'saved_classes': {},     # Turmas que já tiveram chamada salva {Escola: [Turmas]}
+        'schools': {},          # Estrutura: {NomeEscola: {Turma: [Alunos]}}
+        'saved_classes': {},    # Turmas que já tiveram chamada salva {Escola: [Turmas]}
         'attendance_status': {}, # {Turma: {Aluno: Status}} (P, F, FJ)
         'observations': {},      # {Turma: {Aluno: Obs}}
         'html_content': {},      # Conteúdo HTML bruto para exportação
         'unit_annotations': {},  # Anotações gerais da unidade
         'current_user': None,
         'periodo': None,
-        'analyzed_files': []     # Resultados da análise de busca ativa
+        'analyzed_files': []     # (Legado/Em memória) Resultados da análise
     }
 
     if not os.path.exists(filepath):
@@ -38,7 +38,7 @@ def load_data(filepath):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Garante que chaves essenciais existam (caso o JSON seja antigo)
+            # Garante que chaves essenciais existam
             for key, val in default_structure.items():
                 if key not in data:
                     data[key] = val
@@ -50,14 +50,22 @@ def load_data(filepath):
 def save_data(data, filepath):
     """
     Salva os dados no arquivo JSON compartilhado.
-    Isso garante que o Tablet A veja o que o Tablet B fez.
+    Remove a chave 'analyzed_files' antes de salvar para garantir
+    que a análise de busca ativa seja isolada por sessão e não compartilhada.
     """
     try:
+        # Cria uma cópia rasa para não modificar o objeto original em memória que o Flask está usando
+        data_to_save = copy.copy(data)
+        
+        # Remove analyzed_files se existir, para não persistir histórico de análise no arquivo compartilhado
+        if 'analyzed_files' in data_to_save:
+            del data_to_save['analyzed_files']
+
         # Garante que o diretório existe
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
         logger.error(f"Erro ao salvar dados em {filepath}: {e}")
@@ -66,7 +74,6 @@ def save_data(data, filepath):
 def merge_data(current_data, new_data_from_parser):
     """
     Mescla os dados novos vindos de um upload (parser) com os dados já existentes.
-    Não apaga o que já estava lá, apenas adiciona ou atualiza.
     """
     if not new_data_from_parser or 'schools' not in new_data_from_parser:
         return current_data
@@ -77,7 +84,6 @@ def merge_data(current_data, new_data_from_parser):
             current_data['schools'][escola] = {}
         
         for turma, alunos in turmas.items():
-            # Atualiza lista de alunos para essa turma
             current_data['schools'][escola][turma] = alunos
 
     return current_data

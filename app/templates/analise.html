@@ -93,35 +93,6 @@
                 </div>
             </div>
             
-            <div class="saved-files-section">
-                <h4>Arquivos Processados</h4>
-                <div class="saved-files-container" id="saved-files-container">
-                    <table class="saved-files-table" id="saved-files-table">
-                        <thead>
-                            <tr>
-                                <th width="30"></th>
-                                <th>Escola</th>
-                                <th>Data</th>
-                                <th>Alunos</th>
-                                <th width="50"></th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                    <div id="no-saved-files" style="text-align: center; padding: 20px; display: none;">
-                        <p>Nenhum arquivo processado.</p>
-                    </div>
-                </div>
-                <div class="clear-files-actions">
-                    <button id="clear-analyzed-files-btn" class="btn-danger" style="display: none;">
-                        <svg viewBox="0 0 448 512" width="16" height="16">
-                            <path fill="currentColor" d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/>
-                        </svg>
-                        Limpar Arquivos
-                    </button>
-                </div>
-            </div>
-            
             <div class="analysis-results-section" style="display:none;">
                 <div class="results-summary">
                     <h4>Resumo da Análise</h4>
@@ -184,8 +155,9 @@
                             </select>
                         </div>
                     </div>
-                    <div class="column-toggle">
-                        <label>
+                    <!-- ALTERAÇÃO: Adicionado style para corrigir a largura do clique -->
+                    <div class="column-toggle" style="width: fit-content; display: inline-block;">
+                        <label style="cursor: pointer;">
                             <input type="checkbox" id="toggle-details" checked>
                             Mostrar detalhes de meses
                         </label>
@@ -231,27 +203,31 @@
                     <div class="rules-content">
                         <h5>Ensino Obrigatório (GT4, GT5 e Fundamental 1º-9º)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> 7 ou mais faltas em um mês</li>
-                            <li><strong>Faltoso:</strong> 10 ou mais faltas em um mês</li>
+                            <li><strong>Monitorar Faltas:</strong> 7 ou mais faltas em um mês (últimos 2 meses)</li>
+                            <li><strong>Faltoso:</strong> 10 ou mais faltas em um mês (últimos 2 meses)</li>
                         </ul>
                         
                         <h5>Ensino Não Obrigatório (GT0 ao GT3)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> 10 ou mais faltas em um mês</li>
-                            <li><strong>Faltoso:</strong> 12 ou mais faltas em um mês</li>
+                            <li><strong>Monitorar Faltas:</strong> 10 ou mais faltas em um mês (últimos 2 meses)</li>
+                            <li><strong>Faltoso:</strong> 12 ou mais faltas em um mês (últimos 2 meses)</li>
                         </ul>
                         
-                        <h5>Percentual de Presença (Ambos os Ensinos)</h5>
+                        <h5>Percentual de Presença (Regra Geral Prioritária)</h5>
                         <ul>
-                            <li><strong>Monitorar Faltas:</strong> Menor que 75%</li>
-                            <li><strong>Faltoso:</strong> Menor que 60%</li>
+                            <li><strong>Monitorar Faltas:</strong> Entre 60% e 75%</li>
+                            <li><strong>Faltoso:</strong> Abaixo de 60%</li>
                         </ul>
                         
                         <h5>Faltas Justificadas (FJ)</h5>
                         <ul>
-                            <li><strong>Monitorar FJs:</strong> 45% ou mais das presenças totais são FJs</li>
-                            <li><strong>Muitas FJs:</strong> 60% ou mais das presenças totais são FJs</li>
+                            <li><strong>Monitorar FJs:</strong> 45% ou mais</li>
+                            <li><strong>Muitas FJs:</strong> 60% ou mais</li>
                         </ul>
+                        
+                        <p style="font-size: 0.9em; margin-top: 10px; color: #666;">
+                            <em>*Nota: Regras mensais só são aplicadas se o aluno não tiver sido classificado pelos critérios percentuais (exceto agravamento para Faltoso). Se o aluno tiver menos de 30 presenças totais, ele não será classificado como Faltoso.</em>
+                        </p>
                     </div>
                 </details>
             </div>
@@ -264,11 +240,5 @@
 
     <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="{{ url_for('static', filename='js/analise.js') }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof setupEventListeners === 'function') setupEventListeners();
-            if (typeof setupDragAndDrop === 'function') setupDragAndDrop();
-        });
-    </script>
 </body>
 </html>
