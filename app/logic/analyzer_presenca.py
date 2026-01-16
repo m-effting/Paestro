@@ -73,18 +73,18 @@ def apply_classification_rules(data_wrapper):
     classified = []
     
     # --- DETERMINAÇÃO DOS MESES DE REFERÊNCIA ---
-    # Usa a lista de 'active_months' coletada durante o parse (baseada em conteúdo de célula)
-    # Se não existir (legado), tenta inferir pelas faltas (menos preciso)
     if 'active_months' in data_wrapper and data_wrapper['active_months']:
         last_months = get_last_two_months_from_data(data_wrapper['active_months'])
     else:
-        # Fallback: coleta chaves de faltas de todos os alunos
         all_months_fallback = set()
         for s in students:
             all_months_fallback.update(s.get('faltas_por_mes', {}).keys())
         last_months = get_last_two_months_from_data(list(all_months_fallback))
     
     logger.info(f"Meses de referência para análise (Últimos 2 com dados): {last_months}")
+    
+    # Constante de proteção
+    MIN_TOTAL_PRESENCES = 30 
     
     for student in students:
         status = []
@@ -102,13 +102,14 @@ def apply_classification_rules(data_wrapper):
             total_oportunidades = total_p + total_f + total_fj  
             total_aulas_efetivas = total_p + total_f
             
+            # Cálculo percentual (precisão float)
             if total_aulas_efetivas > 0:
-                perc_presenca_calc = (total_p / total_aulas_efetivas) * 100
+                perc_presenca_calc = (total_p / total_aulas_efetivas) * 100.0
             else:
                 perc_presenca_calc = 100.0 
 
             if total_oportunidades > 0:
-                perc_just_calc = (total_fj / total_oportunidades) * 100
+                perc_just_calc = (total_fj / total_oportunidades) * 100.0
             else:
                 perc_just_calc = 0.0
                 
@@ -116,25 +117,33 @@ def apply_classification_rules(data_wrapper):
             perc_presenca_calc = 100.0
             perc_just_calc = 0.0
             total_p = total_f = total_fj = 0
+            total_oportunidades = 0
 
         # --- APLICAÇÃO DAS REGRAS ---
         
         is_faltoso = False
         is_monitorar_faltas = False
         
-        # 1. REGRAS GERAIS (Percentual)
+        # 1. REGRAS GERAIS (Percentual) - PRIORITÁRIO
         if perc_presenca_calc < 60.0:
             is_faltoso = True
-        elif 60.0 <= perc_presenca_calc < 70.0:
+        elif 60.0 <= perc_presenca_calc < 75.0:
             is_monitorar_faltas = True
             
-        # 2. REGRAS ESPECÍFICAS INFANTIL (Absolutas nos últimos meses)
-        if edu_type == 'infantil' and not is_faltoso and not is_monitorar_faltas:
+        # 2. REGRA DE PROTEÇÃO ("Poucas Presenças Totais")
+        # Se total < 30, não pode ser Faltoso. 
+        if total_oportunidades < MIN_TOTAL_PRESENCES:
+            if is_faltoso:
+                is_faltoso = False
+        
+        # 3. REGRAS DE CONTAGEM MENSAL (Fallback)
+        # Aplicar APENAS se o aluno ainda estiver Regular (nem Faltoso, nem Monitorar)
+        if not is_faltoso and not is_monitorar_faltas:
             
             monthly = student.get('faltas_por_mes', {})
             max_relevant_faults = 0
             
-            # Verifica APENAS os meses identificados como 'last_months'
+            # Filtra apenas os meses relevantes (últimos 2)
             if monthly and isinstance(monthly, dict):
                 relevant_counts = []
                 for mes, count in monthly.items():
@@ -143,28 +152,32 @@ def apply_classification_rules(data_wrapper):
                 
                 max_relevant_faults = max(relevant_counts) if relevant_counts else 0
             
-            if is_compulsory: # GT4, GT5
+            # Aplica limiares baseados no tipo de ensino
+            if is_compulsory: # GT4, GT5 e Fundamental
                 if max_relevant_faults >= 10:
                     is_faltoso = True
                 elif max_relevant_faults >= 7:
                     is_monitorar_faltas = True
-            
-            else: # GT0-GT3
+            else: # GT0-GT3 (Não obrigatório)
                 if max_relevant_faults >= 12:
                     is_faltoso = True
                 elif max_relevant_faults >= 10:
                     is_monitorar_faltas = True
 
-        # Aplica Status
+            # Re-aplicar proteção de poucas presenças para regra mensal também
+            if total_oportunidades < MIN_TOTAL_PRESENCES and is_faltoso:
+                is_faltoso = False
+
+        # Aplica Status Final na Lista
         if is_faltoso:
             status.append("Faltoso")
         elif is_monitorar_faltas:
             status.append("Monitorar Faltas")
 
-        # 3. REGRAS DE FALTAS JUSTIFICADAS
-        if perc_just_calc > 60.0:
+        # 4. REGRAS DE FALTAS JUSTIFICADAS (Independentes)
+        if perc_just_calc >= 60.0:
             status.append("Muitas FJs")
-        elif 45.0 <= perc_just_calc <= 60.0:
+        elif perc_just_calc >= 45.0:
             status.append("Monitorar FJs")
 
         if not status:
@@ -339,12 +352,14 @@ def find_totals_in_html(soup, student_name):
 
     return result
 
-def process_student_attendance(soup, student_name):
+def process_student_attendance(soup, student_name, is_fundamental=False):
     """
-    Conta faltas e identifica meses ativos (com dados).
+    Conta faltas e identifica meses ativos.
+    Considera células mescladas (colspan) para alinhar datas com colunas.
     """
     faltas_por_mes = defaultdict(int)
-    active_months = set() # Novo: Coleta meses que tiveram ALGUM dado
+    active_months = set()
+    daily_tracker_f = defaultdict(int) 
     
     student_elements = soup.find_all(string=lambda t: t and student_name in str(t))
     
@@ -355,46 +370,85 @@ def process_student_attendance(soup, student_name):
         parent_table = current_row.find_parent('table')
         if not parent_table: continue
         
-        date_map = {} 
         rows = parent_table.find_all('tr')
-        
         try:
             student_row_idx = rows.index(current_row)
         except ValueError:
             continue
-            
+
+        # Mapeia índice VISUAL da coluna -> (dia, mês)
+        date_map = {}
+        
+        # Busca até o topo da tabela (-1)
         for i in range(student_row_idx - 1, -1, -1):
             row = rows[i]
             cells = row.find_all(['td', 'th'])
-            found_date = False
+            found_date_in_row = False
             
-            for idx, cell in enumerate(cells):
+            # Rastreia o índice da coluna como se a tabela fosse "desdobrada"
+            current_visual_idx = 0
+            
+            for cell in cells:
+                # Obtém largura da célula
+                try:
+                    colspan = int(cell.get('colspan', 1))
+                except:
+                    colspan = 1
+                
                 txt = cell.get_text().strip()
-                match = re.search(r'(\d{1,2})/(\d{1,2})', txt)
+                
+                match = re.search(r'(\d{1,2})\s*/\s*(\d{1,2})', txt)
+                
                 if match:
                     try:
+                        day = int(match.group(1))
                         month = int(match.group(2))
                         if 1 <= month <= 12:
-                            date_map[idx] = month
-                            found_date = True
+                            # Mapeia TODAS as colunas cobertas por este colspan para esta data
+                            for offset in range(colspan):
+                                date_map[current_visual_idx + offset] = (day, month)
+                            found_date_in_row = True
                     except: pass
+                
+                # Avança o índice visual
+                current_visual_idx += colspan
             
-            if found_date:
+            # Se encontrou uma linha com datas, para de subir. 
+            if found_date_in_row:
                 break
         
         if date_map:
             cells = current_row.find_all('td')
-            for idx, cell in enumerate(cells):
-                if idx in date_map:
+            # Itera células do aluno rastreando o índice visual real
+            current_visual_idx = 0
+            
+            for cell in cells:
+                try:
+                    cell_colspan = int(cell.get('colspan', 1))
+                except: 
+                    cell_colspan = 1
+                
+                # Processa apenas se mapeamos uma data para este índice
+                if current_visual_idx in date_map:
                     content = cell.get_text().strip().upper()
                     
-                    # REGRA CRÍTICA: Se a célula tem conteúdo (F, P, ., etc), o mês existiu
-                    # Ignora células vazias (futuro)
                     if content: 
-                        active_months.add(date_map[idx])
-                    
-                    if content == 'F':
-                        faltas_por_mes[date_map[idx]] += 1
+                        day, month = date_map[current_visual_idx]
+                        active_months.add(month)
+                        
+                        if content == 'F':
+                            if is_fundamental:
+                                daily_tracker_f[(day, month)] += 1
+                            else:
+                                faltas_por_mes[month] += 1
+                
+                current_visual_idx += cell_colspan
+
+    # Lógica Fundamental: 3 ou mais 'F' no dia = 1 falta no mês
+    if is_fundamental:
+        for (day, month), count_f in daily_tracker_f.items():
+            if count_f >= 3:
+                faltas_por_mes[month] += 1
 
     txt = " ".join([f"{get_month_name(m)}:{c}" for m, c in sorted(faltas_por_mes.items()) if c > 0])
     return {
@@ -410,17 +464,20 @@ def analyze_attendance_html(html_content, filename=None):
         students = get_student_list(soup)
         edu_info = determine_education_type(info['class_name'])
         
+        # Flag para lógica de contagem
+        is_fundamental = (edu_info['nivel'] == 'fundamental')
+        
         student_data_list = []
-        global_active_months = set() # Acumula meses ativos de toda a turma
+        global_active_months = set() 
         
         for name in students:
             totals = find_totals_in_html(soup, name)
-            attendance = process_student_attendance(soup, name)
             
-            # Acumula meses que tiveram dados
+            # Passa is_fundamental para o processador
+            attendance = process_student_attendance(soup, name, is_fundamental=is_fundamental)
+            
             global_active_months.update(attendance['active_months'])
-            
-            # Ajuste de totais para Infantil
+             
             total_calc = totals['P'] + totals['F'] + totals['FJ']
             if total_calc == 0 and edu_info['nivel'] == 'infantil' and attendance['faltas_por_mes']:
                 manual_f = sum(attendance['faltas_por_mes'].values())
@@ -440,7 +497,7 @@ def analyze_attendance_html(html_content, filename=None):
         return {
             'school_data': info,
             'student_data': student_data_list,
-            'active_months': list(global_active_months) # Passa para a classificação
+            'active_months': list(global_active_months)
         }
     except Exception as e:
         logger.error(f"Erro analyzer: {e}")
