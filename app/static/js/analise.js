@@ -286,7 +286,6 @@ function handleResults(data) {
     document.querySelector('.analysis-results-section').scrollIntoView({ behavior: 'smooth' });
 }
 
-// ATUALIZADO: Função apenas exibe dados, não calcula
 function updateSummary(summary) {
     document.getElementById('total-students').textContent = summary.total_students || 0;
     document.getElementById('total-schools').textContent = summary.total_schools || 0;
@@ -295,23 +294,19 @@ function updateSummary(summary) {
     document.getElementById('total-monitors').textContent = summary.total_monitors || 0;
 }
 
-// ATUALIZADO: Função calcula estatísticas baseada numa lista (filtrada ou total)
 function calculateCombinedSummary(resultsList) {
     if (!resultsList) resultsList = [];
 
-    // Conta alunos faltosos
     const absentees = resultsList.filter(item => {
         const s = String(item.status || item.situacao || '');
         return s.includes('Faltoso');
     });
 
-    // Conta alunos monitorados
     const monitors = resultsList.filter(item => {
         const s = String(item.status || item.situacao || '');
         return s.includes('Monitorar Faltas') || s.includes('Monitorar FJs');
     });
 
-    // Conta escolas e turmas únicas NA LISTA ATUAL
     const schools = new Set(resultsList.map(item => (item.escola || item.unidade || item.school_name || 'Desconhecida').trim()));
     const classes = new Set(resultsList.map(item => (item.turma || item.class_name || 'Desconhecida').trim()));
 
@@ -388,11 +383,8 @@ function applyFilters() {
         return schoolMatch && classMatch && statusMatch && educationMatch;
     });
 
-    // ATUALIZADO: Calcula o resumo baseando-se APENAS nos resultados filtrados
     const filteredSummary = calculateCombinedSummary(filteredResults);
     updateSummary(filteredSummary);
-    
-    // Atualiza a tabela
     updateResultTable(filteredResults);
 }
 
@@ -510,8 +502,14 @@ async function exportData(format = 'excel') {
         const classFilter = document.getElementById('class-filter').value;
         const statusFilter = document.getElementById('status-filter').value;
         const educationFilter = document.getElementById('education-filter').value;
+        
+        // Checkboxes
         const showDetailsCheckbox = document.getElementById('toggle-details');
         const showMonthlyDetails = showDetailsCheckbox ? showDetailsCheckbox.checked : true;
+        
+        // NOVO: Checkbox Situação
+        const toggleSituationCheckbox = document.getElementById('toggle-situation');
+        const includeSituationTab = toggleSituationCheckbox ? toggleSituationCheckbox.checked : false;
 
         let dataToExport = window.results || [];
         
@@ -551,7 +549,8 @@ async function exportData(format = 'excel') {
             body: JSON.stringify({
                 data: dataToExport,
                 format: format,
-                show_monthly_details: showMonthlyDetails
+                show_monthly_details: showMonthlyDetails,
+                include_situation_tab: includeSituationTab // <--- ENVIADO PARA API
             })
         });
         

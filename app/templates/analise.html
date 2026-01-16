@@ -155,12 +155,23 @@
                             </select>
                         </div>
                     </div>
-                    <!-- ALTERAÇÃO: Adicionado style para corrigir a largura do clique -->
-                    <div class="column-toggle" style="width: fit-content; display: inline-block;">
-                        <label style="cursor: pointer;">
-                            <input type="checkbox" id="toggle-details" checked>
-                            Mostrar detalhes de meses
-                        </label>
+                    
+                    <div style="margin-top: 10px; display: flex; gap: 20px; flex-wrap: wrap;">
+                        <!-- Checkbox Detalhes de Meses -->
+                        <div class="column-toggle" style="width: fit-content; display: inline-block;">
+                            <label style="cursor: pointer;">
+                                <input type="checkbox" id="toggle-details" checked>
+                                Mostrar detalhes de meses
+                            </label>
+                        </div>
+
+                        <!-- NOVO: Checkbox Situação Alunos -->
+                        <div class="column-toggle" style="width: fit-content; display: inline-block;">
+                            <label style="cursor: pointer;">
+                                <input type="checkbox" id="toggle-situation">
+                                Gerar aba "Situação Alunos"
+                            </label>
+                        </div>
                     </div>
                 </div>
                 

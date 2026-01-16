@@ -427,7 +427,7 @@ def export_excel_download():
         return str(e), 500
 
 # ==============================================================================
-# 8. API - MÓDULO DE ANÁLISE COMPLETO (JS analise.js)
+# 8. API - MÓDULO DE ANÁLISE
 # ==============================================================================
 
 @main_bp.route('/api/analyze', methods=['POST'])
@@ -571,8 +571,15 @@ def api_download_analysis():
         data_rows = req_data.get('data', [])
 
         show_monthly_details = req_data.get('show_monthly_details', True)
+        # CAPTURA O NOVO PARÂMETRO DA REQUISIÇÃO
+        include_situation_tab = req_data.get('include_situation_tab', False)
         
-        excel_buffer = reporter.generate_analysis_excel(data_rows, show_monthly_details=show_monthly_details)
+        # PASSA O PARÂMETRO PARA A FUNÇÃO DO REPORTER
+        excel_buffer = reporter.generate_analysis_excel(
+            data_rows, 
+            show_monthly_details=show_monthly_details,
+            include_situation_tab=include_situation_tab 
+        )
         
         data_str = datetime.now().strftime("%d-%m-%y")
         
