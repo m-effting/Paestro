@@ -61,7 +61,8 @@ def calculate_class_stats(all_data_rows):
 
 def generate_analysis_excel(data_rows, show_monthly_details=True): 
     """
-    Gera Excel com formatação condicional, RichText e totais por turma.
+    Gera Excel com formatação condicional, RichText, totais por turma
+    e largura de coluna auto-ajustável.
     """
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -128,6 +129,10 @@ def generate_analysis_excel(data_rows, show_monthly_details=True):
     border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
     red_font = InlineFont(color=Color("FF0000"), b=True)
     
+    # Variável para rastrear a largura máxima necessária da coluna "F por mês"
+    # Começa com um mínimo razoável (ex: 20 caracteres)
+    max_month_col_width = 20
+    
     for turma in sorted_turmas:
         # Título da Turma
         ws.cell(row=current_row, column=1, value=f"Turma: {turma}")
@@ -151,6 +156,8 @@ def generate_analysis_excel(data_rows, show_monthly_details=True):
             
             # --- Lógica RichText para Faltas por Mês ---
             rich_monthly_text = "N/A"
+            current_text_len = 3 # Comprimento mínimo para "N/A"
+            
             if show_monthly_details and aluno.get('faltas_por_mes'):
                 monthly_dict = aluno['faltas_por_mes']
                 if isinstance(monthly_dict, dict):
@@ -168,6 +175,8 @@ def generate_analysis_excel(data_rows, show_monthly_details=True):
                     limit = 10 if is_compulsory else 12
                     
                     rich_string = CellRichText()
+                    calculated_len = 0
+                    
                     for i, m in enumerate(sorted_months):
                         # Tenta pegar pela chave int ou string
                         count = monthly_dict.get(m)
@@ -179,13 +188,22 @@ def generate_analysis_excel(data_rows, show_monthly_details=True):
                             if i < len(sorted_months) - 1:
                                 seg_text += " "
                             
+                            # Soma ao comprimento total para ajuste de coluna
+                            calculated_len += len(seg_text)
+                            
                             # Aplica vermelho se for mês recente E ultrapassar limite
                             if m in last_two and count >= limit:
                                 rich_string.append(TextBlock(red_font, seg_text))
                             else:
                                 rich_string.append(seg_text)
                     
-                    rich_monthly_text = rich_string
+                    if calculated_len > 0:
+                        rich_monthly_text = rich_string
+                        current_text_len = calculated_len
+
+            # Atualiza a largura máxima encontrada se necessário (com um padding)
+            if current_text_len > max_month_col_width:
+                max_month_col_width = current_text_len
 
             # Status
             status_list = aluno.get('status', [])
@@ -239,7 +257,7 @@ def generate_analysis_excel(data_rows, show_monthly_details=True):
         
         footer_cell = ws.cell(row=current_row, column=1)
         footer_cell.font = Font(bold=True, italic=True, size=10)
-        footer_cell.alignment = Alignment(horizontal='left') # Alinhamento ajustado
+        footer_cell.alignment = Alignment(horizontal='left')
         footer_cell.fill = footer_fill
         
         # Borda no rodapé
@@ -249,9 +267,10 @@ def generate_analysis_excel(data_rows, show_monthly_details=True):
         current_row += 2
         
     # Ajuste de Larguras
+    # Adicionamos um fator de 1.2 ao max_month_col_width para garantir espaço visual
     widths = [40, 30, 12, 12, 8, 8, 8]
     if show_monthly_details:
-        widths.append(35)
+        widths.append(max_month_col_width * 1.2) # Coluna dinâmica
     widths.extend([20, 20, 40])
     
     for i, w in enumerate(widths, 1):

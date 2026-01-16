@@ -9,6 +9,10 @@ class Config:
     # Chave secreta para assinatura de sessões
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(24)
     
+    # Configurações de Upload
+    MAX_CONTENT_LENGTH = 128 * 1024 * 1024 
+    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'session_data')
+
     # Mapeamento de Escolas para IDs de Pastas do Google Drive
     FOLDER_MAP = {
         "ASSOCIAÇÃO JOÃO PAULO II": "1lceON-33pkAk-AN_K0a1-9-yXvk9uwqR",
@@ -89,7 +93,3 @@ class Config:
         "GE PROF MARIA LUZIA DE SOUZA": "1Jii-YViEMEcP6kCtgNZ_dHACizLMuNQU",
         "GE TEREZINHA MARIA ESPÍNDOLA MARTINS": "1qOpWETmx8J0Q3R6QCfbKmTWGDpDfyCCB"
     }
-
-    # Configurações de Upload
-    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'session_data')
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # Limite de 16MB
