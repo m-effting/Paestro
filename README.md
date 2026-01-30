@@ -44,8 +44,7 @@ Para segurança, certifique-se de que estes arquivos nunca subam para o GitHub:
 
 ## Execução do Sistema
 
-- Localmente: Execute o arquivo setup_and_run.bat(.\setup_an_run.bat).
-- Web/Tablet: Acesse a URL do deploy (Render). O sistema já estará autenticado automaticamente pelo servidor.
+- Localmente: Execute o arquivo setup_and_run.bat(.\setup_and_run.bat).
 
 ## Informações Técnicas
 

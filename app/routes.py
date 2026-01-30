@@ -6,6 +6,7 @@ import json
 import uuid
 import shutil
 import tempfile
+import zipfile
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, send_file, current_app, url_for
 from werkzeug.utils import secure_filename
@@ -642,19 +643,40 @@ def generate_consolidated_report():
         if not file_paths: return jsonify({'success': False, 'error': 'Lista vazia'}), 400
 
         # Chama a lógica no consolidated.py
-        excel_buffer = consolidated.process_consolidated_report(file_paths)
+        # Agora retorna 3 valores: Excel Buffer, Nome da Escola, Lista de Monitoramento
+        excel_buffer, school_name, monitor_rows = consolidated.process_consolidated_report(file_paths)
         
-        output_filename = f"Relatorio_Consolidado_{datetime.now().strftime('%d-%m-%Y')}.xlsx"
+        # Gera o PDF usando os dados retornados
+        pdf_buffer = consolidated.generate_pdf_bytes(school_name, monitor_rows)
+
+        # Formatação do nome do arquivo
+        # Padrão: relatorio_consolidado_nome_da_unidade_dd-mm-aa
+        safe_school_name = secure_filename(school_name).replace("-", "_")
+        date_suffix = datetime.now().strftime('%d-%m-%y')
+        base_name = f"relatorio_consolidado_{safe_school_name}_{date_suffix}"
+        
         output_dir = os.path.join(tempfile.gettempdir(), 'paestro_output', batch_id)
         os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, output_filename)
         
-        with open(output_path, 'wb') as f:
-            f.write(excel_buffer.getvalue())
+        # Nomes dos arquivos internos
+        # PDF com nome novo: relatorio_faltas_nome_da_unidade_dd-mm-aa.pdf
+        excel_filename = f"{base_name}.xlsx"
+        pdf_filename = f"relatorio_faltas_{safe_school_name}_{date_suffix}.pdf"
+        zip_filename = f"{base_name}.zip"
+        
+        # Caminho do ZIP final
+        zip_path = os.path.join(output_dir, zip_filename)
+
+        # Cria o arquivo ZIP contendo o Excel e o PDF
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            # Adiciona Excel
+            zipf.writestr(excel_filename, excel_buffer.getvalue())
+            # Adiciona PDF
+            zipf.writestr(pdf_filename, pdf_buffer.getvalue())
             
         return jsonify({
             'success': True,
-            'download_url': url_for('main.download_consolidated', batch_id=batch_id, filename=output_filename)
+            'download_url': url_for('main.download_consolidated', batch_id=batch_id, filename=zip_filename)
         })
     except Exception as e:
         logger.error(f"Erro generation: {e}")
@@ -666,11 +688,16 @@ def generate_consolidated_report():
 def download_consolidated(batch_id, filename):
     try:
         directory = os.path.join(tempfile.gettempdir(), 'paestro_output', batch_id)
+        path = os.path.join(directory, filename)
+        
+        # Detecta MIME type apropriado
+        mimetype = 'application/zip' if filename.endswith('.zip') else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        
         return send_file(
-            os.path.join(directory, filename),
+            path,
             as_attachment=True,
             download_name=filename,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            mimetype=mimetype
         )
     except Exception as e:
         return f"Erro download: {e}", 404

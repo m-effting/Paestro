@@ -9,6 +9,13 @@ from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Imports para PDF
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
 logger = logging.getLogger(__name__)
 
 def make_hash_key(text):
@@ -28,6 +35,225 @@ def clean_display_text(text):
     """Limpa texto apenas para exibição bonita no Excel."""
     if not text or pd.isna(text): return ""
     return str(text).strip().upper().replace('\xa0', ' ').replace('  ', ' ')
+
+def generate_pdf_bytes(school_name, monitor_rows):
+    """
+    Gera o PDF oficial de encaminhamento de alunos prioritários.
+    Retorna um buffer de bytes com o PDF.
+    """
+    buffer = BytesIO()
+    # Margens reduzidas para 1cm para aproveitar melhor a largura da folha
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1*cm, leftMargin=1*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm
+    )
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    # --- Estilos Personalizados ---
+    style_header_right = ParagraphStyle(
+        'HeaderRight',
+        parent=styles['Normal'],
+        alignment=2, # 0=Left, 1=Center, 2=Right
+        fontSize=10,
+        leading=12,
+        fontName='Helvetica-Bold'
+    )
+    
+    style_title_left = ParagraphStyle(
+        'TitleLeft',
+        parent=styles['Normal'],
+        alignment=0,
+        fontSize=10,
+        leading=12,
+        fontName='Helvetica-Bold'
+    )
+
+    style_normal = ParagraphStyle(
+        'MyNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=12,
+        spaceAfter=6
+    )
+
+    style_list = ParagraphStyle(
+        'MyList',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=12,
+        leftIndent=20,
+        spaceAfter=3
+    )
+    
+    # Estilo para texto dentro da tabela
+    style_table_text = ParagraphStyle(
+        'TableText',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=10,
+        alignment=0 # Left
+    )
+
+    style_table_center = ParagraphStyle(
+        'TableCenter',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=10,
+        alignment=1 # Center
+    )
+
+    # --- Cabeçalho Direito ---
+    header_text = """
+    PREFEITURA DE PALHOÇA<br/>
+    SECRETARIA MUNICIPAL DE EDUCAÇÃO<br/>
+    CENTRAL DE MATRÍCULAS
+    """
+    story.append(Paragraph(header_text, style_header_right))
+    story.append(Spacer(1, 1*cm))
+
+    # --- Conteúdo Inicial ---
+    current_date = datetime.now().strftime("%d/%m/%Y")
+    
+    content_block_1 = f"""
+    Data: {current_date}.<br/>
+    À Direção da Escola: {school_name}.<br/>
+    Assunto: Encaminhamento de alunos prioritários para busca ativa.
+    """
+    story.append(Paragraph(content_block_1, style_title_left))
+    story.append(Spacer(1, 0.5*cm))
+
+    text_body = """
+    Prezada Direção,<br/><br/>
+    Com base nos dados mais recentes coletados pelo Projeto Paestro, identificamos alunos faltosos nas
+    analises de presença. Solicitamos, por gentileza, que seja realizada busca ativa junto às famílias para
+    verificar os motivos das ausências e promover o retorno às aulas ou as devidas ações.<br/><br/>
+    Segue abaixo a lista de alunos prioritários:
+    """
+    story.append(Paragraph(text_body, style_normal))
+    story.append(Spacer(1, 0.5*cm))
+
+    # --- Tabela ---
+    headers = [
+        Paragraph('<b>Turma</b>', style_table_text),
+        Paragraph('<b>Aluno</b>', style_table_text),
+        Paragraph('<b>Visitas</b>', style_table_center),
+        Paragraph('<b>% Freq. Geral</b>', style_table_center),
+        Paragraph('<b>Motivo/Providência</b>', style_table_text)
+    ]
+    table_data = [headers]
+
+    rows_added = 0
+    if monitor_rows:
+        for row in monitor_rows:
+            # 1. Lógica de Filtragem
+            st_upper = str(row.get('Status', '')).upper()
+            
+            # Verifica Status Prioritário
+            is_priority_status = "FALTOSO" in st_upper or "MUITAS" in st_upper 
+            
+            # Verifica se faltou em todos os dias (ex: 5/5)
+            faltas_str = str(row.get('Faltas', '0/0'))
+            is_full_absence = False
+            try:
+                if '/' in faltas_str:
+                    num, den = faltas_str.split('/')
+                    if num == den and int(num) > 0:
+                        is_full_absence = True
+            except: pass
+
+            # Se não for nem status prioritário nem falta total, pula
+            if not (is_priority_status or is_full_absence):
+                continue
+
+            rows_added += 1
+
+            # 2. Lógica da Coluna % Freq. Geral
+            # Pega o percentual base que já vem com as datas (ex: "0% (01/02 - 05/02)")
+            perc_display = str(row.get('Percent', ''))
+            
+            # Adiciona o status DEPOIS dos parênteses APENAS se for Faltoso ou Muitas FJs
+            if is_priority_status:
+                # Recupera o status original para exibição (sem upper case forçado se possível, ou usa o que temos)
+                raw_status = row.get('Status', '')
+                perc_display = f"{perc_display} <b>{raw_status}</b>"
+            
+            # Cria Paragraphs
+            turma_p = Paragraph(str(row.get('Turma', '')), style_table_text)
+            aluno_p = Paragraph(str(row.get('Aluno', '')), style_table_text)
+            faltas_p = Paragraph(faltas_str, style_table_center)
+            perc_p = Paragraph(perc_display, style_table_center)
+            
+            line = [
+                turma_p,
+                aluno_p,
+                faltas_p,
+                perc_p,
+                '' # Coluna vazia para preenchimento manual
+            ]
+            table_data.append(line)
+
+    if rows_added == 0:
+        table_data.append(['-', 'Nenhum aluno prioritário identificado conforme critérios.', '-', '-', '-'])
+
+    # Configuração da Tabela
+    # Largura total disponível A4 (21cm) - Margens (2cm total) = 19cm útil
+    # Turma: 2.5cm
+    # Aluno: 5.5cm
+    # Faltas: 1.5cm
+    # Freq: 4.5cm 
+    # Motivo: 5.0cm 
+    col_widths = [2.0*cm, 5.5*cm, 2.0*cm, 4.5*cm, 6.0*cm]
+    
+    t = Table(table_data, colWidths=col_widths, repeatRows=1)
+    
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    
+    story.append(t)
+    story.append(Spacer(1, 0.5*cm))
+
+    # --- Solicitação Final ---
+    solicitacao_title = "<b>Solicitação</b>"
+    story.append(Paragraph(solicitacao_title, style_normal))
+    
+    intro_sol = "Pedimos que a escola:"
+    story.append(Paragraph(intro_sol, style_normal))
+
+    items = [
+        "1. Realize contato com os responsáveis pelos alunos listados;",
+        "2. Verifique os motivos das ausências;",
+        "3. Informar os motivos identificados para as ausências e as providências que serão adotadas para evitar novas faltas por parte dos alunos.",
+        "4. Informe este setor em caso de necessidade de apoio adicional.",
+        "5. Entregue os motivos e providências citados no 3º item dentro de sete dias úteis."
+    ]
+
+    for item in items:
+        story.append(Paragraph(item, style_list))
+
+    story.append(Spacer(1, 1.5*cm))
+
+    # --- Assinatura ---
+    footer_text = """
+    SECRETARIA MUNICIPAL DE EDUCAÇÃO<br/>
+    Central de Matrículas<br/>
+    PAESTRO.
+    """
+    story.append(Paragraph(footer_text, style_title_left))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 def process_consolidated_report(file_paths):
     attendance_files = []
@@ -408,4 +634,6 @@ def process_consolidated_report(file_paths):
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    return output
+    
+    # Retorna o buffer do Excel, o nome da escola e as linhas de monitoramento para o PDF
+    return output, primary_school_name, monitor_rows
