@@ -149,35 +149,36 @@ def generate_pdf_bytes(school_name, monitor_rows):
     rows_added = 0
     if monitor_rows:
         for row in monitor_rows:
-            # 1. Lógica de Filtragem
+            # 1. Lógica de Filtragem para PDF
             st_upper = str(row.get('Status', '')).upper()
             
-            # Verifica Status Prioritário
-            is_priority_status = "FALTOSO" in st_upper or "MUITAS" in st_upper 
+            # Verifica Status Prioritário (Incluindo "Faltou Visitas")
+            is_priority_status = "FALTOSO" in st_upper or "MUITAS" in st_upper or "FALTOU VISITAS" in st_upper
             
-            # Verifica se faltou em todos os dias (ex: 5/5)
+            # Verifica se faltou em todos os dias E se o total de dias é >= 4 (redundância de segurança)
             faltas_str = str(row.get('Faltas', '0/0'))
             is_full_absence = False
             try:
                 if '/' in faltas_str:
                     num, den = faltas_str.split('/')
-                    if num == den and int(num) > 0:
+                    # AQUI: Garante que só considera falta total se for 4/4, 5/5 ou maior.
+                    if num == den and int(den) >= 4:
                         is_full_absence = True
             except: pass
 
-            # Se não for nem status prioritário nem falta total, pula
+            # Se não for nem status prioritário nem falta total (>=4), pula
             if not (is_priority_status or is_full_absence):
                 continue
 
             rows_added += 1
 
             # 2. Lógica da Coluna % Freq. Geral
-            # Pega o percentual base que já vem com as datas (ex: "0% (01/02 - 05/02)")
+            # Pega o percentual base que já vem com as datas (ex: "0% (01/02 - 05/02)" ou "-")
             perc_display = str(row.get('Percent', ''))
             
-            # Adiciona o status DEPOIS dos parênteses APENAS se for Faltoso ou Muitas FJs
+            # Adiciona o status DEPOIS dos parênteses (ou do hífen) APENAS se for status prioritário
             if is_priority_status:
-                # Recupera o status original para exibição (sem upper case forçado se possível, ou usa o que temos)
+                # Recupera o status original para exibição
                 raw_status = row.get('Status', '')
                 perc_display = f"{perc_display} <b>{raw_status}</b>"
             
@@ -201,12 +202,7 @@ def generate_pdf_bytes(school_name, monitor_rows):
 
     # Configuração da Tabela
     # Largura total disponível A4 (21cm) - Margens (2cm total) = 19cm útil
-    # Turma: 2.5cm
-    # Aluno: 5.5cm
-    # Faltas: 1.5cm
-    # Freq: 4.5cm 
-    # Motivo: 5.0cm 
-    col_widths = [2.0*cm, 5.5*cm, 2.0*cm, 4.5*cm, 6.0*cm]
+    col_widths = [2.0*cm, 5.5*cm, 2.0*cm, 4.5*cm, 5.0*cm]
     
     t = Table(table_data, colWidths=col_widths, repeatRows=1)
     
@@ -583,36 +579,65 @@ def process_consolidated_report(file_paths):
                 total_dias = dias_com_registro if dias_com_registro > 0 else len(sorted_dates)
                 faltas_str = f"{total_faltas}/{total_dias}"
                 
+                # Verifica condição "Faltou Visitas" (Faltou em TODOS os dias registrados da visita E pelo menos 4 visitas)
+                # AQUI ESTÁ A LÓGICA DE NEGÓCIO PRINCIPAL PARA O EXCEL
+                faltou_todas_visitas = (dias_com_registro >= 4 and total_faltas == dias_com_registro)
+
                 ana_info = analysis_data_map.get((h_class, h_aluno))
+                
+                st = ""
+                pc = ""
+                st_display = ""
+                
                 if ana_info:
                     st = ana_info['status']
-                    pc = ana_info['percent'] 
-                    st_upper = st.upper()
+                    pc = ana_info['percent']
+                    st_display = st
                     
-                    include = False
-                    prio = 0
-                    if "ABANDONO" in st_upper: include = True; prio = 100
-                    elif "FALTOSO" in st_upper: include = True; prio = 80
-                    elif "MONITORAR" in st_upper:
-                        if total_faltas > 0: include = True; prio = 50
-                    
-                    if dias_com_registro > 0 and total_faltas == dias_com_registro:
-                        if prio < 80: prio = 70
-                    
-                    if include:
-                        # Adiciona o período se não estiver presente e o status não for REGULAR
-                        if st_upper != "REGULAR" and "(" not in pc:
-                            pc = f"{pc} {visit_period_fallback}"
+                    if faltou_todas_visitas:
+                        st_display = f"{st} - Faltou Visitas"
+                elif faltou_todas_visitas:
+                    # Aluno Regular (não está na análise) mas faltou tudo (>=4 visitas)
+                    st = "Regular" # Status base implícito
+                    st_display = "Faltou Visitas"
+                    pc = "-"
+                
+                # Se não tem status definido para exibição (não é prioritário nem faltou visitas), pula
+                if not st_display:
+                    continue
 
-                        monitor_rows.append({
-                            'Turma': class_map.get(h_class, h_class),
-                            'Aluno': student_map.get(h_aluno, h_aluno),
-                            'Faltas': faltas_str,
-                            'RawFaltas': total_faltas,
-                            'Status': st,
-                            'Percent': pc,
-                            'p': prio
-                        })
+                st_upper = st_display.upper()
+                
+                include = False
+                prio = 0
+                
+                if "ABANDONO" in st_upper: include = True; prio = 100
+                elif "FALTOSO" in st_upper: include = True; prio = 80
+                elif "MUITAS" in st_upper: include = True; prio = 80
+                elif "FALTOU VISITAS" in st_upper: include = True; prio = 75 # Prioridade alta para os 100% faltantes
+                elif "MONITORAR" in st_upper:
+                    if total_faltas > 0: include = True; prio = 50
+                
+                if include:
+                    # Lógica para adicionar o período se necessário
+                    final_pc = pc
+                    if pc != "-":
+                        # Adiciona período se não tiver e não for status 'apenas regular' (mas aqui já filtramos)
+                        if "REGULAR" not in st_upper and "(" not in pc:
+                             final_pc = f"{pc} {visit_period_fallback}"
+                        # Garante período para status combinados se faltar
+                        elif "VISITAS" in st_upper and "(" not in pc:
+                             final_pc = f"{pc} {visit_period_fallback}"
+
+                    monitor_rows.append({
+                        'Turma': class_map.get(h_class, h_class),
+                        'Aluno': student_map.get(h_aluno, h_aluno),
+                        'Faltas': faltas_str,
+                        'RawFaltas': total_faltas,
+                        'Status': st_display,
+                        'Percent': final_pc,
+                        'p': prio
+                    })
     
     monitor_rows.sort(key=lambda x: (-x['p'], -x['RawFaltas'], x['Turma'], x['Aluno']))
     
