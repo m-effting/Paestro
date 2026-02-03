@@ -131,7 +131,7 @@ def generate_pdf_bytes(school_name, monitor_rows):
     text_body = """
     Prezada Direção,<br/><br/>
     Com base nos dados mais recentes coletados pelo Projeto Paestro, identificamos alunos faltosos nas
-    analises de presença. Solicitamos, por gentileza, que seja realizada busca ativa junto às famílias para
+    análises de presença. Solicitamos, por gentileza, que seja realizada busca ativa junto às famílias para
     verificar os motivos das ausências e promover o retorno às aulas ou as devidas ações.<br/><br/>
     Segue abaixo a lista de alunos prioritários:
     """
@@ -489,31 +489,22 @@ def process_consolidated_report(file_paths):
     # ==========================================================================
     # 3.1 MERGE DE DADOS DA ANÁLISE PARA DADOS PRINCIPAIS
     # ==========================================================================
-    # Se um aluno existe na análise, mas não foi capturado nas chamadas (pois o arquivo da turma não foi enviado),
-    # nós o adicionamos manualmente aqui para que ele apareça na aba MONITORAR e no PDF.
-    
-    # Se não temos nenhuma escola definida (só enviou análise), criamos uma genérica
     target_school_hash = primary_school_hash if primary_school_hash else "ESCOLA_GENERICA"
     if target_school_hash not in consolidated_data:
         consolidated_data[target_school_hash] = {}
-        primary_school_name = "Unidade Escolar (Análise)" # Nome fallback se só tiver análise
+        primary_school_name = "Unidade Escolar (Análise)"
 
     for (h_class_ana, h_aluno_ana), ana_info in analysis_data_map.items():
-        # Verifica se essa turma existe na escola principal
         if h_class_ana not in consolidated_data[target_school_hash]:
             consolidated_data[target_school_hash][h_class_ana] = {}
-            # Registra o nome da turma
             if h_class_ana not in class_map:
                 class_map[h_class_ana] = analysis_names_map[(h_class_ana, h_aluno_ana)]['turma_display']
 
-        # Verifica se o aluno existe na turma
         if h_aluno_ana not in consolidated_data[target_school_hash][h_class_ana]:
-            # Aluno novo (só na análise)! Adiciona estrutura vazia
             consolidated_data[target_school_hash][h_class_ana][h_aluno_ana] = {
-                'dates': {}, # Nenhuma presença registrada
+                'dates': {}, 
                 'obs': []
             }
-            # Registra o nome do aluno
             if h_aluno_ana not in student_map:
                 student_map[h_aluno_ana] = analysis_names_map[(h_class_ana, h_aluno_ana)]['aluno_display']
 
@@ -527,7 +518,6 @@ def process_consolidated_report(file_paths):
         except: wb = Workbook()
     else: wb = Workbook()
 
-    # CORREÇÃO: Renomeia aba "Análise de Faltas" para "Análise" se ela existir ou for criada
     for sheet in wb.sheetnames:
         if "ANÁLISE DE FALTAS" in sheet.upper():
             wb[sheet].title = "Análise"
@@ -627,11 +617,13 @@ def process_consolidated_report(file_paths):
                 row_idx += 1
             row_idx += 2
 
-    # --- ABA MONITORAR ---
+    # --- ABA MONITORAR & SITUAÇÃO ALUNOS ---
     if "MONITORAR" in wb.sheetnames: del wb["MONITORAR"]
     ws_mon = wb.create_sheet("MONITORAR")
     
     monitor_rows = []
+    situation_rows = [] # NOVA LISTA PARA ABA SITUAÇÃO
+
     for h_school, turmas in consolidated_data.items():
         for h_class, alunos in turmas.items():
             for h_aluno, data_dict in alunos.items():
@@ -658,38 +650,36 @@ def process_consolidated_report(file_paths):
                     if faltou_todas_visitas:
                         st_display = f"{st} - Faltou Visitas"
                 elif faltou_todas_visitas:
-                    # Aluno Regular (não está na análise) mas faltou tudo (>=4 visitas)
-                    st = "Regular" # Status base implícito
+                    st = "Regular"
                     st_display = "Faltou Visitas"
                     pc = "-"
                 
-                # Se não tem status definido para exibição (não é prioritário nem faltou visitas), pula
                 if not st_display:
                     continue
 
                 st_upper = st_display.upper()
                 
-                include = False
+                # === LÓGICA DE INCLUSÃO PARA ABA MONITORAR (E PDF) ===
+                include_monitor = False
                 prio = 0
                 
-                if "ABANDONO" in st_upper: include = True; prio = 100
-                elif "FALTOSO" in st_upper: include = True; prio = 80
-                elif "MUITAS" in st_upper: include = True; prio = 80
-                elif "FALTOU VISITAS" in st_upper: include = True; prio = 75 # Prioridade alta para os 100% faltantes
+                if "ABANDONO" in st_upper: include_monitor = True; prio = 100
+                elif "FALTOSO" in st_upper: include_monitor = True; prio = 80
+                elif "MUITAS" in st_upper: include_monitor = True; prio = 80 # Muchas FJs (normalmente Faltoso/Muitas FJs são importantes)
+                elif "FALTOU VISITAS" in st_upper: include_monitor = True; prio = 75
                 elif "MONITORAR" in st_upper:
-                    if total_faltas > 0: include = True; prio = 50
+                    # Para Monitorar entrar aqui, precisa ter faltas na visita
+                    if total_faltas > 0: include_monitor = True; prio = 50
                 
-                if include:
-                    # Lógica para adicionar o período se necessário
-                    final_pc = pc
-                    if pc != "-":
-                        # Adiciona período se não tiver e não for status 'apenas regular' (mas aqui já filtramos)
-                        if "REGULAR" not in st_upper and "(" not in pc:
-                             final_pc = f"{pc} {visit_period_fallback}"
-                        # Garante período para status combinados se faltar
-                        elif "VISITAS" in st_upper and "(" not in pc:
-                             final_pc = f"{pc} {visit_period_fallback}"
+                # Lógica para adicionar o período se necessário (compartilhada)
+                final_pc = pc
+                if pc != "-":
+                    if "REGULAR" not in st_upper and "(" not in pc:
+                            final_pc = f"{pc} {visit_period_fallback}"
+                    elif "VISITAS" in st_upper and "(" not in pc:
+                            final_pc = f"{pc} {visit_period_fallback}"
 
+                if include_monitor:
                     monitor_rows.append({
                         'Turma': class_map.get(h_class, h_class),
                         'Aluno': student_map.get(h_aluno, h_aluno),
@@ -699,7 +689,25 @@ def process_consolidated_report(file_paths):
                         'Percent': final_pc,
                         'p': prio
                     })
+
+                # === LÓGICA DE INCLUSÃO PARA ABA SITUAÇÃO ALUNOS ===
+                # Inclui TODOS os status relevantes, independente de ter faltas na visita
+                include_situation = False
+                
+                if "ABANDONO" in st_upper: include_situation = True
+                elif "FALTOSO" in st_upper: include_situation = True
+                elif "MUITAS" in st_upper: include_situation = True
+                elif "FALTOU VISITAS" in st_upper: include_situation = True
+                elif "MONITORAR" in st_upper: include_situation = True # AQUI: Inclui Monitorar Faltas/FJs mesmo sem falta visita
+                elif "EXCESSO" in st_upper: include_situation = True
+                
+                if include_situation:
+                    situation_rows.append({
+                        'Turma': class_map.get(h_class, h_class),
+                        'Aluno': student_map.get(h_aluno, h_aluno)
+                    })
     
+    # Preenchimento Aba Monitorar
     monitor_rows.sort(key=lambda x: (-x['p'], -x['RawFaltas'], x['Turma'], x['Aluno']))
     
     m_headers = ["Turma", "Aluno", "Faltas Visitas", "Status (Análise)", "% Presença"]
@@ -718,6 +726,7 @@ def process_consolidated_report(file_paths):
         ws_mon.cell(row=r, column=5, value=row_data['Percent']).alignment = center_align
 
     # === ABA SITUAÇÃO ALUNOS (AUTOMÁTICA) ===
+    if "Situação Alunos" in wb.sheetnames: del wb["Situação Alunos"]
     ws_sit = wb.create_sheet("Situação Alunos")
     
     sit_headers = ["Turma", "Aluno", "Situação", "Apoia"]
@@ -742,8 +751,11 @@ def process_consolidated_report(file_paths):
     dv_apoia.errorTitle = 'Entrada Inválida'
     ws_sit.add_data_validation(dv_apoia)
 
-    # Usa monitor_rows para preencher (já filtrado pelos critérios Faltoso/Muitas FJs/Faltou Visitas)
-    for item in monitor_rows:
+    # Ordenação para aba Situação (Por Turma e Aluno)
+    situation_rows.sort(key=lambda x: (x['Turma'], x['Aluno']))
+
+    # Usa situation_rows para preencher (agora com critério ampliado)
+    for item in situation_rows:
         ws_sit.append([item['Turma'], item['Aluno'], "Ativo", "Não"])
         
         row_num = ws_sit.max_row
