@@ -107,6 +107,8 @@ def apply_classification_rules(data_wrapper):
             if total_aulas_efetivas > 0:
                 perc_presenca_calc = (total_p / total_aulas_efetivas) * 100.0
             else:
+                # Se não houve aulas efetivas, assumimos 100% para não penalizar indevidamente,
+                # a menos que haja faltas justificadas que indiquem atividade.
                 perc_presenca_calc = 100.0 
 
             if total_oportunidades > 0:
@@ -362,7 +364,7 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
     active_months = set()
     daily_tracker_f = defaultdict(int) 
     
-    # Lista de datas onde o aluno efetivamente possui registro (., F, FJ, etc)
+    # Lista de datas onde o aluno efetivamente possui registro (., P, F, FJ, etc)
     student_active_dates = []
     
     student_elements = soup.find_all(string=lambda t: t and student_name in str(t))
@@ -384,12 +386,24 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
         date_map = {}
         
         # Busca o cabeçalho de datas acima da linha do aluno
+        # CORREÇÃO: Busca mais agressiva ignorando linhas que não têm datas
+        found_date_header = False
+        
         for i in range(student_row_idx - 1, -1, -1):
             row = rows[i]
             cells = row.find_all(['td', 'th'])
-            found_date_in_row = False
+            
+            # HEURÍSTICA: Verifica se a linha parece um cabeçalho de calendário
+            # Conta quantas células contêm padrões de data (DD/MM)
+            date_matches = 0
+            temp_date_map = {}
             current_visual_idx = 0
             
+            # Pré-verificação rápida de texto para performance
+            full_row_text = row.get_text()
+            if not re.search(r'\d{1,2}\s*/\s*\d{1,2}', full_row_text):
+                continue
+
             for cell in cells:
                 try:
                     colspan = int(cell.get('colspan', 1))
@@ -403,19 +417,25 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
                     try:
                         day = int(match.group(1))
                         month = int(match.group(2))
-                        if 1 <= month <= 12:
+                        if 1 <= month <= 12 and 1 <= day <= 31:
+                            # Confirma se é uma data válida básica
                             for offset in range(colspan):
-                                date_map[current_visual_idx + offset] = (day, month)
-                            found_date_in_row = True
+                                temp_date_map[current_visual_idx + offset] = (day, month)
+                            date_matches += 1
                     except: pass
                 
                 current_visual_idx += colspan
             
-            if found_date_in_row:
+            # Se encontrou pelo menos 2 datas distintas na linha, assumimos que é o cabeçalho
+            # Isso evita pegar linhas de "Data de Emissão: DD/MM/AAAA" ou assinaturas
+            if date_matches >= 2:
+                date_map = temp_date_map
+                found_date_header = True
                 break
         
-        if date_map:
-            cells = current_row.find_all('td')
+        # Se encontrou um mapa de datas válido, processa a linha do aluno
+        if found_date_header and date_map:
+            cells = current_row.find_all('td', recursive=False) # Apenas células diretas
             current_visual_idx = 0
             
             for cell in cells:
@@ -424,22 +444,32 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
                 except: 
                     cell_colspan = 1
                 
-                if current_visual_idx in date_map:
-                    content = cell.get_text().strip().upper()
-                    
-                    # Verifica se a célula não está vazia (registros válidos: ., P, F, FJ, etc)
-                    if content and content != "": 
-                        day, month = date_map[current_visual_idx]
-                        active_months.add(month)
+                # Verifica todas as colunas visuais que esta célula ocupa
+                # Em tabelas de presença, geralmente colspan=1, mas é bom garantir
+                for offset in range(cell_colspan):
+                    idx = current_visual_idx + offset
+                    if idx in date_map:
+                        content = cell.get_text().strip().upper()
                         
-                        # Armazena a data para calcular o período individual posterior
-                        student_active_dates.append(datetime(2025, month, day)) # Ano fixo para ordenação
-                        
-                        if content == 'F':
-                            if is_fundamental:
-                                daily_tracker_f[(day, month)] += 1
-                            else:
-                                faltas_por_mes[month] += 1
+                        # Verifica se a célula não está vazia (registros válidos: ., P, F, FJ, etc)
+                        # Ignora caracteres invisíveis ou espaços
+                        if content and not content.isspace(): 
+                            day, month = date_map[idx]
+                            active_months.add(month)
+                            
+                            # Armazena a data para calcular o período individual posterior
+                            # Usamos um ano fixo apenas para ordenação
+                            try:
+                                student_active_dates.append(datetime(2025, month, day)) 
+                            except: pass
+                            
+                            if content == 'F':
+                                if is_fundamental:
+                                    daily_tracker_f[(day, month)] += 1
+                                else:
+                                    # Para infantil, 1 'F' já conta (mas evitamos duplicar no loop do offset)
+                                    if offset == 0: 
+                                        faltas_por_mes[month] += 1
                 
                 current_visual_idx += cell_colspan
 
@@ -449,7 +479,8 @@ def process_student_attendance(soup, student_name, is_fundamental=False):
             if count_f >= 3:
                 faltas_por_mes[month] += 1
 
-    txt = " ".join([f"{get_month_name(m)}:{c}" for m, c in sorted(faltas_por_mes.items()) if c > 0])
+    txt_parts = [f"{get_month_name(m)}:{c}" for m, c in sorted(faltas_por_mes.items()) if c > 0]
+    txt = " ".join(txt_parts)
     
     # Cálculo do período individual do aluno
     periodo_str = ""
