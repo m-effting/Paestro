@@ -153,7 +153,7 @@ def generate_pdf_bytes(school_name, monitor_rows):
             st_upper = str(row.get('Status', '')).upper()
             
             # Verifica Status Prioritário (Incluindo "Faltou Visitas")
-            is_priority_status = "FALTOSO" in st_upper or "MUITAS" in st_upper or "FALTOU VISITAS" in st_upper
+            is_priority_status = "FALTOSO" in st_upper or "MUITAS FJS" in st_upper or "FALTOU VISITAS" in st_upper
             
             # Verifica se faltou em todos os dias E se o total de dias é >= 4 (redundância de segurança)
             faltas_str = str(row.get('Faltas', '0/0'))
@@ -390,9 +390,10 @@ def process_consolidated_report(file_paths):
                             
                             status_clean = make_hash_key(raw_status)
                             status_display = "-"
-                            if status_clean == "P": status_display = "P"
-                            elif status_clean == "F": status_display = "F"
-                            elif status_clean == "FJ": status_display = "FJ"
+                            # CORREÇÃO: Mais flexibilidade no mapeamento do status
+                            if status_clean in ["P", "PRESENTE", "PRESENCA"]: status_display = "P"
+                            elif status_clean in ["F", "FALTA", "AUSENTE"]: status_display = "F"
+                            elif status_clean in ["FJ", "JUSTIFICADA"]: status_display = "FJ"
                             
                             if status_display != "-":
                                 if h_aluno not in student_map: student_map[h_aluno] = display_aluno
@@ -613,7 +614,7 @@ def process_consolidated_report(file_paths):
                 
                 if "ABANDONO" in st_upper: include = True; prio = 100
                 elif "FALTOSO" in st_upper: include = True; prio = 80
-                elif "MUITAS" in st_upper: include = True; prio = 80
+                elif "MUITAS FJS" in st_upper: include = True; prio = 80
                 elif "FALTOU VISITAS" in st_upper: include = True; prio = 75 # Prioridade alta para os 100% faltantes
                 elif "MONITORAR" in st_upper:
                     if total_faltas > 0: include = True; prio = 50

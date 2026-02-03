@@ -116,8 +116,9 @@ def parse_chamada(html_content, filename=None):
             cells = row.xpath(".//td")
             if len(cells) > nome_index:
                 student_name = cells[nome_index].text_content().strip()
-                # Valida se o nome contém caracteres alfabéticos (evita linhas vazias ou numéricas)
-                if student_name and re.search(r'[A-Za-zÀ-ÖØ-öø-ÿ]', student_name):
+                # Validação relaxada para aceitar nomes manuais mais simples ou códigos
+                # Aceita se tiver pelo menos 2 caracteres alfanuméricos
+                if student_name and len(student_name) > 1 and re.search(r'[A-Za-z0-9]', student_name):
                     classes[current_turma].append(student_name)
     
     # Fallback para nome da unidade via nome do arquivo

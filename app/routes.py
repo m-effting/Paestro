@@ -271,7 +271,13 @@ def save_attendance():
 
         for aluno in alunos_lista:
             nome = aluno.get('nome')
-            app_data['attendance_status'][turma][nome] = aluno.get('presenca')
+            
+            # GARANTIA: Se presenca for vazia ou nula, salva como 'P'
+            presenca = aluno.get('presenca')
+            if not presenca: 
+                presenca = 'P'
+            
+            app_data['attendance_status'][turma][nome] = presenca
             app_data['observations'][turma][nome] = aluno.get('observacao')
             
             if nome not in current_students:

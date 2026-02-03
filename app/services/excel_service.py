@@ -130,8 +130,11 @@ def export_to_excel(classes, attendance_status, observations, html_content=None,
             for aluno in all_students:
                 ws.cell(row=current_row, column=1).value = aluno
                 
-                # Status (P, F, FJ) - Padrão "P" se não existir
-                status = attendance_status.get(turma, {}).get(aluno, "P") 
+                # Status (P, F, FJ) - GARANTIA DE "P" SE VAZIO
+                status = attendance_status.get(turma, {}).get(aluno)
+                if not status: # Se for None ou string vazia
+                    status = "P"
+                
                 ws.cell(row=current_row, column=2).value = status
                 ws.cell(row=current_row, column=2).alignment = Alignment(horizontal='center')
                 
