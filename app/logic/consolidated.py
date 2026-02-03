@@ -8,6 +8,8 @@ from datetime import datetime
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.formatting.rule import CellIsRule
 
 # Imports para PDF
 from reportlab.lib import colors
@@ -153,7 +155,7 @@ def generate_pdf_bytes(school_name, monitor_rows):
             st_upper = str(row.get('Status', '')).upper()
             
             # Verifica Status Prioritário (Incluindo "Faltou Visitas")
-            is_priority_status = "FALTOSO" in st_upper or "MUITAS FJS" in st_upper or "FALTOU VISITAS" in st_upper
+            is_priority_status = "FALTOSO" in st_upper or "MUITAS" in st_upper or "FALTOU VISITAS" in st_upper
             
             # Verifica se faltou em todos os dias E se o total de dias é >= 4 (redundância de segurança)
             faltas_str = str(row.get('Faltas', '0/0'))
@@ -288,13 +290,14 @@ def process_consolidated_report(file_paths):
     primary_school_name = "Escola Não Identificada"
 
     # ==========================================================================
-    # 2. PROCESSAMENTO DAS CHAMADAS
+    # 2. PROCESSAMENTO DAS CHAMADAS (VISITAS)
     # ==========================================================================
     for att_file in attendance_files:
         try:
             df = pd.read_excel(att_file['path'], header=None, engine='openpyxl')
             file_school_hash = None
             
+            # --- Identificação da Escola ---
             for index, row in df.iterrows():
                 row_vals = [str(x).strip() for x in row.values if pd.notna(x)]
                 row_str = " ".join(row_vals).upper()
@@ -329,10 +332,12 @@ def process_consolidated_report(file_paths):
             idx_presenca = -1
             idx_obs = -1
             
+            # --- Leitura das Linhas ---
             for index, row in df.iterrows():
                 row_vals = [str(x).strip() for x in row.values if pd.notna(x)]
                 row_str = " ".join(row_vals).upper()
                 
+                # Anotações
                 if "•" in row_str:
                     date_key = att_file['date']
                     if date_key not in unit_annotations[curr_school_hash]:
@@ -341,6 +346,7 @@ def process_consolidated_report(file_paths):
                     if clean_note not in unit_annotations[curr_school_hash][date_key]:
                         unit_annotations[curr_school_hash][date_key].append(clean_note)
 
+                # Cabeçalho da Tabela
                 row_hashes = [make_hash_key(x) for x in row.values if pd.notna(x)]
                 if "ALUNO" in row_hashes and ("PRESENCA" in row_hashes or "PRESENÇA" in row_hashes):
                     idx_aluno = -1; idx_presenca = -1; idx_obs = -1
@@ -351,6 +357,7 @@ def process_consolidated_report(file_paths):
                         elif "OBSERVA" in h_val: idx_obs = i
                     continue 
 
+                # Identificação de Turma
                 if "TURMA:" in row_str:
                     raw_turma = ""
                     for val in row_vals:
@@ -377,6 +384,7 @@ def process_consolidated_report(file_paths):
                         if h_class not in consolidated_data[curr_school_hash]:
                             consolidated_data[curr_school_hash][h_class] = {}
 
+                # Dados do Aluno
                 if curr_class_hash and idx_aluno != -1 and idx_presenca != -1:
                     try:
                         raw_aluno = row.iloc[idx_aluno]
@@ -390,7 +398,6 @@ def process_consolidated_report(file_paths):
                             
                             status_clean = make_hash_key(raw_status)
                             status_display = "-"
-                            # CORREÇÃO: Mais flexibilidade no mapeamento do status
                             if status_clean in ["P", "PRESENTE", "PRESENCA"]: status_display = "P"
                             elif status_clean in ["F", "FALTA", "AUSENTE"]: status_display = "F"
                             elif status_clean in ["FJ", "JUSTIFICADA"]: status_display = "FJ"
@@ -431,6 +438,9 @@ def process_consolidated_report(file_paths):
     # ==========================================================================
     analysis_data_map = {} 
     
+    # Mapa auxiliar: (h_class, h_aluno) -> {nome_real_aluno, nome_real_turma}
+    analysis_names_map = {} 
+
     if analysis_file_path:
         try:
             xls = pd.ExcelFile(analysis_file_path, engine='openpyxl')
@@ -439,6 +449,7 @@ def process_consolidated_report(file_paths):
             if sheet_name:
                 df_ana = pd.read_excel(analysis_file_path, sheet_name=sheet_name, header=None, engine='openpyxl')
                 curr_ana_class_hash = None
+                curr_ana_class_display = None
                 
                 for idx, row in df_ana.iterrows():
                     row_txt = " ".join([str(x) for x in row.values if pd.notna(x)])
@@ -446,13 +457,18 @@ def process_consolidated_report(file_paths):
                     if "TURMA:" in row_txt.upper():
                         parts = row_txt.upper().split("TURMA:")
                         if len(parts) > 1:
-                            curr_ana_class_hash = make_hash_key(parts[1])
+                            # Captura nome real e hash da turma
+                            raw_turma_ana = parts[1].strip()
+                            curr_ana_class_display = clean_display_text(raw_turma_ana)
+                            curr_ana_class_hash = make_hash_key(curr_ana_class_display)
                         continue
                     
                     if "MÉDIA GERAL" in row_txt.upper() or "ALUNO" in row_txt.upper(): continue
                     
                     if curr_ana_class_hash and pd.notna(row[0]):
-                        h_aluno = make_hash_key(row[0])
+                        raw_aluno_ana = str(row[0]).strip()
+                        h_aluno = make_hash_key(raw_aluno_ana)
+                        
                         if h_aluno == "ALUNO": continue
                         
                         if len(row) > 2:
@@ -461,8 +477,46 @@ def process_consolidated_report(file_paths):
                             if any(x in st for x in ['Faltoso', 'Monitorar', 'Regular', 'Abandono', 'Ativo']):
                                 key = (curr_ana_class_hash, h_aluno)
                                 analysis_data_map[key] = {'status': st, 'percent': pc}
+                                
+                                # Guarda os nomes reais caso precisemos criar a entrada no consolidated_data
+                                analysis_names_map[key] = {
+                                    'aluno_display': clean_display_text(raw_aluno_ana),
+                                    'turma_display': curr_ana_class_display
+                                }
         except Exception as e:
             logger.error(f"Erro lendo analise: {e}")
+
+    # ==========================================================================
+    # 3.1 MERGE DE DADOS DA ANÁLISE PARA DADOS PRINCIPAIS
+    # ==========================================================================
+    # Se um aluno existe na análise, mas não foi capturado nas chamadas (pois o arquivo da turma não foi enviado),
+    # nós o adicionamos manualmente aqui para que ele apareça na aba MONITORAR e no PDF.
+    
+    # Se não temos nenhuma escola definida (só enviou análise), criamos uma genérica
+    target_school_hash = primary_school_hash if primary_school_hash else "ESCOLA_GENERICA"
+    if target_school_hash not in consolidated_data:
+        consolidated_data[target_school_hash] = {}
+        primary_school_name = "Unidade Escolar (Análise)" # Nome fallback se só tiver análise
+
+    for (h_class_ana, h_aluno_ana), ana_info in analysis_data_map.items():
+        # Verifica se essa turma existe na escola principal
+        if h_class_ana not in consolidated_data[target_school_hash]:
+            consolidated_data[target_school_hash][h_class_ana] = {}
+            # Registra o nome da turma
+            if h_class_ana not in class_map:
+                class_map[h_class_ana] = analysis_names_map[(h_class_ana, h_aluno_ana)]['turma_display']
+
+        # Verifica se o aluno existe na turma
+        if h_aluno_ana not in consolidated_data[target_school_hash][h_class_ana]:
+            # Aluno novo (só na análise)! Adiciona estrutura vazia
+            consolidated_data[target_school_hash][h_class_ana][h_aluno_ana] = {
+                'dates': {}, # Nenhuma presença registrada
+                'obs': []
+            }
+            # Registra o nome do aluno
+            if h_aluno_ana not in student_map:
+                student_map[h_aluno_ana] = analysis_names_map[(h_class_ana, h_aluno_ana)]['aluno_display']
+
 
     # ==========================================================================
     # 4. GERAÇÃO DO ARQUIVO FINAL
@@ -472,6 +526,13 @@ def process_consolidated_report(file_paths):
         try: wb = load_workbook(analysis_file_path)
         except: wb = Workbook()
     else: wb = Workbook()
+
+    # CORREÇÃO: Renomeia aba "Análise de Faltas" para "Análise" se ela existir ou for criada
+    for sheet in wb.sheetnames:
+        if "ANÁLISE DE FALTAS" in sheet.upper():
+            wb[sheet].title = "Análise"
+        elif "ANALISE DE FALTAS" in sheet.upper():
+            wb[sheet].title = "Análise"
 
     # --- ABA CHAMADAS ---
     if "CHAMADAS" in wb.sheetnames: del wb["CHAMADAS"]
@@ -581,7 +642,6 @@ def process_consolidated_report(file_paths):
                 faltas_str = f"{total_faltas}/{total_dias}"
                 
                 # Verifica condição "Faltou Visitas" (Faltou em TODOS os dias registrados da visita E pelo menos 4 visitas)
-                # AQUI ESTÁ A LÓGICA DE NEGÓCIO PRINCIPAL PARA O EXCEL
                 faltou_todas_visitas = (dias_com_registro >= 4 and total_faltas == dias_com_registro)
 
                 ana_info = analysis_data_map.get((h_class, h_aluno))
@@ -614,7 +674,7 @@ def process_consolidated_report(file_paths):
                 
                 if "ABANDONO" in st_upper: include = True; prio = 100
                 elif "FALTOSO" in st_upper: include = True; prio = 80
-                elif "MUITAS FJS" in st_upper: include = True; prio = 80
+                elif "MUITAS" in st_upper: include = True; prio = 80
                 elif "FALTOU VISITAS" in st_upper: include = True; prio = 75 # Prioridade alta para os 100% faltantes
                 elif "MONITORAR" in st_upper:
                     if total_faltas > 0: include = True; prio = 50
@@ -656,6 +716,83 @@ def process_consolidated_report(file_paths):
         ws_mon.cell(row=r, column=3, value=row_data['Faltas']).alignment = center_align
         ws_mon.cell(row=r, column=4, value=row_data['Status']).alignment = center_align
         ws_mon.cell(row=r, column=5, value=row_data['Percent']).alignment = center_align
+
+    # === ABA SITUAÇÃO ALUNOS (AUTOMÁTICA) ===
+    ws_sit = wb.create_sheet("Situação Alunos")
+    
+    sit_headers = ["Turma", "Aluno", "Situação", "Apoia"]
+    ws_sit.append(sit_headers)
+    
+    header_fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+    
+    for col_num, header in enumerate(sit_headers, 1):
+        cell = ws_sit.cell(row=1, column=col_num)
+        cell.font = Font(bold=True)
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    dv_situacao = DataValidation(type="list", formula1='"Ativo,Transferido,Desistente,Infrequente"', allow_blank=False)
+    dv_situacao.error ='Selecione uma opção válida da lista'
+    dv_situacao.errorTitle = 'Entrada Inválida'
+    ws_sit.add_data_validation(dv_situacao)
+
+    dv_apoia = DataValidation(type="list", formula1='"Não,Sim"', allow_blank=False)
+    dv_apoia.error ='Selecione uma opção válida da lista'
+    dv_apoia.errorTitle = 'Entrada Inválida'
+    ws_sit.add_data_validation(dv_apoia)
+
+    # Usa monitor_rows para preencher (já filtrado pelos critérios Faltoso/Muitas FJs/Faltou Visitas)
+    for item in monitor_rows:
+        ws_sit.append([item['Turma'], item['Aluno'], "Ativo", "Não"])
+        
+        row_num = ws_sit.max_row
+        for col_num in range(1, 5):
+            ws_sit.cell(row=row_num, column=col_num).border = border
+
+        dv_situacao.add(ws_sit.cell(row=row_num, column=3))
+        dv_apoia.add(ws_sit.cell(row=row_num, column=4))
+
+    last_row = ws_sit.max_row if ws_sit.max_row > 1 else 2
+
+    fill_grey = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid')
+    fill_yellow = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+    fill_green = PatternFill(start_color='92D050', end_color='92D050', fill_type='solid')
+    fill_blue = PatternFill(start_color='00B0F0', end_color='00B0F0', fill_type='solid')
+
+    ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Ativo"'], fill=fill_grey))
+    ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Transferido"'], fill=fill_yellow))
+    ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Desistente"'], fill=fill_green))
+    ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Infrequente"'], fill=fill_green))
+
+    ws_sit.conditional_formatting.add(f'D2:D{last_row}', CellIsRule(operator='equal', formula=['"Sim"'], fill=fill_blue))
+    ws_sit.conditional_formatting.add(f'D2:D{last_row}', CellIsRule(operator='equal', formula=['"Não"'], fill=fill_grey))
+
+    ws_sit.column_dimensions['A'].width = 25
+    ws_sit.column_dimensions['B'].width = 40
+    ws_sit.column_dimensions['C'].width = 20
+    ws_sit.column_dimensions['D'].width = 15
+
+    summary_start_row = last_row + 3
+    
+    ws_sit.cell(row=summary_start_row, column=2, value="CONTAGEM GERAL").font = Font(bold=True)
+    ws_sit.cell(row=summary_start_row, column=3, value="Quantidade").font = Font(bold=True)
+    
+    ws_sit.cell(row=summary_start_row + 1, column=2, value="Transferidos").fill = fill_yellow
+    ws_sit.cell(row=summary_start_row + 1, column=3, value=f'=COUNTIF(C2:C{last_row}, "Transferido")')
+    
+    ws_sit.cell(row=summary_start_row + 2, column=2, value="Desistentes").fill = fill_green
+    ws_sit.cell(row=summary_start_row + 2, column=3, value=f'=COUNTIF(C2:C{last_row}, "Desistente")')
+    
+    ws_sit.cell(row=summary_start_row + 3, column=2, value="Infrequentes").fill = fill_green
+    ws_sit.cell(row=summary_start_row + 3, column=3, value=f'=COUNTIF(C2:C{last_row}, "Infrequente")')
+    
+    ws_sit.cell(row=summary_start_row + 4, column=2, value="APOIA (Sim)").fill = fill_blue
+    ws_sit.cell(row=summary_start_row + 4, column=3, value=f'=COUNTIF(D2:D{last_row}, "Sim")')
+
+    for r in range(summary_start_row, summary_start_row + 5):
+        for c in range(2, 4):
+            ws_sit.cell(row=r, column=c).border = border
 
     output = BytesIO()
     wb.save(output)

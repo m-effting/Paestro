@@ -507,9 +507,8 @@ async function exportData(format = 'excel') {
         const showDetailsCheckbox = document.getElementById('toggle-details');
         const showMonthlyDetails = showDetailsCheckbox ? showDetailsCheckbox.checked : true;
         
-        // NOVO: Checkbox Situação
-        const toggleSituationCheckbox = document.getElementById('toggle-situation');
-        const includeSituationTab = toggleSituationCheckbox ? toggleSituationCheckbox.checked : false;
+        // REMOVIDO: const toggleSituationCheckbox = document.getElementById('toggle-situation');
+        // REMOVIDO: const includeSituationTab = toggleSituationCheckbox ? toggleSituationCheckbox.checked : false;
 
         let dataToExport = window.results || [];
         
@@ -550,7 +549,7 @@ async function exportData(format = 'excel') {
                 data: dataToExport,
                 format: format,
                 show_monthly_details: showMonthlyDetails,
-                include_situation_tab: includeSituationTab // <--- ENVIADO PARA API
+                include_situation_tab: false // Sempre falso para exportação da análise simples
             })
         });
         

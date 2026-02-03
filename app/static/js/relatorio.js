@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Evento Input File ---
     fileInput.addEventListener('change', function() {
         handleFiles(this.files);
-        this.value = ''; // Reset para permitir selecionar o mesmo arquivo
+        this.value = '';
     });
 
     // --- Gerenciamento de Arquivos ---
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateUIState() {
         if (accumulatedFiles.length > 0) {
-            fileControls.style.display = 'flex';
+            fileControls.style.display = 'block'; 
             fileCountLabel.textContent = `${accumulatedFiles.length} arquivo(s)`;
             uploadBtn.disabled = false;
         } else {
@@ -113,6 +113,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Envio e Geração ---
     uploadBtn.addEventListener('click', function() {
         if (accumulatedFiles.length === 0) return;
+
+        // Validação de checkboxes
+        const genExcel = document.getElementById('check-excel').checked;
+        const genPdf = document.getElementById('check-pdf').checked;
+
+        if (!genExcel && !genPdf) {
+            showModal('Aviso', 'Selecione pelo menos um formato para gerar (Excel ou PDF).');
+            return;
+        }
 
         progressContainer.style.display = 'block';
         uploadBtn.disabled = true;
@@ -141,7 +150,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     file_paths: data.file_paths,
-                    user_id: data.user_id
+                    user_id: data.user_id,
+                    generate_excel: genExcel,
+                    generate_pdf: genPdf
                 })
             });
         })
