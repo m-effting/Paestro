@@ -65,7 +65,6 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
     """
     Gera Excel com formatação condicional, RichText, totais por turma
     e largura de coluna auto-ajustável.
-    Opcionalmente inclui aba extra "Situação Alunos".
     """
     wb = openpyxl.Workbook()
     
@@ -132,14 +131,13 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
     turma_fill = PatternFill(start_color="B4C6E7", end_color="B4C6E7", fill_type="solid")
     footer_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
     border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-    red_font = InlineFont(color=Color("FF0000"), b=True)
+    
+    # CRUCIAL: Definição da fonte vermelha para RichText. 'FF0000' é Hex para Vermelho.
+    red_font = InlineFont(color='FF0000', b=True)
     
     # Variável para rastrear a largura máxima necessária da coluna "F por mês"
     max_month_col_width = 20
     
-    # Lista plana para a segunda aba
-    flat_student_list_for_situation = []
-
     for turma in sorted_turmas:
         # Título da Turma
         ws.cell(row=current_row, column=1, value=f"Turma: {turma}")
@@ -160,12 +158,6 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
         # Alunos
         alunos = sorted(dados_por_turma[turma], key=lambda x: x.get('aluno', ''))
         for aluno in alunos:
-            if include_situation_tab:
-                flat_student_list_for_situation.append({
-                    'turma': turma,
-                    'aluno': aluno.get('aluno', '')
-                })
-
             rich_monthly_text = "N/A"
             current_text_len = 3 
             
@@ -173,22 +165,25 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
                 monthly_dict = aluno['faltas_por_mes']
                 if isinstance(monthly_dict, dict):
                     try:
+                        # Garante que as chaves sejam inteiros para ordenar corretamente
                         sorted_months = sorted([int(k) for k in monthly_dict.keys()])
                     except:
                         sorted_months = []
                         
+                    # Pega os dois últimos meses ativos para análise crítica
                     last_two = sorted_months[-2:] if len(sorted_months) >= 2 else sorted_months
                     
                     is_compulsory = aluno.get('is_compulsory', False)
+                    # Limite: 10 para obrigatório (Fund/GT4/GT5), 12 para não obrigatório (GT0-GT3)
                     limit = 10 if is_compulsory else 12
                     
                     rich_string = CellRichText()
                     calculated_len = 0
                     
                     for i, m in enumerate(sorted_months):
+                        # Tenta pegar pelo inteiro ou pela string da chave original
                         count = monthly_dict.get(m)
-                        if count is None:
-                            count = monthly_dict.get(str(m), 0)
+                        if count is None: count = monthly_dict.get(str(m), 0)
                             
                         if count > 0:
                             seg_text = f"{get_month_name(m)}:{count}"
@@ -197,6 +192,7 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
                             
                             calculated_len += len(seg_text)
                             
+                            # Lógica da cor vermelha: Se for um dos 2 últimos meses E exceder o limite
                             if m in last_two and count >= limit:
                                 rich_string.append(TextBlock(red_font, seg_text))
                             else:
@@ -273,81 +269,6 @@ def generate_analysis_excel(data_rows, show_monthly_details=True, include_situat
     widths.extend([20, 20, 40])
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
-
-    # === ABA 2: SITUAÇÃO ALUNOS (CONDICIONAL) ===
-    if include_situation_tab:
-        ws_sit = wb.create_sheet("Situação Alunos")
-        
-        sit_headers = ["Turma", "Aluno", "Situação", "Apoia"]
-        ws_sit.append(sit_headers)
-        
-        for col_num, header in enumerate(sit_headers, 1):
-            cell = ws_sit.cell(row=1, column=col_num)
-            cell.font = Font(bold=True)
-            cell.fill = header_fill
-            cell.border = border
-            cell.alignment = Alignment(horizontal='center')
-
-        dv_situacao = DataValidation(type="list", formula1='"Ativo,Transferido,Desistente,Infrequente"', allow_blank=False)
-        dv_situacao.error ='Selecione uma opção válida da lista'
-        dv_situacao.errorTitle = 'Entrada Inválida'
-        ws_sit.add_data_validation(dv_situacao)
-
-        dv_apoia = DataValidation(type="list", formula1='"Não,Sim"', allow_blank=False)
-        dv_apoia.error ='Selecione uma opção válida da lista'
-        dv_apoia.errorTitle = 'Entrada Inválida'
-        ws_sit.add_data_validation(dv_apoia)
-
-        for item in flat_student_list_for_situation:
-            ws_sit.append([item['turma'], item['aluno'], "Ativo", "Não"])
-            
-            row_num = ws_sit.max_row
-            for col_num in range(1, 5):
-                ws_sit.cell(row=row_num, column=col_num).border = border
-
-            dv_situacao.add(ws_sit.cell(row=row_num, column=3))
-            dv_apoia.add(ws_sit.cell(row=row_num, column=4))
-
-        last_row = ws_sit.max_row
-
-        fill_grey = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid')
-        fill_yellow = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
-        fill_green = PatternFill(start_color='92D050', end_color='92D050', fill_type='solid')
-        fill_blue = PatternFill(start_color='00B0F0', end_color='00B0F0', fill_type='solid')
-
-        ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Ativo"'], fill=fill_grey))
-        ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Transferido"'], fill=fill_yellow))
-        ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Desistente"'], fill=fill_green))
-        ws_sit.conditional_formatting.add(f'C2:C{last_row}', CellIsRule(operator='equal', formula=['"Infrequente"'], fill=fill_green))
-
-        ws_sit.conditional_formatting.add(f'D2:D{last_row}', CellIsRule(operator='equal', formula=['"Sim"'], fill=fill_blue))
-        ws_sit.conditional_formatting.add(f'D2:D{last_row}', CellIsRule(operator='equal', formula=['"Não"'], fill=fill_grey))
-
-        ws_sit.column_dimensions['A'].width = 25
-        ws_sit.column_dimensions['B'].width = 40
-        ws_sit.column_dimensions['C'].width = 20
-        ws_sit.column_dimensions['D'].width = 15
-
-        summary_start_row = last_row + 3
-        
-        ws_sit.cell(row=summary_start_row, column=2, value="CONTAGEM GERAL").font = Font(bold=True)
-        ws_sit.cell(row=summary_start_row, column=3, value="Quantidade").font = Font(bold=True)
-        
-        ws_sit.cell(row=summary_start_row + 1, column=2, value="Transferidos").fill = fill_yellow
-        ws_sit.cell(row=summary_start_row + 1, column=3, value=f'=COUNTIF(C2:C{last_row}, "Transferido")')
-        
-        ws_sit.cell(row=summary_start_row + 2, column=2, value="Desistentes").fill = fill_green
-        ws_sit.cell(row=summary_start_row + 2, column=3, value=f'=COUNTIF(C2:C{last_row}, "Desistente")')
-        
-        ws_sit.cell(row=summary_start_row + 3, column=2, value="Infrequentes").fill = fill_green
-        ws_sit.cell(row=summary_start_row + 3, column=3, value=f'=COUNTIF(C2:C{last_row}, "Infrequente")')
-        
-        ws_sit.cell(row=summary_start_row + 4, column=2, value="APOIA (Sim)").fill = fill_blue
-        ws_sit.cell(row=summary_start_row + 4, column=3, value=f'=COUNTIF(D2:D{last_row}, "Sim")')
-
-        for r in range(summary_start_row, summary_start_row + 5):
-            for c in range(2, 4):
-                ws_sit.cell(row=r, column=c).border = border
 
     out = io.BytesIO()
     wb.save(out)

@@ -19,23 +19,32 @@
             display: flex;
             gap: 20px;
             margin-bottom: 20px;
-            padding: 10px;
+            padding: 15px;
             background-color: #f8f9fa;
             border-radius: 8px;
             border: 1px solid #e9ecef;
+            flex-wrap: wrap;
         }
         .option-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-size: 14px;
+            font-weight: 500;
             color: #495057;
             cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .option-item:hover {
+            background-color: #e2e6ea;
         }
         .option-item input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             cursor: pointer;
+            accent-color: #0d6efd;
         }
     </style>
 </head>
@@ -79,13 +88,13 @@
 
     <div class="content-wrapper">
         <div class="relatorio-container">
-            <h3>Relatório Consolidado de Unidade</h3>
+            <h3>Relatório Consolidado</h3>
             
             <div class="upload-section">
                 <h4><i class="fas fa-file-excel"></i> Arquivos para Relatório Consolidado</h4>
                 <div class="file-upload-container">
                     <div class="upload-instructions">
-                        <p class="info-text">Selecione os arquivos Excel de chamada e análise para gerar o relatório consolidado. Veja as instruções detalhadas abaixo.</p>
+                        <p class="info-text">Selecione os arquivos Excel de <strong>chamadas(visitas)</strong> e o arquivo de <strong>análise</strong> para gerar o relatório completo.</p>
                     </div>
                     <form id="upload-form" enctype="multipart/form-data">
                         <div class="upload-droparea" id="upload-droparea">
@@ -100,31 +109,26 @@
                         <div class="file-controls" style="margin-top: 15px; display: none;" id="file-controls">
                             
                             <div class="options-container">
-                                <label class="option-item">
+                                <label class="option-item" title="Gera uma planilha completa com abas Chamadas, Monitorar, Análise e Situação.">
                                     <input type="checkbox" id="check-excel" checked>
-                                    Gerar Excel Consolidado
+                                    <i class="fas fa-file-excel" style="color: #198754;"></i> Gerar Excel Relatório Consolidado
                                 </label>
-                                <label class="option-item">
+                                <label class="option-item" title="Gera um documento PDF oficial pronto para imprimir com a lista de alunos prioritários.">
                                     <input type="checkbox" id="check-pdf" checked>
-                                    Gerar PDF de Encaminhamento
+                                    <i class="fas fa-file-pdf" style="color: #dc3545;"></i> Gerar PDF de Encaminhamento p/ Unidade
                                 </label>
                             </div>
 
                             <div style="display: flex; align-items: center; justify-content: space-between;">
                                 <div>
-                                    <button type="button" class="btn-clear-files" id="clear-files-btn" onclick="
-                                        document.getElementById('selected-files').innerHTML = '';
-                                        document.getElementById('file-input').value = '';
-                                        document.getElementById('upload-btn').disabled = true;
-                                        document.getElementById('file-controls').style.display = 'none';
-                                    " style="background-color: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; margin-right: 15px; font-size: 14px;">
+                                    <button type="button" class="btn-clear-files" id="clear-files-btn" style="background-color: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; margin-right: 15px; font-size: 14px;">
                                         <i class="fas fa-trash-alt"></i> Limpar Arquivos
                                     </button>
                                     <span id="file-count" style="color: #666; font-size: 14px; font-weight: 500;"></span>
                                 </div>
                                 <button type="button" id="upload-btn" class="btn-action btn-primary" style="padding: 12px 24px; font-size: 16px; font-weight: 600; border-radius: 8px;">
-                                    <i class="fas fa-file-alt"></i>
-                                    Gerar Relatório
+                                    <i class="fas fa-cogs"></i>
+                                    Processar e Gerar
                                 </button>
                             </div>
                         </div>
@@ -147,33 +151,41 @@
                     <summary>Instruções para o Relatório Consolidado</summary>
                     <div class="instructions-content">
                         <div class="instructions-card">
-                            <h5><i class="fas fa-info-circle"></i> Como usar o Relatório Consolidado</h5>
-                            
                             <div class="instruction-step">
                                 <div class="step-number">1</div>
                                 <div class="step-content">
-                                    <strong>Arquivos de Chamada:</strong> Adicione todos os arquivos Excel de chamadas da unidade escolar
-                                    <br><small>Formato esperado: NOME_ESCOLA_DD-MM-AAAA_PERIODO_NOME_EQUIPE.xlsx</small>
+                                    <strong>Selecione os Arquivos:</strong>
+                                    Carregue todos os arquivos de <b>Chamadas</b> (visitas) e o arquivo de <b>Análise</b> da unidade escolar.
+                                    <br><small>O sistema identifica automaticamente qual é qual.</small>
                                 </div>
                             </div>
                             
                             <div class="instruction-step">
                                 <div class="step-number">2</div>
                                 <div class="step-content">
-                                    <strong>Arquivo de Análise:</strong> Inclua o arquivo com análise de frequência dos alunos
-                                    <br><small>Qualquer arquivo que não siga o padrão acima será identificado como análise</small>
+                                    <strong>Escolha Quais arquivos gerar:</strong>
+                                    <ul class="feature-list" style="margin-top: 5px; list-style: none; padding-left: 0;">
+                                        <li style="margin-bottom: 8px;">
+                                            <i class="fas fa-file-excel" style="color: #198754;"></i> <strong>Excel Relatório Consolidado:</strong> Gera um arquivo completo com 4 abas:
+                                            <ul style="margin-top: 4px; margin-left: 20px; font-size: 0.9em; color: #555;">
+                                                <li><strong>CHAMADAS:</strong> Histórico detalhado de todas as visitas realizadas na unidade.</li>
+                                                <li><strong>MONITORAR:</strong> Lista automática de alunos prioritários para Busca Ativa.</li>
+                                                <li><strong>ANÁLISE:</strong> Espelho formatado da planilha de análise original.</li>
+                                                <li><strong>SITUAÇÃO ALUNOS BUSCA ATIVA:</strong> Lista interativa para controle (Ativo/Transferido/Infrequente) e contagem automática.</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            <i class="fas fa-file-pdf" style="color: #dc3545;"></i> <strong>PDF de Encaminhamento para Unidade:</strong> Gera um documento oficial, listando apenas os alunos que precisam de busca ativa imediata.
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                             
                             <div class="instruction-step">
                                 <div class="step-number">3</div>
                                 <div class="step-content">
-                                    <strong>Relatório Gerado:</strong> O sistema criará um arquivo Excel com 3 abas:
-                                    <ul class="feature-list">
-                                        <li><strong>CHAMADAS:</strong> Dados consolidados de todas as visitas</li>
-                                        <li><strong>ANÁLISE:</strong> Informações de frequência e status dos alunos</li>
-                                        <li><strong>MONITORAR:</strong> Lista prioritária de alunos para acompanhamento</li>
-                                    </ul>
+                                    <strong>Baixe o Resultado:</strong>
+                                    Após o processamento, um arquivo ZIP contendo os documentos gerados será baixado automaticamente.
                                 </div>
                             </div>
                         </div>
