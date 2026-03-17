@@ -10,7 +10,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(24)
     
     # Configurações de Upload
-    MAX_CONTENT_LENGTH = 128 * 1024 * 1024 
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024 * 1024 
     UPLOAD_FOLDER = os.path.join(os.getcwd(), 'session_data')
 
     # Mapeamento de Escolas para IDs de Pastas do Google Drive
