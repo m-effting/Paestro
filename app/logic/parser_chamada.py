@@ -52,9 +52,6 @@ def parse_chamada(html_content, filename=None):
 
             cells = [c for c in cells if c]
 
-            # Linha de aluno:
-            # Código | Nome | Sexo | Nascimento |
-            # Unidade | Turma | Turno | Situação | Data
 
             if len(cells) < 9:
                 continue
