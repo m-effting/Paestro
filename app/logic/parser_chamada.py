@@ -1,27 +1,41 @@
 from lxml import html
-import os
 import re
+import os
 import logging
 
 logger = logging.getLogger(__name__)
 
 def parse_chamada(html_content, filename=None):
-    """Parse chamada HTML.
+    """
+    Extrai turmas, alunos e unidade de:
+    - Relatórios de Chamada
+    - Relatórios de Estudantes Matriculados
 
-    `html_content` pode ser uma string com HTML ou um caminho para um arquivo HTML.
-    Se for um caminho existente, o conteúdo será lido e `filename` ajustado.
-    Retorna um dict com a chave `schools`.
+    Retorna:
+    {
+        "schools": {
+            "UNIDADE": {
+                "TURMA": [
+                    "ALUNO 1",
+                    "ALUNO 2"
+                ]
+            }
+        }
+    }
     """
 
-    # Se o usuário passou um caminho de arquivo em `html_content`, leia o arquivo
+    # Permite receber caminho de arquivo
     if isinstance(html_content, str) and os.path.exists(html_content):
+
         if not filename:
             filename = os.path.basename(html_content)
+
         try:
             with open(html_content, "r", encoding="utf-8") as f:
                 html_content = f.read()
+
         except Exception as e:
-            logger.error(f"Erro ao ler arquivo {html_content}: {e}")
+            logger.error(f"Erro ao ler arquivo: {e}")
             return {"schools": {}}
 
     if not html_content:
@@ -29,6 +43,7 @@ def parse_chamada(html_content, filename=None):
 
     try:
         tree = html.fromstring(html_content)
+
     except Exception as e:
         logger.error(f"Erro ao processar HTML: {e}")
         return {"schools": {}}
@@ -43,30 +58,74 @@ def parse_chamada(html_content, filename=None):
 
         schools = {}
 
-        for row in tree.xpath("//tr"):
+        pages = tree.xpath("//table[contains(@class,'jrPage')]")
 
-            cells = [
-                td.text_content().strip()
-                for td in row.xpath("./td")
-            ]
+        # fallback caso não encontre jrPage
+        if not pages:
+            pages = [tree]
 
-            cells = [c for c in cells if c]
+        for page in pages:
 
+<<<<<<< Updated upstream
+=======
+            page_text = page.text_content()
+>>>>>>> Stashed changes
 
-            if len(cells) < 9:
-                continue
+            current_turma = None
+            current_unidade = None
 
-            if not re.fullmatch(r"\d+", cells[0]):
-                continue
+            # Procura:
+            # Turma: GT 4 A (CEI ESPAÇO CRIATIVO)
+            turma_match = re.search(
+                r"Turma:\s*([^(]+)\(([^)]+)\)",
+                page_text,
+                re.IGNORECASE
+            )
 
-            codigo = cells[0]
-            nome = cells[1]
-            unidade = cells[4]
-            turma = cells[5]
+            if turma_match:
+                current_turma = turma_match.group(1).strip()
+                current_unidade = turma_match.group(2).strip()
 
-            schools.setdefault(unidade, {})
-            schools[unidade].setdefault(turma, [])
-            schools[unidade][turma].append(nome)
+            rows = page.xpath(".//tr")
+
+            for row in rows:
+
+                cells = [
+                    re.sub(r"\s+", " ", td.text_content()).strip()
+                    for td in row.xpath("./td")
+                ]
+
+                cells = [c for c in cells if c]
+
+                # ignora cabeçalhos
+                if len(cells) < 8:
+                    continue
+
+                # primeira coluna precisa ser código
+                if not re.fullmatch(r"\d+", cells[0]):
+                    continue
+
+                nome = cells[1]
+
+                unidade = current_unidade
+                turma = current_turma
+
+                # fallback
+                if not unidade and len(cells) > 4:
+                    unidade = cells[4]
+
+                if not turma and len(cells) > 5:
+                    turma = cells[5]
+
+                if not unidade:
+                    unidade = "Unidade não identificada"
+
+                if not turma:
+                    turma = "Turma não identificada"
+
+                schools.setdefault(unidade, {})
+                schools[unidade].setdefault(turma, [])
+                schools[unidade][turma].append(nome)
 
         return {"schools": schools}
 
@@ -83,6 +142,32 @@ def parse_chamada(html_content, filename=None):
         re.UNICODE
     )
 
+    possible_name_locations = [
+        tree.xpath("//title/text()"),
+        tree.xpath("//h1/text()"),
+        tree.xpath("//h2/text()"),
+        tree.xpath("//div[contains(@class,'header')]//text()"),
+        tree.xpath("//span[contains(@class,'school-name')]//text()")
+    ]
+
+    for location in possible_name_locations:
+
+        if location and not unidade_name:
+
+            text = " ".join(
+                t.strip()
+                for t in location
+                if t.strip()
+            )
+
+            if (
+                text
+                and "Turma:" not in text
+                and "Total" not in text
+            ):
+                unidade_name = text.strip()
+                break
+
     tables = tree.xpath("//table[contains(@class,'jrPage')]")
 
     for table in tables:
@@ -96,8 +181,8 @@ def parse_chamada(html_content, filename=None):
             row_text = " ".join(row.itertext()).strip()
 
             if (
-                "Turma:" in row_text and
-                "Total de Matrículas" not in row_text
+                "Turma:" in row_text
+                and "Total de Matrículas" not in row_text
             ):
                 turma_row = row
                 break
@@ -157,8 +242,8 @@ def parse_chamada(html_content, filename=None):
             row_text = row.text_content().strip()
 
             if (
-                "Total de Matrículas" in row_text or
-                "Turma:" in row_text
+                "Total de Matrículas" in row_text
+                or "Turma:" in row_text
             ):
                 break
 
@@ -175,13 +260,11 @@ def parse_chamada(html_content, filename=None):
                 if aluno and len(aluno) > 1:
                     classes[current_turma].append(aluno)
 
-    if not unidade_name:
+    if not unidade_name and filename:
 
-        unidade_name = (
-            os.path.splitext(filename)[0]
-            if filename
-            else "Unidade não identificada"
-        )
+        unidade_name = os.path.splitext(filename)[0]
+
+    unidade_name = unidade_name or "Unidade não identificada"
 
     return {
         "schools": {
