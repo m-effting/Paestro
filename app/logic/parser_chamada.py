@@ -55,38 +55,36 @@ def parse_chamada(html_content, filename=None):
     # =====================================================
 
     if "RELATÓRIO DE ESTUDANTES MATRICULADOS" in page_text:
-
         schools = {}
 
         pages = tree.xpath("//table[contains(@class,'jrPage')]")
 
-        # fallback caso não encontre jrPage
         if not pages:
             pages = [tree]
 
         for page in pages:
-
             page_text = page.text_content()
 
             current_turma = None
             current_unidade = None
 
-            # Procura:
+            # Captura:
             # Turma: GT 4 A (CEI ESPAÇO CRIATIVO)
-            turma_match = re.search(
+            # Turma: 5 ANO - 1 (ESCOLA XYZ)
+
+            cabecalho_match = re.search(
                 r"Turma:\s*([^(]+)\(([^)]+)\)",
                 page_text,
                 re.IGNORECASE
             )
 
-            if turma_match:
-                current_turma = turma_match.group(1).strip()
-                current_unidade = turma_match.group(2).strip()
+            if cabecalho_match:
+                current_turma = cabecalho_match.group(1).strip()
+                current_unidade = cabecalho_match.group(2).strip()
 
             rows = page.xpath(".//tr")
 
             for row in rows:
-
                 cells = [
                     re.sub(r"\s+", " ", td.text_content()).strip()
                     for td in row.xpath("./td")
@@ -94,35 +92,41 @@ def parse_chamada(html_content, filename=None):
 
                 cells = [c for c in cells if c]
 
-                # ignora cabeçalhos
+                # ignora linhas vazias
                 if len(cells) < 8:
                     continue
 
-                # primeira coluna precisa ser código
+                # primeira coluna deve ser código
                 if not re.fullmatch(r"\d+", cells[0]):
                     continue
 
-                nome = cells[1]
+                try:
+                    nome = cells[1]
 
-                unidade = current_unidade
-                turma = current_turma
+                    unidade = current_unidade
+                    turma = current_turma
 
-                # fallback
-                if not unidade and len(cells) > 4:
-                    unidade = cells[4]
+                    # fallback caso não encontre cabeçalho
+                    if not unidade and len(cells) > 4:
+                        unidade = cells[4]
 
-                if not turma and len(cells) > 5:
-                    turma = cells[5]
+                    if not turma and len(cells) > 5:
+                        turma = cells[5]
 
-                if not unidade:
-                    unidade = "Unidade não identificada"
+                    if not unidade:
+                        unidade = "Unidade não identificada"
 
-                if not turma:
-                    turma = "Turma não identificada"
+                    if not turma:
+                        turma = "Turma não identificada"
 
-                schools.setdefault(unidade, {})
-                schools[unidade].setdefault(turma, [])
-                schools[unidade][turma].append(nome)
+                    schools.setdefault(unidade, {})
+                    schools[unidade].setdefault(turma, [])
+                    schools[unidade][turma].append(nome)
+
+                except Exception as e:
+                    logger.warning(
+                        f"Erro processando aluno: {e}"
+                    )
 
         return {"schools": schools}
 
