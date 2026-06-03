@@ -66,10 +66,7 @@ def parse_chamada(html_content, filename=None):
 
         for page in pages:
 
-<<<<<<< Updated upstream
-=======
             page_text = page.text_content()
->>>>>>> Stashed changes
 
             current_turma = None
             current_unidade = None
